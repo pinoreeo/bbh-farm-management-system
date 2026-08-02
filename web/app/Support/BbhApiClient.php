@@ -25,6 +25,50 @@ class BbhApiClient
     }
 
     /**
+     * @param  array<string, mixed>  $query
+     * @return array{ok:bool,data:array<int, mixed>,response:?Response,truncated:bool}
+     */
+    public function paginatedData(string $path, array $query = [], ?string $token = null, int $maxPages = 50): array
+    {
+        $items = [];
+        $page = 1;
+        $lastPage = 1;
+        $response = null;
+        $query['per_page'] = 100;
+
+        do {
+            $response = $this->get($path, array_merge($query, ['page' => $page]), $token);
+
+            if (! $response->successful()) {
+                return [
+                    'ok' => false,
+                    'data' => [],
+                    'response' => $response,
+                    'truncated' => false,
+                ];
+            }
+
+            $pageItems = $response->json('data', []);
+            if (! is_array($pageItems)) {
+                break;
+            }
+
+            array_push($items, ...$pageItems);
+
+            $currentPage = max(1, (int) $response->json('current_page', $page));
+            $lastPage = max($currentPage, (int) $response->json('last_page', $currentPage));
+            $page = $currentPage + 1;
+        } while ($page <= $lastPage && $page <= $maxPages);
+
+        return [
+            'ok' => true,
+            'data' => $items,
+            'response' => $response,
+            'truncated' => $page <= $lastPage,
+        ];
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      */
     public function post(string $path, array $payload = [], ?string $token = null): Response

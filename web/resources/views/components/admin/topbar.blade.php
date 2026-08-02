@@ -8,6 +8,7 @@
         ->map(fn ($part) => substr($part, 0, 1))
         ->join('') ?: 'AD';
     $notifications = $notifications ?? [];
+    $isSuperAdmin = ($adminUser['role'] ?? null) === 'super_admin';
 @endphp
 
 <header class="admin-topbar sticky top-0 z-20 border-b backdrop-blur-xl">
@@ -24,9 +25,11 @@
                 <x-icons name="sun" class="hidden h-5 w-5 dark:block" />
             </button>
 
-            <a class="admin-icon-button" href="{{ route('admin.activity-logs') }}" aria-label="Log aktivitas">
-                <x-icons name="activity" class="h-5 w-5" />
-            </a>
+            @if ($isSuperAdmin)
+                <a class="admin-icon-button" href="{{ route('admin.activity-logs') }}" aria-label="Log aktivitas">
+                    <x-icons name="activity" class="h-5 w-5" />
+                </a>
+            @endif
 
             <div class="relative" data-notification-menu>
                 <button class="relative admin-icon-button" type="button" aria-label="Notifikasi" aria-haspopup="true" aria-expanded="false" data-notification-toggle>

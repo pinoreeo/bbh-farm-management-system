@@ -334,8 +334,14 @@ class AdminResourceController extends Controller
     {
         $pages = config('admin.pages', []);
         abort_unless(isset($pages[$resource]), 404);
+        abort_if(in_array($resource, ['users', 'activity-logs'], true) && ! $this->isSuperAdmin(), 403);
 
         return $pages[$resource];
+    }
+
+    private function isSuperAdmin(): bool
+    {
+        return (session('bbh_admin_user.role') ?? null) === 'super_admin';
     }
 
     private function form(string $resource, array $fallback): array

@@ -16,7 +16,6 @@ class AnimalUpdateRequest extends AnimalStoreRequest
         return [
             'tag_number' => ['sometimes', 'string', 'max:100', Rule::unique('animals', 'tag_number')->ignore($animalId)],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
-            'photo_path' => ['nullable', 'string', 'max:255'],
             'breed_id' => ['sometimes', 'integer', 'exists:animal_breeds,id'],
             'sex' => ['sometimes', 'in:male,female'],
             'generation' => ['sometimes', Rule::in(self::GENERATION_OPTIONS)],

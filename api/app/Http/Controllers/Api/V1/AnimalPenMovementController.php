@@ -95,12 +95,38 @@ class AnimalPenMovementController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
+        $animal = $animalPenMovement->animal;
+        if (isset($data['movement_date']) && $animal?->birth_date && $data['movement_date'] < $animal->birth_date->toDateString()) {
+            return response()->json([
+                'message' => 'Peringatan: Tanggal pindah koloni tidak boleh lebih awal dari tanggal lahir kambing.',
+            ], 422);
+        }
+
         $animalPenMovement->fill($data)->save();
+        $this->syncCurrentAnimalStatusDate($animalPenMovement);
 
         return response()->json([
             'message' => 'Sukses: Riwayat pindah koloni berhasil diperbarui.',
             'data' => $animalPenMovement->load(['animal', 'fromPen', 'toPen']),
         ]);
+    }
+
+    private function syncCurrentAnimalStatusDate(AnimalPenMovement $movement): void
+    {
+        $animal = $movement->animal;
+        if (! $animal || (int) $animal->current_pen_id !== (int) $movement->to_pen_id) {
+            return;
+        }
+
+        $latestMovement = AnimalPenMovement::query()
+            ->where('animal_id', $movement->animal_id)
+            ->orderByDesc('movement_date')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($latestMovement?->is($movement)) {
+            $animal->forceFill(['status_date' => $movement->movement_date?->toDateString()])->save();
+        }
     }
 
     private function validateDestinationPen(Animal $animal, ?ColonyPen $destinationPen): ?JsonResponse

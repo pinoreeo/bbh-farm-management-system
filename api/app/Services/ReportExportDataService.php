@@ -25,7 +25,7 @@ class ReportExportDataService
             'animals' => [
                 'Data Kambing',
                 ['Eartag', 'Ras', 'Generasi', 'Jenis Kelamin', 'Tanggal Lahir', 'Status Hidup', 'Status Ternak', 'Tanggal Status', 'Asal'],
-                Animal::query()->with(['breed', 'currentPen'])->orderBy('tag_number')->get()->map(fn (Animal $item) => [
+                Animal::query()->with(['breed', 'currentPen'])->orderBy('tag_number')->lazy(500)->map(fn (Animal $item) => [
                     $item->tag_number,
                     $item->breed?->breed_name,
                     $item->generation,
@@ -42,7 +42,7 @@ class ReportExportDataService
                 ['Eartag', 'Ras', 'Jenis Kelamin', 'Tanggal Lahir', 'Tanggal Status', 'Status Hidup', 'Catatan'],
                 $this->dateRange(Animal::query()->with('breed')->where('life_status', 'dead'), $request, 'status_date')
                     ->orderByDesc('status_date')
-                    ->get()
+                    ->lazy(500)
                     ->map(fn (Animal $item) => [
                         $item->tag_number,
                         $item->breed?->breed_name,
@@ -56,7 +56,7 @@ class ReportExportDataService
             'pens' => [
                 'Data Kandang Koloni',
                 ['Kode Kandang', 'Kode Koloni', 'Nama Koloni', 'Fase Koloni', 'Lokasi', 'Kapasitas', 'Jumlah Isi', 'Status'],
-                ColonyPen::query()->withCount('animals')->orderBy('pen_code')->get()->map(fn (ColonyPen $item) => [
+                ColonyPen::query()->withCount('animals')->orderBy('pen_code')->lazy(500)->map(fn (ColonyPen $item) => [
                     $item->pen_code,
                     $item->colony_code,
                     $item->colony_name,
@@ -70,7 +70,7 @@ class ReportExportDataService
             'births' => [
                 'Data Kelahiran',
                 ['Tanggal Lahir', 'Jam', 'Induk', 'Pejantan', 'Jumlah Anak', 'Proses', 'Tempat', 'Catatan'],
-                $this->dateRange(BirthEvent::query()->with(['dam', 'sire']), $request, 'birth_date')->orderByDesc('birth_date')->get()->map(fn (BirthEvent $item) => [
+                $this->dateRange(BirthEvent::query()->with(['dam', 'sire']), $request, 'birth_date')->orderByDesc('birth_date')->lazy(500)->map(fn (BirthEvent $item) => [
                     $item->birth_date?->toDateString(),
                     $item->birth_time,
                     $item->dam?->tag_number,
@@ -84,7 +84,7 @@ class ReportExportDataService
             'offsprings' => [
                 'Data Anak',
                 ['Tanggal Lahir', 'Eartag Anak', 'Induk', 'Pejantan', 'Berat Lahir', 'Grade Anak', 'Status Anak', 'Catatan'],
-                OffspringBirth::query()->with(['offspringAnimal', 'birthEvent.dam', 'birthEvent.sire'])->orderByDesc('id')->get()->map(fn (OffspringBirth $item) => [
+                OffspringBirth::query()->with(['offspringAnimal', 'birthEvent.dam', 'birthEvent.sire'])->orderByDesc('id')->lazy(500)->map(fn (OffspringBirth $item) => [
                     $item->birthEvent?->birth_date?->toDateString(),
                     $item->offspringAnimal?->tag_number,
                     $item->birthEvent?->dam?->tag_number,
@@ -98,7 +98,7 @@ class ReportExportDataService
             'weights' => [
                 'Data Bobot',
                 ['Eartag', 'Tanggal Timbang', 'Berat Kg', 'Catatan'],
-                $this->dateRange(WeightRecord::query()->with('animal'), $request, 'record_date')->orderByDesc('record_date')->get()->map(fn (WeightRecord $item) => [
+                $this->dateRange(WeightRecord::query()->with('animal'), $request, 'record_date')->orderByDesc('record_date')->lazy(500)->map(fn (WeightRecord $item) => [
                     $item->animal?->tag_number,
                     $item->record_date?->toDateString(),
                     $item->weight_kg,
@@ -108,7 +108,7 @@ class ReportExportDataService
             'health' => [
                 'Data Kesehatan',
                 ['Eartag', 'Tanggal', 'Jenis Perawatan', 'Gejala', 'Diagnosis', 'Produk/Obat', 'Dosis', 'Rute', 'Tindakan', 'Ditangani Oleh', 'Kontrol Berikutnya', 'Catatan'],
-                $this->dateRange(HealthTreatment::query()->with('animal'), $request, 'treatment_date')->orderByDesc('treatment_date')->get()->map(fn (HealthTreatment $item) => [
+                $this->dateRange(HealthTreatment::query()->with('animal'), $request, 'treatment_date')->orderByDesc('treatment_date')->lazy(500)->map(fn (HealthTreatment $item) => [
                     $item->animal?->tag_number,
                     $item->treatment_date?->toDateString(),
                     $item->treatment_group,
@@ -126,7 +126,7 @@ class ReportExportDataService
             'vaccinations' => [
                 'Data Vaksinasi',
                 ['Eartag', 'Jenis Vaksin', 'Tanggal Vaksin', 'Nama Vaksin', 'Dosis', 'Rute', 'Catatan'],
-                $this->dateRange(Vaccination::query()->with('animal'), $request, 'vaccination_date')->orderByDesc('vaccination_date')->get()->map(fn (Vaccination $item) => [
+                $this->dateRange(Vaccination::query()->with('animal'), $request, 'vaccination_date')->orderByDesc('vaccination_date')->lazy(500)->map(fn (Vaccination $item) => [
                     $item->animal?->tag_number,
                     $item->category_name,
                     $item->vaccination_date?->toDateString(),
@@ -139,7 +139,7 @@ class ReportExportDataService
             'breeding' => [
                 'Data Perkawinan',
                 ['Kode Periode', 'Koloni', 'Tanggal Mulai', 'Tanggal Selesai', 'Pejantan', 'Status'],
-                $this->dateRange(BreedingPeriod::query()->with(['colonyPen', 'maleAnimal']), $request, 'start_date')->orderByDesc('start_date')->get()->map(fn (BreedingPeriod $item) => [
+                $this->dateRange(BreedingPeriod::query()->with(['colonyPen', 'maleAnimal']), $request, 'start_date')->orderByDesc('start_date')->lazy(500)->map(fn (BreedingPeriod $item) => [
                     $item->period_code,
                     $item->colonyPen?->pen_code,
                     $item->start_date?->toDateString(),
@@ -151,7 +151,7 @@ class ReportExportDataService
             'breeding-females' => [
                 'Data Betina Kawin',
                 ['Kode Periode', 'Eartag Betina', 'Tanggal Masuk', 'Tanggal Kawin', 'Perkiraan Lahir', 'Tahap Siklus', 'Tanggal Keluar', 'Alasan Keluar', 'Catatan Keluar'],
-                $this->dateRange(BreedingFemale::query()->with(['breedingPeriod', 'femaleAnimal']), $request, 'entry_date')->orderByDesc('entry_date')->get()->map(fn (BreedingFemale $item) => [
+                $this->dateRange(BreedingFemale::query()->with(['breedingPeriod', 'femaleAnimal']), $request, 'entry_date')->orderByDesc('entry_date')->lazy(500)->map(fn (BreedingFemale $item) => [
                     $item->breedingPeriod?->period_code,
                     $item->femaleAnimal?->tag_number,
                     $item->entry_date?->toDateString(),
@@ -166,7 +166,7 @@ class ReportExportDataService
             'pregnancies' => [
                 'Data Kebuntingan',
                 ['Kode Periode', 'Eartag Betina', 'Tanggal Kawin', 'Perkiraan Lahir', 'Tanggal Periksa', 'Status', 'Metode', 'Estimasi Hari', 'Outcome', 'Catatan'],
-                $this->dateRange(PregnancyCheck::query()->with(['breedingPeriod', 'breedingFemale', 'femaleAnimal']), $request, 'check_date')->orderByDesc('check_date')->get()->map(fn (PregnancyCheck $item) => [
+                $this->dateRange(PregnancyCheck::query()->with(['breedingPeriod', 'breedingFemale', 'femaleAnimal']), $request, 'check_date')->orderByDesc('check_date')->lazy(500)->map(fn (PregnancyCheck $item) => [
                     $item->breedingPeriod?->period_code,
                     $item->femaleAnimal?->tag_number,
                     $item->breedingFemale?->mating_date?->toDateString(),
@@ -182,7 +182,7 @@ class ReportExportDataService
             'pen-movements' => [
                 'Riwayat Pindah Koloni',
                 ['Eartag', 'Dari Koloni', 'Ke Koloni', 'Tanggal Keluar/Masuk Koloni', 'Alasan', 'Catatan'],
-                $this->dateRange(AnimalPenMovement::query()->with(['animal', 'fromPen', 'toPen']), $request, 'movement_date')->orderByDesc('movement_date')->get()->map(fn (AnimalPenMovement $item) => [
+                $this->dateRange(AnimalPenMovement::query()->with(['animal', 'fromPen', 'toPen']), $request, 'movement_date')->orderByDesc('movement_date')->lazy(500)->map(fn (AnimalPenMovement $item) => [
                     $item->animal?->tag_number,
                     $item->fromPen?->pen_code,
                     $item->toPen?->pen_code,
@@ -196,7 +196,7 @@ class ReportExportDataService
                 ['Tanggal', 'Waktu', 'Admin', 'Email', 'Modul', 'Aksi', 'Detail', 'Status HTTP', 'IP Address'],
                 $this->dateRange(AdminActivityLog::query()->with('admin:id,name,email'), $request, 'created_at')
                     ->orderByDesc('created_at')
-                    ->get()
+                    ->lazy(500)
                     ->map(fn (AdminActivityLog $item) => [
                         $item->created_at?->toDateString(),
                         $item->created_at?->format('H:i'),
