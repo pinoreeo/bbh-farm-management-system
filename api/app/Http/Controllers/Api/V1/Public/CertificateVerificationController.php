@@ -70,10 +70,10 @@ class CertificateVerificationController extends Controller
             ], 404);
         }
 
-        return response()->json($this->verificationService->verify($cert, 'certificate_number'));
+        return response()->json($this->verificationService->verify($cert, 'certificate_number', $request));
     }
 
-    public function verifyByToken(string $token): JsonResponse
+    public function verifyByToken(Request $request, string $token): JsonResponse
     {
         $cert = Certificate::query()
             ->with(self::VERIFICATION_RELATIONS)
@@ -87,7 +87,7 @@ class CertificateVerificationController extends Controller
             ], 404);
         }
 
-        return response()->json($this->verificationService->verify($cert, 'qr_code'));
+        return response()->json($this->verificationService->verify($cert, 'qr_code', $request));
     }
 
     public function verifyPdf(Request $request, CertificatePdfIntegrityService $pdfIntegrity): JsonResponse
@@ -196,7 +196,7 @@ class CertificateVerificationController extends Controller
 
         $pdfSignatureValid = $pdfIntegrity->verifyOfficialPdfSignature($cert);
         $pdfIntegrityValid = $pdfHashMatches && $pdfSignatureValid;
-        $certificateVerification = $this->verificationService->verify($cert, 'upload_pdf');
+        $certificateVerification = $this->verificationService->verify($cert, 'upload_pdf', $request);
 
         Log::info('PDF 1/1 nomor sertifikat: '.$cert->certificate_number);
         Log::info('PDF 1/1 signature RSA-SHA256: '.($pdfSignatureValid ? 'valid' : 'tidak valid'));
@@ -255,17 +255,20 @@ class CertificateVerificationController extends Controller
         $start = fread($handle, 1024);
         if (! is_string($start)) {
             fclose($handle);
+
             return false;
         }
 
         if (! str_starts_with(ltrim($start), '%PDF-')) {
             fclose($handle);
+
             return false;
         }
 
         $size = filesize($path);
         if (! is_int($size) || $size <= 0) {
             fclose($handle);
+
             return false;
         }
 

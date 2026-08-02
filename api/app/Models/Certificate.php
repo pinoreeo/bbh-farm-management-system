@@ -105,6 +105,13 @@ class Certificate extends Model
             return null;
         }
 
+        $webUrl = rtrim((string) config('bbh.public.web_url'), '/');
+        if ($webUrl !== '') {
+            $locale = trim((string) config('bbh.public.default_locale', 'id-id'), '/');
+
+            return $webUrl.'/'.$locale.'/verifikasi/'.rawurlencode((string) $this->verification_token);
+        }
+
         return url('/api/v1/public/certificates/verify/'.$this->verification_token);
     }
 }

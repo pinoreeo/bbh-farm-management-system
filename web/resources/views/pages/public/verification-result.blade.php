@@ -10,13 +10,6 @@
         };
         $animal = $verificationResult['animal'] ?? ($verificationResult['certificate_verification']['animal'] ?? []);
         $animal = is_array($animal) ? $animal : [];
-        $latestWeight = $animal['latest_weight'] ?? null;
-        $latestWeight = is_array($latestWeight) ? $latestWeight : null;
-        $healthHistory = $animal['health_history'] ?? [];
-        $healthHistory = is_array($healthHistory) ? $healthHistory : [];
-        $pen = $animal['current_pen'] ?? [];
-        $pen = is_array($pen) ? $pen : [];
-
         $formatDate = function ($value, $withTime = false) {
             if (empty($value)) {
                 return '-';
@@ -75,11 +68,6 @@
             || ! empty($animal['sex'])
             || ! empty($animal['birth_date']);
 
-        $weightValue = '-';
-        if ($latestWeight && isset($latestWeight['weight_kg'])) {
-            $weightValue = rtrim(rtrim(number_format((float) $latestWeight['weight_kg'], 2, ',', '.'), '0'), ',').' kg';
-        }
-
         $certificateRows = [
             ['Nomor Sertifikat', $verificationResult['certificate_number'] ?? '-'],
             ['Jenis Sertifikat', $certificateTypeLabel],
@@ -101,26 +89,8 @@
             ['Jenis Kelamin', $sexLabel],
             ['Generasi', $animal['generation'] ?? '-'],
             ['Tanggal Lahir', $formatDate($animal['birth_date'] ?? null)],
-            ['Tempat Lahir', $animal['birth_place'] ?? '-'],
-            ['Umur', $animal['umur'] ?? '-'],
-            ['Kategori Umur', $humanize($animal['kategori_umur'] ?? null)],
             ['Status Hidup', $lifeStatusLabel],
-            ['Status Reproduksi', $humanize($animal['reproductive_status'] ?? null)],
-            ['Kandang / Koloni', $pen['colony_name'] ?? $pen['pen_code'] ?? '-'],
-            ['Bobot Terkini', $weightValue],
         ];
-        if ($latestWeight && ! empty($latestWeight['record_date'])) {
-            $animalRows[] = ['Tanggal Catat Bobot', $formatDate($latestWeight['record_date'])];
-        }
-
-        $penRows = [
-            ['Kode Kandang', $pen['pen_code'] ?? '-'],
-            ['Kode Koloni', $pen['colony_code'] ?? '-'],
-            ['Jenis Koloni', $humanize($pen['colony_type'] ?? null)],
-            ['Fase Koloni', $humanize($pen['colony_phase'] ?? null)],
-            ['Lokasi Kandang', $pen['location'] ?? '-'],
-        ];
-        $penRows = array_values(array_filter($penRows, fn ($row) => ! empty($row[1]) && $row[1] !== '-'));
 
         $cryptoRows = [
             ['Keaslian Data', isset($verificationResult['is_authentic']) ? ((bool) $verificationResult['is_authentic'] ? 'Autentik' : 'Tidak autentik') : ($verificationResult['certificate_data_label'] ?? '-')],
@@ -143,7 +113,6 @@
             ['Hash PDF Resmi', $shortHash($verificationResult['official_pdf_hash_sha256'] ?? null)],
         ];
         $pdfRows = array_values(array_filter($pdfRows, fn ($row) => ! empty($row[1]) && $row[1] !== '-'));
-        $photoUrl = $animal['photo_url'] ?? null;
     @endphp
 
     <div class="bbh-public bbh-verification-result flex min-h-screen flex-col bg-[#f5f7f1] text-[#101820]">
@@ -169,31 +138,18 @@
                     @if ($hasAnimalData)
                         <x-public.result-detail-card
                             title="Identitas Kambing"
-                            description="Data ternak yang terhubung dengan sertifikat."
                             :rows="$animalRows"
-                            :photo-url="$photoUrl"
                         />
                     @endif
                 </div>
 
-                @if (count($penRows) > 0 || count($cryptoRows) > 0)
-                    <div class="mt-7 grid gap-7 lg:grid-cols-2">
-                        @if (count($penRows) > 0)
-                            <x-public.result-detail-card title="Informasi Kandang" :rows="$penRows" />
-                        @endif
-
-                        @if (count($cryptoRows) > 0)
-                            <x-public.result-detail-card
-                                title="Tanda Tangan Digital"
-                                description="Informasi verifikasi kriptografi yang digunakan untuk menjaga keaslian dan keutuhan data."
-                                :rows="$cryptoRows"
-                            />
-                        @endif
-                    </div>
-                @endif
-
-                @if ($hasAnimalData)
-                    <x-public.result-health-history :records="$healthHistory" :format-date="$formatDate" />
+                @if (count($cryptoRows) > 0)
+                    <x-public.result-detail-card
+                        class="mt-7"
+                        title="Tanda Tangan Digital"
+                        description="Informasi verifikasi kriptografi yang digunakan untuk menjaga keaslian dan keutuhan data."
+                        :rows="$cryptoRows"
+                    />
                 @endif
             @elseif (! empty($uploadedFilename))
                 <x-public.result-detail-card

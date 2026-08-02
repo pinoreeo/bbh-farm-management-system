@@ -84,7 +84,7 @@ class AuthService
 
         if ($user) {
             $token = Str::random(64);
-            $resetUrl = str_replace('{token}', $token, (string) $data['reset_url_template']);
+            $resetUrl = $this->resetUrl($token);
             $separator = str_contains($resetUrl, '?') ? '&' : '?';
             $resetUrl .= $separator.'email='.urlencode($email);
 
@@ -219,5 +219,12 @@ class AuthService
         throw ValidationException::withMessages([
             'email' => ['Peringatan: Tautan reset kata sandi tidak valid atau telah kedaluwarsa.'],
         ]);
+    }
+
+    private function resetUrl(string $token): string
+    {
+        $webUrl = rtrim((string) (config('bbh.public.web_url') ?: config('app.url')), '/');
+
+        return $webUrl.'/reset-kata-sandi/'.rawurlencode($token);
     }
 }
