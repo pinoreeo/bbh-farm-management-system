@@ -19,7 +19,6 @@ class AnimalStoreRequest extends ApiRequest
         return [
             'tag_number' => ['nullable', 'string', 'max:100', 'unique:animals,tag_number'],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
-            'photo_path' => ['nullable', 'string', 'max:255'],
             'breed_id' => ['required', 'integer', 'exists:animal_breeds,id'],
             'sex' => ['required', 'in:male,female'],
             'generation' => ['required', Rule::in(self::GENERATION_OPTIONS)],

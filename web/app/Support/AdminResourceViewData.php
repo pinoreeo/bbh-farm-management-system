@@ -284,7 +284,7 @@ class AdminResourceViewData
      */
     private function items(string $endpoint, string $token): array
     {
-        $query = ['per_page' => 200];
+        $query = [];
 
         if ($endpoint === 'breeding-periods') {
             $query['include_closed'] = 1;
@@ -294,11 +294,9 @@ class AdminResourceViewData
             $query['include_inactive'] = 1;
         }
 
-        $response = $this->api->get($endpoint, $query, $token);
+        $result = $this->api->paginatedData($endpoint, $query, $token);
 
-        return $response->successful() && is_array($response->json('data'))
-            ? $response->json('data')
-            : [];
+        return $result['ok'] ? $result['data'] : [];
     }
 
     /**
@@ -328,23 +326,21 @@ class AdminResourceViewData
             return [];
         }
 
-        $females = $this->api->get('breeding-females', [
+        $females = $this->api->paginatedData('breeding-females', [
             'breeding_period_id' => $periodId,
-            'per_page' => 200,
         ], $token);
 
-        $checks = $this->api->get('pregnancy-checks', [
+        $checks = $this->api->paginatedData('pregnancy-checks', [
             'breeding_period_id' => $periodId,
-            'per_page' => 200,
         ], $token);
 
-        $checkItems = $checks->successful() && is_array($checks->json('data')) ? $checks->json('data') : [];
+        $checkItems = $checks['ok'] ? $checks['data'] : [];
         $latestChecks = collect($checkItems)
             ->sortByDesc('check_date')
             ->groupBy('female_animal_id')
             ->map(fn ($items) => $items->first());
 
-        $femaleItems = $females->successful() && is_array($females->json('data')) ? $females->json('data') : [];
+        $femaleItems = $females['ok'] ? $females['data'] : [];
         $femaleRows = collect($femaleItems)->map(function ($female) use ($latestChecks) {
             $animalId = (string) Arr::get($female, 'female_animal_id');
             $check = $latestChecks->get($animalId);

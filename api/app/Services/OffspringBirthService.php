@@ -45,6 +45,10 @@ class OffspringBirthService
             return $this->error('Peringatan: Data kelahiran yang dipilih tidak ditemukan. Muat ulang halaman lalu pilih data kelahiran yang tersedia.');
         }
 
+        if ($this->birthEventIsFull($birthEvent)) {
+            return $this->error('Peringatan: Jumlah cempe yang dicatat sudah sesuai dengan jumlah anak pada data kelahiran.');
+        }
+
         $animal = isset($data['offspring_animal_id']) ? Animal::query()->find($data['offspring_animal_id']) : null;
         $validation = $this->validateExistingAnimal($data, $animal, $birthEvent);
         if (! $validation['ok']) {
@@ -144,6 +148,13 @@ class OffspringBirthService
         }
 
         return ['ok' => true];
+    }
+
+    private function birthEventIsFull(BirthEvent $birthEvent): bool
+    {
+        return OffspringBirth::query()
+            ->where('birth_event_id', $birthEvent->id)
+            ->count() >= (int) $birthEvent->offspring_count;
     }
 
     private function syncBirthWeight(int $animalId, string $recordDate, float|int|string $weightKg): void

@@ -57,6 +57,8 @@ class AnimalService
      */
     public function store(Request $request, array $data): array
     {
+        unset($data['photo_path']);
+
         $data['life_status'] = $data['life_status'] ?? 'alive';
         $data['reproductive_status'] = $data['reproductive_status'] ?? 'kosong';
         $data = $this->syncOriginFields($data);
@@ -75,6 +77,8 @@ class AnimalService
      */
     public function update(Request $request, Animal $animal, array $data): array
     {
+        unset($data['photo_path']);
+
         $data = $this->syncOriginFields($data, $animal);
         $data = $this->fillStatusDate($data);
         $data = $this->storePhotoIfPresent($request, $data, $animal);

@@ -23,11 +23,11 @@ class DashboardViewData
             return $fallback;
         }
 
-        $animals = $this->items('animals', $token, 200);
-        $birthEvents = $this->items('birth-events', $token, 200);
-        $breedingFemales = $this->items('breeding-females', $token, 200);
-        $healthTreatments = $this->items('health-treatments', $token, 200);
-        $activityLogs = $includeActivityLogs ? $this->items('admin-activity-logs', $token, 12) : [];
+        $animals = $this->items('animals', $token);
+        $birthEvents = $this->items('birth-events', $token);
+        $breedingFemales = $this->items('breeding-females', $token);
+        $healthTreatments = $this->items('health-treatments', $token);
+        $activityLogs = $includeActivityLogs ? $this->items('admin-activity-logs', $token) : [];
 
         $aliveAnimals = array_values(array_filter($animals, fn ($animal) => $this->value($animal, 'life_status') !== 'dead'));
         $kids = array_values(array_filter($aliveAnimals, fn ($animal) => $this->ageInMonths($animal) <= 6));
@@ -77,17 +77,18 @@ class DashboardViewData
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function items(string $endpoint, string $token, int $perPage): array
+    private function items(string $endpoint, string $token): array
     {
         try {
-            $response = $this->api->get($endpoint, ['per_page' => $perPage], $token);
+            $result = $this->api->paginatedData($endpoint, [], $token);
         } catch (Throwable) {
             $this->failureMessage ??= 'Gagal: Layanan API tidak merespons. Sebagian data dashboard tidak dapat dimuat.';
 
             return [];
         }
 
-        if (! $response->successful()) {
+        $response = $result['response'];
+        if (! $result['ok'] && $response !== null) {
             $message = $response->json('message');
             $this->failureMessage ??= match (true) {
                 $response->status() === 401 => 'Sesi Berakhir: Silakan masuk kembali sebelum melihat dashboard.',
@@ -99,9 +100,7 @@ class DashboardViewData
             return [];
         }
 
-        return $response->successful() && is_array($response->json('data'))
-            ? $response->json('data')
-            : [];
+        return $result['data'];
     }
 
     /**

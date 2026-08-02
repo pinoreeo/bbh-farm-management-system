@@ -146,6 +146,10 @@ class BirthEventService
             return $this->error('Peringatan: Tag induk harus mengarah ke kambing betina.');
         }
 
+        if ($dam->life_status !== 'alive') {
+            return $this->error("Peringatan: Kelahiran hanya dapat dicatat untuk induk {$dam->tag_number} yang masih hidup.");
+        }
+
         if (! empty($sireId)) {
             if ((int) $sireId === (int) $damId) {
                 return $this->error('Peringatan: Tag induk dan tag pejantan tidak boleh menggunakan kambing yang sama.');
@@ -154,6 +158,10 @@ class BirthEventService
             $sire = Animal::query()->find($sireId);
             if (! $sire || $sire->sex !== 'male') {
                 return $this->error('Peringatan: Tag pejantan harus mengarah ke kambing jantan.');
+            }
+
+            if ($sire->life_status !== 'alive') {
+                return $this->error("Peringatan: Tag pejantan {$sire->tag_number} sudah tidak berstatus hidup.");
             }
         }
 
