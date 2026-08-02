@@ -24,7 +24,7 @@
       align-items: flex-start;
       min-height: 100vh;
       padding: 30px 20px;
-      font-family: Georgia, "Times New Roman", serif;
+      font-family: 'EB Garamond', Georgia, "Times New Roman", serif;
     }
 
     .certificate {
@@ -98,7 +98,7 @@
     }
 
     .main-title {
-      font-family: 'EB Garamond', serif;
+      font-family: Georgia, "Times New Roman", serif;
       font-size: 32px;
       font-weight: 700;
       color: #c8831a;
