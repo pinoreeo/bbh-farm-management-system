@@ -15,7 +15,7 @@
                     <input type="file" name="pdf" accept="application/pdf,.pdf" hidden data-pdf-only>
                 </label>
             </div>
-            <button class="inline-flex h-12 items-center justify-center rounded-lg bg-[#00aa13] px-8 bbh-text font-extrabold text-white shadow-[0_12px_26px_rgb(0_170_19_/_24%)] transition hover:bg-[#09bf1d]" type="submit">{{ $copy['verification']['button'] }}</button>
+            <button class="inline-flex h-12 items-center justify-center rounded-lg bg-[#00aa13] px-8 bbh-text font-extrabold text-white transition hover:bg-[#09bf1d]" type="submit">{{ $copy['verification']['button'] }}</button>
         </form>
         <p class="mx-auto mt-3 hidden max-w-[720px] text-left bbh-text font-semibold text-[#b8dc35]" data-pdf-filename></p>
         <p class="mx-auto mt-3 hidden max-w-[720px] rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-left bbh-text text-red-800" data-pdf-error></p>
