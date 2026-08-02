@@ -5,6 +5,10 @@ const isSamePageHashLink = (url) => {
         && url.hash;
 };
 
+const isDownloadUrl = (url) => {
+    return /\/(pdf|xlsx)(?:\/)?$/i.test(url.pathname);
+};
+
 const setPageSkeleton = (loading) => {
     document.querySelectorAll('[data-page-loader]').forEach((loader) => {
         if (loading) {
@@ -35,7 +39,7 @@ export const initPageSkeleton = () => {
 
         const url = new URL(link.href, window.location.href);
 
-        if (url.origin !== window.location.origin || isSamePageHashLink(url)) {
+        if (url.origin !== window.location.origin || isSamePageHashLink(url) || isDownloadUrl(url)) {
             return;
         }
 

@@ -54,13 +54,6 @@
             ?? ($verificationResult['certificate_verification']['official_pdf_signature_info'] ?? null)
             ?? ($verificationResult['certificate_verification']['signature_info'] ?? []);
         $signatureInfo = is_array($signatureInfo) ? $signatureInfo : [];
-        $keyStatusLabel = match ($signatureInfo['key_status'] ?? null) {
-            'active' => 'Aktif',
-            'retired' => 'Tidak Aktif',
-            'compromised' => 'Dinonaktifkan',
-            default => null,
-        };
-
         $hasCertificateData = ! empty($verificationResult['certificate_number'])
             || ! empty($verificationResult['certificate_type'])
             || ! empty($verificationResult['certificate_status']);
@@ -100,11 +93,6 @@
             ['Keaslian Data', isset($verificationResult['is_authentic']) ? ((bool) $verificationResult['is_authentic'] ? 'Autentik' : 'Tidak autentik') : ($verificationResult['certificate_data_label'] ?? '-')],
             ['Ditandatangani oleh', $signatureInfo['signed_by'] ?? '-'],
             ['Waktu Tanda Tangan', $formatDate($signatureInfo['signed_at'] ?? null, true)],
-            ['Skema Tanda Tangan', $signatureInfo['signature_scheme'] ?? 'RSA-SHA256'],
-            ['Identitas Kunci', $signatureInfo['key_identifier'] ?? '-'],
-            ['Status Kunci', $keyStatusLabel],
-            ['Waktu Dinonaktifkan', $formatDate($signatureInfo['compromised_at'] ?? null, true)],
-            ['Sidik Jari Kunci', $shortHash($signatureInfo['fingerprint_sha256'] ?? ($verificationResult['used_key_fingerprint'] ?? null))],
         ];
         $cryptoRows = array_values(array_filter($cryptoRows, fn ($row) => ! empty($row[1]) && $row[1] !== '-'));
 
@@ -142,17 +130,16 @@
                     @if ($hasAnimalData)
                         <x-public.result-detail-card
                             title="Identitas Kambing"
-                            description="Ringkasan identitas ternak sesuai dokumen sertifikat."
                             :rows="$animalRows"
                         />
                     @endif
                 </div>
 
                 @if (count($cryptoRows) > 0)
-                    <div class="mt-7 grid gap-7 lg:grid-cols-2">
+                    <div class="mt-7">
                         <x-public.result-detail-card
                             title="Tanda Tangan Digital"
-                            description="Informasi verifikasi kriptografi yang digunakan untuk menjaga keaslian dan keutuhan data."
+                            description="Ringkasan keaslian sertifikat yang dapat diverifikasi publik."
                             :rows="$cryptoRows"
                         />
                     </div>
