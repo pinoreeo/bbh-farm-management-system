@@ -4,15 +4,18 @@ namespace App\Support;
 
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
+use Throwable;
 
 class DashboardViewData
 {
+    private ?string $failureMessage = null;
+
     public function __construct(private readonly BbhApiClient $api) {}
 
     /**
      * @return array<string, mixed>
      */
-    public function data(?string $token, ?int $selectedBirthYear = null): array
+    public function data(?string $token, ?int $selectedBirthYear = null, bool $includeActivityLogs = false): array
     {
         $fallback = $this->fallback();
 
@@ -20,11 +23,11 @@ class DashboardViewData
             return $fallback;
         }
 
-        $animals = $this->items('animals', $token, 200);
-        $birthEvents = $this->items('birth-events', $token, 200);
-        $breedingFemales = $this->items('breeding-females', $token, 200);
-        $healthTreatments = $this->items('health-treatments', $token, 200);
-        $activityLogs = $this->items('admin-activity-logs', $token, 12);
+        $animals = $this->items('animals', $token);
+        $birthEvents = $this->items('birth-events', $token);
+        $breedingFemales = $this->items('breeding-females', $token);
+        $healthTreatments = $this->items('health-treatments', $token);
+        $activityLogs = $includeActivityLogs ? $this->items('admin-activity-logs', $token) : [];
 
         $aliveAnimals = array_values(array_filter($animals, fn ($animal) => $this->value($animal, 'life_status') !== 'dead'));
         $kids = array_values(array_filter($aliveAnimals, fn ($animal) => $this->ageInMonths($animal) <= 6));
@@ -67,19 +70,37 @@ class DashboardViewData
                 $this->status($this->value($animal, 'life_status')),
                 substr($this->value($animal, 'updated_at'), 0, 10),
             ], $animals), 0, 5),
+            'apiFailureMessage' => $this->failureMessage,
         ];
     }
 
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function items(string $endpoint, string $token, int $perPage): array
+    private function items(string $endpoint, string $token): array
     {
-        $response = $this->api->get($endpoint, ['per_page' => $perPage], $token);
+        try {
+            $result = $this->api->paginatedData($endpoint, [], $token);
+        } catch (Throwable) {
+            $this->failureMessage ??= 'Gagal: Layanan API tidak merespons. Sebagian data dashboard tidak dapat dimuat.';
 
-        return $response->successful() && is_array($response->json('data'))
-            ? $response->json('data')
-            : [];
+            return [];
+        }
+
+        $response = $result['response'];
+        if (! $result['ok'] && $response !== null) {
+            $message = $response->json('message');
+            $this->failureMessage ??= match (true) {
+                $response->status() === 401 => 'Sesi Berakhir: Silakan masuk kembali sebelum melihat dashboard.',
+                $response->status() === 403 => is_string($message) && $message !== '' ? $message : 'Gagal: Akun Anda tidak memiliki izin untuk melihat sebagian data dashboard.',
+                $response->serverError() => 'Gagal: Layanan API sedang bermasalah. Sebagian data dashboard tidak dapat dimuat.',
+                default => is_string($message) && $message !== '' ? $message : 'Gagal: Sebagian data dashboard tidak dapat dimuat dari API.',
+            };
+
+            return [];
+        }
+
+        return $result['data'];
     }
 
     /**
@@ -480,6 +501,7 @@ class DashboardViewData
                 ['BBH-014', 'Saanen', 'Betina', 'Hidup', '30 Mei 2026'],
                 ['BBH-022', 'Etawa', 'Betina', 'Hidup', '30 Mei 2026'],
             ],
+            'apiFailureMessage' => null,
         ];
     }
 

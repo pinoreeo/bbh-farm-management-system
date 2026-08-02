@@ -2,12 +2,21 @@
 
 namespace App\Support;
 
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
+use Throwable;
 
 class AdminTableViewData
 {
+    private ?string $failureMessage = null;
+
     public function __construct(private readonly BbhApiClient $api) {}
+
+    public function failureMessage(): ?string
+    {
+        return $this->failureMessage;
+    }
 
     /**
      * @param  array<int, array<int, string>>  $fallbackRows
@@ -33,15 +42,22 @@ class AdminTableViewData
             return [];
         }
 
-        $response = $this->api->get($endpoint, $this->queryFor($slug), $token);
-        if (! $response->successful()) {
+        try {
+            $result = $this->api->paginatedData($endpoint, $this->queryFor($slug), $token);
+        } catch (Throwable) {
+            $this->failureMessage = 'Gagal: Layanan API tidak merespons. Data tidak dapat dimuat saat ini.';
+
             return [];
         }
 
-        $items = $response->json('data', []);
-        if (! is_array($items)) {
+        $response = $result['response'];
+        if (! $result['ok'] && $response instanceof Response) {
+            $this->failureMessage = $this->apiFailureMessage($response);
+
             return [];
         }
+
+        $items = $result['data'];
 
         $rows = array_values(array_filter(array_map(
             fn ($item) => is_array($item) ? [
@@ -53,6 +69,19 @@ class AdminTableViewData
         )));
 
         return $rows;
+    }
+
+    private function apiFailureMessage(Response $response): string
+    {
+        $message = $response->json('message');
+        $message = is_string($message) && $message !== '' ? $message : null;
+
+        return match (true) {
+            $response->status() === 401 => 'Sesi Berakhir: Silakan masuk kembali sebelum melihat data admin.',
+            $response->status() === 403 => $message ?: 'Gagal: Akun Anda tidak memiliki izin untuk melihat data ini.',
+            $response->serverError() => 'Gagal: Layanan API sedang bermasalah. Data tidak dapat dimuat saat ini.',
+            default => $message ?: 'Gagal: Data tidak dapat dimuat dari API. Silakan coba muat ulang halaman.',
+        };
     }
 
     public function endpoint(string $slug): ?string
@@ -84,11 +113,10 @@ class AdminTableViewData
     private function queryFor(string $slug): array
     {
         $query = match ($slug) {
-            'breeding-periods', 'pregnancy-checks' => ['per_page' => 200, 'include_closed' => 1],
-            'certificate-logs', 'activity-logs' => ['per_page' => 200],
-            'certificates' => ['per_page' => 200, 'include_inactive' => 1],
-            'rsa-keys' => ['per_page' => 200, 'include_inactive' => 1],
-            default => ['per_page' => 200],
+            'breeding-periods', 'pregnancy-checks' => ['include_closed' => 1],
+            'certificates' => ['include_inactive' => 1],
+            'rsa-keys' => ['include_inactive' => 1],
+            default => [],
         };
 
         foreach (['search', 'sex', 'life_status', 'exit_status', 'reproductive_status', 'current_pen_id', 'breed_id', 'colony_phase', 'status'] as $key) {

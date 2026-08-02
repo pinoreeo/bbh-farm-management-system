@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\IsAdmin;
+use App\Http\Middleware\IsSuperAdmin;
 use App\Http\Middleware\LogAdminActivity;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
@@ -17,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'adminActivity' => LogAdminActivity::class,
             'isAdmin' => IsAdmin::class,
+            'isSuperAdmin' => IsSuperAdmin::class,
         ]);
     })
 

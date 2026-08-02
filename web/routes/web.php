@@ -16,7 +16,12 @@ Route::middleware('public.locale')
     ->where(['locale' => $publicLocales])
     ->group(function (): void {
         Route::get('/', [PublicVerificationController::class, 'index'])->name('verification');
-        Route::post('/verifikasi', [PublicVerificationController::class, 'verify'])->name('verification.submit');
+        Route::post('/verifikasi', [PublicVerificationController::class, 'verify'])
+            ->middleware('throttle:20,1')
+            ->name('verification.submit');
+        Route::get('/verifikasi/{token}', [PublicVerificationController::class, 'verifyToken'])
+            ->middleware('throttle:30,1')
+            ->name('verification.token');
         Route::get('/hasil-verifikasi', [PublicVerificationController::class, 'result'])->name('verification.result');
         Route::view('/sertifikat-elektronik', 'pages.public.certificate-info')->name('certificate.info');
         Route::view('/lokasi', 'pages.public.location')->name('location');
@@ -26,9 +31,9 @@ Route::middleware('public.locale')
 Route::get('/login', [AuthSessionController::class, 'create'])->name('login');
 Route::post('/login', [AuthSessionController::class, 'store'])->middleware('throttle:10,1')->name('login.submit');
 Route::get('/lupa-kata-sandi', [AuthSessionController::class, 'forgotPassword'])->name('password.request');
-Route::post('/lupa-kata-sandi', [AuthSessionController::class, 'sendResetLink'])->name('password.email');
+Route::post('/lupa-kata-sandi', [AuthSessionController::class, 'sendResetLink'])->middleware('throttle:3,1')->name('password.email');
 Route::get('/reset-kata-sandi/{token}', [AuthSessionController::class, 'resetPassword'])->name('password.reset');
-Route::post('/reset-kata-sandi', [AuthSessionController::class, 'updatePassword'])->name('password.update');
+Route::post('/reset-kata-sandi', [AuthSessionController::class, 'updatePassword'])->middleware('throttle:5,1')->name('password.update');
 Route::post('/logout', [AuthSessionController::class, 'destroy'])->name('logout');
 
 Route::middleware('bbh.auth')->group(function () {

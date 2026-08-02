@@ -1,83 +1,30 @@
 # BBH Farm
 
-BBH Farm is a livestock management platform for Bumiku Bumimu Hijau Farm, built to support dairy goat operations, digital certificate issuance, and RSA-SHA256 certificate verification.
+BBH Farm is a livestock management system for Bumiku Bumimu Hijau Farm. The application supports dairy goat farm operations, structured livestock records, admin workflows, and electronically verifiable livestock certificates.
 
-## Main Features
+## Structure
 
-### Livestock Management
+The system is separated into two Laravel applications:
 
-- Animal identity and breed management
-- Colony pen management
-- Animal movement records
-- Weight records
-- Breeding period and breeding female records
-- Pregnancy check records
-- Birth event and offspring birth records
-- Postnatal care records
-- Health treatment records
-- Vaccination records
-
-### Digital Certificate Management
-
-- Digital certificate issuance for livestock records
-- Certificate type management
-- RSA-SHA256 digital signing
-- RSA key generation and activation
-- Certificate revocation and reactivation
-- Certificate preview and PDF export
-- QR/token-based certificate verification
-
-### Public Verification
-
-- Certificate verification by certificate number
-- Certificate verification by QR/token
-- Official certificate PDF integrity verification
-- Public verification result page
-- Public verification logs
-- Rate-limited public verification flow
-
-### Admin and Audit
-
-- Admin dashboard
-- User management
-- Admin-only protected resources
-- Admin activity logging
-- Operational reports
-- Structured validation and error handling
+- `api` handles authentication, master data, livestock operations, certificate issuance, digital signing, verification services, and audit logs.
+- `web` provides the admin dashboard, public company pages, certificate previews, and public certificate verification interface.
 
 ## Tech Stack
 
-- Backend: PHP, Laravel, Laravel Sanctum
-- Frontend: Laravel Blade, Vite, Tailwind CSS, Open Sans
-- Database: MySQL/MariaDB
-- Certificate Security: OpenSSL, RSA-SHA256, QR/token verification
-- Documentation and Quality: OpenAPI, PHPUnit, PHPStan/Larastan, Laravel Pint
+- PHP and Laravel
+- Laravel Sanctum
+- MySQL or MariaDB
+- Blade, Vite, and Tailwind CSS
+- OpenSSL RSA-SHA256
+- QR-based certificate verification
+- PHPUnit and Laravel Pint
 
-## Project Structure
+## Electronic Certificates
 
-```text
-bbh-farm/
-|-- api/
-|-- web/
-`-- README.md
-```
+BBH Farm issues electronic livestock certificates with a canonical data payload, SHA-256 hash, and RSA-SHA256 digital signature. Each certificate includes a QR/token reference that can be checked through the public verification page.
 
-The `api` application handles authentication, business rules, livestock data, certificate signing, and verification services. The `web` application provides the admin interface, public pages, and certificate verification experience.
+The verification flow validates certificate status, signed payload integrity, RSA signature authenticity, and official PDF integrity when a PDF document is uploaded.
 
-## Certificate Verification Flow
+## Security
 
-1. Admin issues a certificate from the dashboard.
-2. The system builds a canonical certificate payload.
-3. The payload is hashed using SHA-256.
-4. The hash is signed using the active RSA private key.
-5. A QR/token verification reference is attached to the certificate.
-6. Public users can verify the certificate by number, QR/token, or official PDF upload.
-7. The system validates certificate status, payload integrity, and RSA signature authenticity.
-
-## Security Notes
-
-- Public registration is not available.
-- User accounts are managed by authorized admins.
-- Public certificate verification exposes only controlled certificate data.
-- Sensitive files such as `.env`, local databases, logs, and private keys must not be committed.
-- Production environments should use HTTPS, strong credentials, and disabled debug mode.
+Public verification only exposes controlled certificate information. Admin access is protected through API authentication, while sensitive configuration, local databases, logs, and private keys must remain outside version control.

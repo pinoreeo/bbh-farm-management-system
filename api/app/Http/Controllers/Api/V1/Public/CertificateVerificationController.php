@@ -9,12 +9,13 @@ use App\Services\CertificateVerificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class CertificateVerificationController extends Controller
 {
-    private const PUBLIC_RELATIONS = ['certificateType', 'animal.breed', 'animal.currentPen'];
+    private const PUBLIC_RELATIONS = ['certificateType', 'animal.breed'];
 
-    private const VERIFICATION_RELATIONS = ['signature.rsaKey', 'signature.signedByUser', 'certificateType', 'animal.breed', 'animal.currentPen', 'revocation'];
+    private const VERIFICATION_RELATIONS = ['signature.rsaKey', 'signature.signedByUser', 'certificateType', 'animal.breed', 'revocation'];
 
     private const PDF_VERIFICATION_RELATIONS = [
         'signature.rsaKey',
@@ -22,7 +23,6 @@ class CertificateVerificationController extends Controller
         'officialPdfRsaKey',
         'certificateType',
         'animal.breed',
-        'animal.currentPen',
         'revocation',
     ];
 
@@ -32,6 +32,12 @@ class CertificateVerificationController extends Controller
 
     public function showPublic(string $certificate_number): JsonResponse
     {
+        if (mb_strlen($certificate_number) > 150) {
+            return response()->json([
+                'message' => 'Peringatan: Sertifikat tidak ditemukan pada basis data resmi Bumiku Bumimu Hijau Farm.',
+            ], 404);
+        }
+
         $cert = Certificate::query()
             ->with(self::PUBLIC_RELATIONS)
             ->where('certificate_number', $certificate_number)
@@ -70,11 +76,18 @@ class CertificateVerificationController extends Controller
             ], 404);
         }
 
-        return response()->json($this->verificationService->verify($cert, 'certificate_number'));
+        return response()->json($this->verificationService->verify($cert, 'certificate_number', $request));
     }
 
-    public function verifyByToken(string $token): JsonResponse
+    public function verifyByToken(Request $request, string $token): JsonResponse
     {
+        if (! Str::isUuid($token)) {
+            return response()->json([
+                'message' => 'Peringatan: Kode QR tidak terhubung dengan sertifikat yang terdaftar pada basis data resmi Bumiku Bumimu Hijau Farm.',
+                'is_valid' => false,
+            ], 404);
+        }
+
         $cert = Certificate::query()
             ->with(self::VERIFICATION_RELATIONS)
             ->where('verification_token', $token)
@@ -87,7 +100,7 @@ class CertificateVerificationController extends Controller
             ], 404);
         }
 
-        return response()->json($this->verificationService->verify($cert, 'qr_code'));
+        return response()->json($this->verificationService->verify($cert, 'qr_code', $request));
     }
 
     public function verifyPdf(Request $request, CertificatePdfIntegrityService $pdfIntegrity): JsonResponse
@@ -196,7 +209,7 @@ class CertificateVerificationController extends Controller
 
         $pdfSignatureValid = $pdfIntegrity->verifyOfficialPdfSignature($cert);
         $pdfIntegrityValid = $pdfHashMatches && $pdfSignatureValid;
-        $certificateVerification = $this->verificationService->verify($cert, 'upload_pdf');
+        $certificateVerification = $this->verificationService->verify($cert, 'upload_pdf', $request);
 
         Log::info('PDF 1/1 nomor sertifikat: '.$cert->certificate_number);
         Log::info('PDF 1/1 signature RSA-SHA256: '.($pdfSignatureValid ? 'valid' : 'tidak valid'));
@@ -255,17 +268,20 @@ class CertificateVerificationController extends Controller
         $start = fread($handle, 1024);
         if (! is_string($start)) {
             fclose($handle);
+
             return false;
         }
 
         if (! str_starts_with(ltrim($start), '%PDF-')) {
             fclose($handle);
+
             return false;
         }
 
         $size = filesize($path);
         if (! is_int($size) || $size <= 0) {
             fclose($handle);
+
             return false;
         }
 

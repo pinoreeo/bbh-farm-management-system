@@ -31,6 +31,7 @@ class AdminResourceController extends Controller
                 'subtitle' => $subtitle,
                 'columns' => $columns,
                 'records' => $records,
+                'apiFailureMessage' => $pageData->failureMessage(),
             ]);
         }
 
@@ -42,6 +43,7 @@ class AdminResourceController extends Controller
             'records' => $records,
             'filterYears' => $filterYears,
             'filterMonths' => $filterMonths,
+            'apiFailureMessage' => $pageData->failureMessage(),
         ]);
     }
 
@@ -66,7 +68,7 @@ class AdminResourceController extends Controller
             'pageTitle' => match ($resource) {
                 'certificates' => 'Terbitkan Sertifikat',
                 'users' => 'Tambah Admin',
-                default => 'Tambah ' . $title,
+                default => 'Tambah '.$title,
             },
             'subtitle' => $subtitle,
             'fields' => $resources->fields($resource, $this->form($resource, $columns), session('bbh_api_token')),
@@ -180,7 +182,7 @@ class AdminResourceController extends Controller
         return view('pages.admin.show', [
             'slug' => $resource,
             'id' => $id,
-            'pageTitle' => $resource === 'users' ? 'Detail Admin' : 'Detail ' . $title,
+            'pageTitle' => $resource === 'users' ? 'Detail Admin' : 'Detail '.$title,
             'subtitle' => $subtitle,
             'columns' => $columns,
             'row' => $row,
@@ -214,7 +216,7 @@ class AdminResourceController extends Controller
 
         return view('pages.admin.form', [
             'slug' => $resource,
-            'pageTitle' => $resource === 'users' ? 'Edit Admin' : 'Edit ' . $title,
+            'pageTitle' => $resource === 'users' ? 'Edit Admin' : 'Edit '.$title,
             'subtitle' => $subtitle,
             'fields' => $resources->fields($resource, $this->form($resource, $columns), session('bbh_api_token')),
             'values' => $values,
@@ -332,8 +334,14 @@ class AdminResourceController extends Controller
     {
         $pages = config('admin.pages', []);
         abort_unless(isset($pages[$resource]), 404);
+        abort_if(in_array($resource, ['users', 'activity-logs'], true) && ! $this->isSuperAdmin(), 403);
 
         return $pages[$resource];
+    }
+
+    private function isSuperAdmin(): bool
+    {
+        return (session('bbh_admin_user.role') ?? null) === 'super_admin';
     }
 
     private function form(string $resource, array $fallback): array
@@ -384,5 +392,4 @@ class AdminResourceController extends Controller
 
         return [$records, $filterYears, $filterMonths];
     }
-
 }

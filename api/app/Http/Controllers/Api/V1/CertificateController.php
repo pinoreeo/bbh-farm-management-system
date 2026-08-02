@@ -12,6 +12,7 @@ use App\Services\CertificateSigningService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class CertificateController extends Controller
@@ -107,11 +108,21 @@ class CertificateController extends Controller
             return response()->json(['message' => 'Peringatan: Masa berlaku sertifikat telah habis (Kedaluwarsa).'], 422);
         }
 
-        return DB::transaction(function () use ($certificate, $data) {
+        $revokedAt = isset($data['revoked_at']) ? Carbon::parse($data['revoked_at']) : now();
+
+        if ($revokedAt->isFuture()) {
+            return response()->json(['message' => 'Peringatan: Tanggal pencabutan sertifikat tidak boleh melebihi waktu saat ini.'], 422);
+        }
+
+        if ($certificate->issue_date && $revokedAt->lt($certificate->issue_date->copy()->startOfDay())) {
+            return response()->json(['message' => 'Peringatan: Tanggal pencabutan sertifikat tidak boleh lebih awal dari tanggal terbit.'], 422);
+        }
+
+        return DB::transaction(function () use ($certificate, $data, $revokedAt) {
             CertificateRevocation::query()->updateOrCreate(
                 ['certificate_id' => $certificate->id],
                 [
-                    'revoked_at' => $data['revoked_at'] ?? now(),
+                    'revoked_at' => $revokedAt,
                     'reason' => $data['reason'],
                 ]
             );
@@ -137,11 +148,17 @@ class CertificateController extends Controller
                 ->where('certificate_id', $certificate->id)
                 ->delete();
 
-            $certificate->status = 'active';
+            $status = $certificate->valid_until && $certificate->valid_until->lt(today())
+                ? 'expired'
+                : 'active';
+
+            $certificate->status = $status;
             $certificate->save();
 
             return response()->json([
-                'message' => 'Sukses: Sertifikat berhasil diaktifkan kembali.',
+                'message' => $status === 'active'
+                    ? 'Sukses: Sertifikat berhasil diaktifkan kembali.'
+                    : 'Sukses: Pencabutan sertifikat dibatalkan, tetapi sertifikat sudah kedaluwarsa.',
                 'data' => $certificate->fresh()->load(['revocation']),
             ]);
         });

@@ -5,7 +5,7 @@
             Kembali
         </a>
 
-        <a class="ui-btn ui-btn-primary" href="{{ route('admin.certificates.pdf', ['id' => $id]) }}">
+        <a class="ui-btn ui-btn-primary" href="{{ route('admin.certificates.pdf', ['id' => $id]) }}" data-no-skeleton>
             <x-icons name="file" class="h-4 w-4" />
             Unduh PDF
         </a>

@@ -20,6 +20,8 @@ class CertificateVerificationLog extends Model
         'failure_reason',
         'used_key_fingerprint',
         'used_barcode_value',
+        'ip_address',
+        'user_agent',
         'created_at',
     ];
 

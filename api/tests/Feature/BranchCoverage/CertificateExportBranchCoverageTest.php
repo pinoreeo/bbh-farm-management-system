@@ -3,6 +3,7 @@
 namespace Tests\Feature\BranchCoverage;
 
 use App\Models\Certificate;
+use App\Models\CertificateRevocation;
 use App\Models\PostnatalCareRecord;
 use App\Models\RsaKey;
 use App\Services\CertificatePdfIntegrityService;
@@ -68,8 +69,8 @@ class CertificateExportBranchCoverageTest extends ApiTestCase
         $certificate->forceFill(['barcode_value' => null])->save();
 
         $this->getJson('/api/v1/certificates/'.$certificate->id.'/qr')
-            ->assertUnprocessable()
-            ->assertJsonPath('message', 'Peringatan: QR code belum tersedia untuk sertifikat ini.');
+            ->assertOk()
+            ->assertJsonPath('url', $certificate->fresh()->public_verification_url);
 
         $birth = $this->issueCertificate('KELAHIRAN');
 
@@ -110,6 +111,18 @@ class CertificateExportBranchCoverageTest extends ApiTestCase
             ->assertJsonPath('message', 'Gagal: Gagal membuat file PDF sertifikat. Periksa kelengkapan data dan konfigurasi dokumen.');
 
         $this->postJson('/api/v1/certificates/'.$certificate->id.'/revoke', [
+            'reason' => 'Tanggal masa depan',
+            'revoked_at' => now()->addDay()->toDateTimeString(),
+        ])->assertUnprocessable()
+            ->assertJsonPath('message', 'Peringatan: Tanggal pencabutan sertifikat tidak boleh melebihi waktu saat ini.');
+
+        $this->postJson('/api/v1/certificates/'.$certificate->id.'/revoke', [
+            'reason' => 'Tanggal sebelum terbit',
+            'revoked_at' => '2020-01-01 00:00:00',
+        ])->assertUnprocessable()
+            ->assertJsonPath('message', 'Peringatan: Tanggal pencabutan sertifikat tidak boleh lebih awal dari tanggal terbit.');
+
+        $this->postJson('/api/v1/certificates/'.$certificate->id.'/revoke', [
             'reason' => 'Data tidak valid',
         ])->assertOk()
             ->assertJsonPath('data.status', 'revoked');
@@ -129,6 +142,22 @@ class CertificateExportBranchCoverageTest extends ApiTestCase
         $this->postJson('/api/v1/certificates/'.$certificate->id.'/unrevoke')
             ->assertUnprocessable()
             ->assertJsonPath('message', 'Peringatan: Sertifikat ini belum dalam status dicabut.');
+
+        $revokedExpired = $this->issueCertificate('BIBIT_UNGGUL');
+        $revokedExpired->forceFill([
+            'status' => 'revoked',
+            'valid_until' => now()->subDay()->toDateString(),
+        ])->save();
+        CertificateRevocation::query()->create([
+            'certificate_id' => $revokedExpired->id,
+            'revoked_at' => now()->subDays(2),
+            'reason' => 'Data lama',
+        ]);
+
+        $this->postJson('/api/v1/certificates/'.$revokedExpired->id.'/unrevoke')
+            ->assertOk()
+            ->assertJsonPath('data.status', 'expired')
+            ->assertJsonPath('message', 'Sukses: Pencabutan sertifikat dibatalkan, tetapi sertifikat sudah kedaluwarsa.');
 
         $expired = $this->issueCertificate('BIBIT_UNGGUL');
         $expired->forceFill(['status' => 'expired'])->save();

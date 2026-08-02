@@ -5,33 +5,32 @@ export const initPublicPdfInputs = () => {
             if (!file) return;
 
             const form = input.closest('form');
-            const certificateInput = form?.querySelector('[data-certificate-input]');
+            const wrapper = form?.parentElement;
+            const filenameLabel = wrapper?.querySelector('[data-pdf-filename]');
+            const errorLabel = wrapper?.querySelector('[data-pdf-error]');
             const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+
+            if (errorLabel) {
+                errorLabel.textContent = '';
+                errorLabel.classList.add('hidden');
+            }
 
             if (!isPdf) {
                 input.value = '';
-                if (certificateInput) {
-                    certificateInput.value = '';
-                    certificateInput.placeholder = 'Nomor sertifikat';
+                if (filenameLabel) {
+                    filenameLabel.textContent = '';
+                    filenameLabel.classList.add('hidden');
                 }
-                alert('Peringatan: Berkas tidak dapat digunakan. Pilih dokumen sertifikat dalam format PDF.');
+                if (errorLabel) {
+                    errorLabel.textContent = 'Peringatan: Berkas tidak dapat digunakan. Pilih dokumen sertifikat dalam format PDF.';
+                    errorLabel.classList.remove('hidden');
+                }
                 return;
             }
 
-            if (certificateInput) {
-                certificateInput.value = file.name;
-                certificateInput.dataset.pdfFilename = file.name;
-            }
-        });
-    });
-
-    document.querySelectorAll('form[enctype="multipart/form-data"]').forEach((form) => {
-        form.addEventListener('submit', () => {
-            const fileInput = form.querySelector('[data-pdf-only]');
-            const certificateInput = form.querySelector('[data-certificate-input]');
-
-            if (fileInput?.files?.[0] && certificateInput?.value === certificateInput?.dataset?.pdfFilename) {
-                certificateInput.disabled = true;
+            if (filenameLabel) {
+                filenameLabel.textContent = `PDF terpilih: ${file.name}`;
+                filenameLabel.classList.remove('hidden');
             }
         });
     });

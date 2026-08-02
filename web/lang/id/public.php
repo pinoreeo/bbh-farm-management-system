@@ -48,9 +48,9 @@ return [
         'next' => 'Kegiatan berikutnya',
         'position' => 'Posisi galeri',
         'items' => [
-            ['bbh-feed-management-enhanced.png', 'Manajemen Pakan Mandiri', 'Formulasi pakan berkualitas tinggi dipantau secara berkala untuk mendukung kesehatan dan produktivitas indukan.', 'object-[50%_58%]'],
+            ['bbh-feed-management-enhanced.webp', 'Manajemen Pakan Mandiri', 'Formulasi pakan berkualitas tinggi dipantau secara berkala untuk mendukung kesehatan dan produktivitas indukan.', 'object-[50%_58%]'],
             ['hero-landing-app.webp', 'Kandang Panggung Higienis', 'Menerapkan sistem tata kelola kandang modern dengan sanitasi dan biosekuriti ketat demi kenyamanan penuh seluruh ternak.', 'object-[51%_52%]'],
-            ['bbh-kid-care-enhanced.png', 'Seleksi Bibit Genetik Prima', 'Perawatan intensif sejak dini untuk memastikan lahirnya generasi bibit kambing perah yang tangguh dan unggul.', 'object-[50%_62%]'],
+            ['bbh-kid-care-enhanced.webp', 'Seleksi Bibit Genetik Prima', 'Perawatan intensif sejak dini untuk memastikan lahirnya generasi bibit kambing perah yang tangguh dan unggul.', 'object-[50%_62%]'],
         ],
     ],
     'ecosystem' => [

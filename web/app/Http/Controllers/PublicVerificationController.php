@@ -75,11 +75,36 @@ class PublicVerificationController extends Controller
             ->with('uploadedFilename', $request->hasFile('pdf') ? $request->file('pdf')->getClientOriginalName() : null);
     }
 
+    public function verifyToken(string $locale, string $token, BbhApiClient $api)
+    {
+        try {
+            $response = $api->get('public/certificates/verify/'.rawurlencode($token));
+        } catch (ConnectionException) {
+            return redirect()
+                ->route('verification')
+                ->with('verificationError', 'Gagal: Verifikasi gagal. Layanan API Bumiku Bumimu Hijau Farm tidak merespons.');
+        }
+
+        $result = $response->json();
+        $canShowVerificationResult = is_array($result) && array_key_exists('is_valid', $result);
+
+        if ((! $response->successful() && ! $canShowVerificationResult) || ! is_array($result)) {
+            return redirect()
+                ->route('verification')
+                ->with('verificationError', 'Gagal: Kode QR tidak terhubung dengan sertifikat yang terdaftar pada sistem.');
+        }
+
+        return view('pages.public.verification-result', [
+            'verificationResult' => $this->formatVerificationResult($result, false, 'QR Code'),
+            'uploadedFilename' => null,
+        ]);
+    }
+
     /**
      * @param  array<string, mixed>  $result
      * @return array<string, mixed>
      */
-    private function formatVerificationResult(array $result, bool $fromPdf): array
+    private function formatVerificationResult(array $result, bool $fromPdf, ?string $methodLabel = null): array
     {
         $certificateVerification = $result['certificate_verification'] ?? [];
         $certificateVerification = is_array($certificateVerification) ? $certificateVerification : [];
@@ -96,7 +121,7 @@ class PublicVerificationController extends Controller
 
         return [
             ...$result,
-            'method_label' => $fromPdf ? 'Upload PDF' : 'Nomor Sertifikat',
+            'method_label' => $methodLabel ?? ($fromPdf ? 'Upload PDF' : 'Nomor Sertifikat'),
             'status_label' => $isValid ? 'Valid' : 'Tidak Valid',
             'status_message' => $isValid
                 ? ($fromPdf ? 'Dokumen PDF valid dan sesuai dengan data resmi Bumiku Bumimu Hijau Farm.' : 'Sertifikat valid dan sesuai dengan data resmi Bumiku Bumimu Hijau Farm.')

@@ -15,7 +15,7 @@
             <a href="{{ route('verification') }}#verifikasi" class="transition-colors hover:text-[#5be37d]">{{ $copy['nav']['verification'] }}</a>
             <a href="{{ route('certificate.info') }}" class="transition-colors hover:text-[#5be37d]">{{ $copy['nav']['certificate'] }}</a>
             <a href="{{ route('location') }}" class="transition-colors hover:text-[#5be37d]">{{ $copy['nav']['location'] }}</a>
-            <a href="{{ route('login') }}" class="rounded-full border border-white/35 px-4 py-2 transition-colors hover:border-white hover:bg-white hover:text-[#101820]">{{ $copy['nav']['login'] }}</a>
+            <a href="{{ route('login') }}" class="rounded-full border border-[#00aa13] bg-[#00aa13] px-4 py-2 text-white transition-colors hover:border-[#09bf1d] hover:bg-[#09bf1d]">{{ $copy['nav']['login'] }}</a>
         </nav>
 
         <button type="button" class="flex h-10 w-10 items-center justify-center rounded-full border border-white/25 lg:hidden" aria-label="Buka menu" aria-expanded="false" data-public-menu-button>
@@ -34,7 +34,7 @@
             <a href="{{ route('verification') }}#verifikasi" class="rounded-lg px-3 py-3 hover:bg-white/10">{{ $copy['nav']['verification'] }}</a>
             <a href="{{ route('certificate.info') }}" class="rounded-lg px-3 py-3 hover:bg-white/10">{{ $copy['nav']['certificate'] }}</a>
             <a href="{{ route('location') }}" class="rounded-lg px-3 py-3 hover:bg-white/10">{{ $copy['nav']['location'] }}</a>
-            <a href="{{ route('login') }}" class="mt-2 rounded-full bg-white px-4 py-3 text-center text-[#101820]">{{ $copy['nav']['login'] }}</a>
+            <a href="{{ route('login') }}" class="mt-2 rounded-full bg-[#00aa13] px-4 py-3 text-center text-white hover:bg-[#09bf1d]">{{ $copy['nav']['login'] }}</a>
         </div>
     </nav>
 </header>

@@ -105,6 +105,9 @@ class Certificate extends Model
             return null;
         }
 
-        return url('/api/v1/public/certificates/verify/'.$this->verification_token);
+        $baseUrl = rtrim((string) (config('bbh.public_web_url') ?: config('app.url')), '/');
+        $locale = trim((string) config('bbh.public_default_locale', 'id-id'), '/');
+
+        return "{$baseUrl}/{$locale}/verifikasi/".rawurlencode((string) $this->verification_token);
     }
 }

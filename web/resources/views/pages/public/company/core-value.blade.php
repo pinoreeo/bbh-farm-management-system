@@ -6,12 +6,10 @@
     </div>
 </section>
 
-<div class="relative h-10 bg-[#101820]">
-    <div class="absolute inset-x-0 bottom-0 z-0 h-10 rounded-t-[36px] bg-white lg:rounded-t-[56px]"></div>
-</div>
+<div class="bbh-core-curve -mt-px bg-[#101820]" aria-hidden="true"></div>
 
-<section class="bg-white px-6 py-10 sm:px-8 lg:px-10">
-    <div class="mx-auto grid max-w-[1012px] gap-8 text-center sm:grid-cols-3 lg:gap-10">
+<section class="relative z-10 -mt-2 bg-white px-6 pb-10 pt-10 sm:px-8 lg:px-10 lg:pt-12">
+    <div class="relative mx-auto grid max-w-[1012px] gap-8 text-center sm:grid-cols-3 lg:gap-10">
         @foreach ($copy['core']['points'] as $point)
             <div>
                 <h3 class="bbh-h3 font-extrabold">{{ $point[0] }}</h3>
