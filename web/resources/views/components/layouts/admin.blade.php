@@ -19,7 +19,7 @@
 <body class="bg-[var(--app-bg)] antialiased">
     <x-admin.sidebar />
 
-    <div class="layout-main">
+    <div class="layout-main" data-admin-main>
         <x-admin.topbar />
 
         <main class="content-wrap">

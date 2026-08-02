@@ -315,6 +315,27 @@
         white-space: nowrap;
     }
 
+    @media (max-width: 640px) {
+        .dashboard-latest-table th,
+        .dashboard-latest-table td {
+            @apply px-2 text-[11px] leading-snug;
+        }
+
+        .dashboard-latest-table th {
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+
+        .dashboard-latest-table .ui-sort-btn {
+            max-width: 100%;
+            white-space: normal;
+        }
+
+        .dashboard-latest-table .ui-sort-btn span:first-child {
+            min-width: 0;
+        }
+    }
+
     .ui-badge {
         @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium;
     }
