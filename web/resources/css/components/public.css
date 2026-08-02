@@ -1,0 +1,370 @@
+@layer components {
+    .bbh-profile {
+        --bbh-green: #00aa13;
+        --bbh-green-dark: #008c15;
+        --bbh-dark: #101820;
+        --bbh-dark-soft: #182430;
+        --bbh-lime: #b8dc35;
+        font-family: "Poppins", Arial, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .bbh-profile h1,
+    .bbh-profile h2,
+    .bbh-profile h3 {
+        letter-spacing: 0;
+    }
+
+    .bbh-heading {
+        font-size: 24px;
+        font-weight: 800;
+        line-height: 32px;
+        text-wrap: balance;
+    }
+
+    .bbh-public,
+    .bbh-public-nav,
+    .bbh-public-footer {
+        font-family: var(--font-sans);
+    }
+
+    .bbh-h1,
+    .bbh-public h1 {
+        font-size: 28px;
+        font-weight: 800;
+        line-height: 40px;
+        letter-spacing: 0;
+    }
+
+    .bbh-h2,
+    .bbh-public h2 {
+        font-size: 24px;
+        font-weight: 800;
+        line-height: 32px;
+        letter-spacing: 0;
+    }
+
+    .bbh-h3,
+    .bbh-public h3 {
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 24px;
+        letter-spacing: 0;
+    }
+
+    .bbh-text,
+    .bbh-public p,
+    .bbh-public li,
+    .bbh-public a,
+    .bbh-public button,
+    .bbh-public label,
+    .bbh-public input,
+    .bbh-public textarea,
+    .bbh-public select,
+    .bbh-public dt,
+    .bbh-public dd {
+        font-size: 12px;
+        line-height: 16px;
+        letter-spacing: 0;
+    }
+
+    .bbh-small,
+    .bbh-public-nav,
+    .bbh-public-nav a,
+    .bbh-public-nav button,
+    .bbh-public-footer a,
+    .bbh-public-footer .bbh-footer-meta {
+        font-size: 10px;
+        line-height: 16px;
+        letter-spacing: 0;
+    }
+
+    .bbh-public :where(.bbh-h1, h1) {
+        font-size: 28px !important;
+        font-weight: 800 !important;
+        line-height: 40px !important;
+    }
+
+    .bbh-public :where(.bbh-h2, h2) {
+        font-size: 24px !important;
+        font-weight: 800 !important;
+        line-height: 32px !important;
+    }
+
+    .bbh-public :where(.bbh-h3, h3) {
+        font-size: 16px !important;
+        font-weight: 800 !important;
+        line-height: 24px !important;
+    }
+
+    .bbh-public :where(.bbh-text, p, li, a, button, label, input, textarea, select, dt, dd) {
+        font-size: 12px !important;
+        line-height: 16px !important;
+    }
+
+    .bbh-public :where(p, li, input, textarea, select, dt, dd) {
+        font-weight: 400 !important;
+    }
+
+    .bbh-public :where(.bbh-small) {
+        font-size: 10px !important;
+        line-height: 16px !important;
+    }
+
+    .bbh-public-nav :where(a, button) {
+        font-size: 10px !important;
+        line-height: 16px !important;
+    }
+
+    .bbh-public-nav :where(.bbh-small) {
+        font-size: 10px !important;
+        line-height: 16px !important;
+    }
+
+    .bbh-public-footer :where(.bbh-small) {
+        font-size: 10px !important;
+        line-height: 16px !important;
+    }
+
+    .bbh-public-footer :where(a, .bbh-footer-meta) {
+        font-size: 10px !important;
+        line-height: 16px !important;
+    }
+
+    .bbh-public .bbh-hero-title,
+    .bbh-public h1.bbh-hero-title {
+        font-size: 58px !important;
+        font-weight: 800 !important;
+        line-height: 64px !important;
+    }
+
+    .bbh-public .bbh-hero-copy {
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        line-height: 16px !important;
+    }
+
+    .bbh-goat-cutout {
+        filter: drop-shadow(0 22px 18px rgb(0 75 10 / 24%));
+    }
+
+    .bbh-stat-card {
+        border-radius: 32px;
+    }
+
+    .bbh-gallery {
+        border-radius: 40px;
+    }
+
+    .bbh-gallery-track {
+        --bbh-gallery-gap: 24px;
+        display: flex;
+        gap: var(--bbh-gallery-gap);
+        transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+        will-change: transform;
+    }
+
+    .bbh-gallery-slide {
+        flex: 0 0 100%;
+    }
+
+    .bbh-gallery-dot {
+        height: 8px;
+        width: 8px;
+        border: 0;
+        border-radius: 999px;
+        background: #cbd2ce;
+        transition: width 180ms ease, background-color 180ms ease;
+    }
+
+    .bbh-gallery-dot.is-active {
+        width: 22px;
+        background: #00aa13;
+    }
+
+    .bbh-paper {
+        box-shadow: 0 18px 42px rgb(0 0 0 / 24%);
+    }
+
+    .bbh-verification-result {
+        --result-green: #00aa13;
+        --result-green-dark: #008c15;
+        --result-dark: #101820;
+        --result-muted: #626c65;
+        --result-border: #e1e7dd;
+        --result-soft: #f5f7f1;
+        font-size: 14px;
+    }
+
+    .bbh-verification-result h1,
+    .bbh-verification-result h2,
+    .bbh-verification-result h3,
+    .bbh-verification-result p,
+    .bbh-verification-result a,
+    .bbh-verification-result span,
+    .bbh-verification-result dt,
+    .bbh-verification-result dd {
+        letter-spacing: 0;
+    }
+
+    .bbh-verification-result p,
+    .bbh-verification-result a,
+    .bbh-verification-result dt,
+    .bbh-verification-result dd {
+        font-size: 14px;
+        line-height: 24px;
+    }
+
+    .bbh-verification-result h1 {
+        font-size: 28px;
+        font-weight: 800;
+        line-height: 38px;
+    }
+
+    .bbh-verification-result h2 {
+        font-size: 24px;
+        font-weight: 800;
+        line-height: 34px;
+    }
+
+    .bbh-result-shell {
+        width: min(100%, 1012px);
+    }
+
+    .bbh-result-title {
+        color: var(--result-dark);
+        font-size: 28px;
+        font-weight: 800;
+        line-height: 38px;
+    }
+
+    .bbh-result-eyebrow {
+        color: var(--result-green);
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 24px;
+    }
+
+    .bbh-result-card {
+        border: 1px solid var(--result-border);
+        border-radius: 24px;
+        background: #ffffff;
+        box-shadow: 0 20px 46px rgb(16 24 32 / 7%);
+    }
+
+    .bbh-result-card-title {
+        color: var(--result-dark);
+        font-size: 24px;
+        font-weight: 800;
+        line-height: 34px;
+    }
+
+    .bbh-result-row {
+        align-items: start;
+        border-color: var(--result-border) !important;
+        padding-bottom: 16px;
+    }
+
+    .bbh-result-row dt {
+        color: var(--result-muted);
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 24px;
+    }
+
+    .bbh-result-row dd,
+    .bbh-result-value {
+        color: var(--result-dark);
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 24px;
+    }
+
+    .bbh-result-action {
+        border: 1px solid var(--result-border);
+        border-radius: 999px;
+        background: #ffffff;
+        color: var(--result-dark);
+        font-size: 14px;
+        font-weight: 500;
+        padding: 12px 22px;
+        box-shadow: 0 14px 36px rgb(16 24 32 / 8%);
+    }
+
+    .bbh-result-action:hover {
+        border-color: var(--result-green);
+        color: var(--result-green-dark);
+    }
+
+    .bbh-result-status {
+        border-radius: 24px;
+        box-shadow: 0 18px 38px rgb(16 24 32 / 7%);
+    }
+
+    .bbh-result-status-title {
+        font-size: 24px;
+        font-weight: 800;
+        line-height: 34px;
+    }
+
+    .bbh-result-status-text {
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 24px;
+    }
+
+    .bbh-result-badge {
+        border-radius: 999px;
+        padding: 7px 14px;
+        font-size: 12px !important;
+        font-weight: 500;
+        line-height: 20px !important;
+    }
+
+    .bbh-result-mini-card {
+        border: 1px solid var(--result-border);
+        border-radius: 16px;
+        background: #ffffff;
+        padding: 18px;
+    }
+
+    @media (min-width: 768px) {
+        .bbh-gallery-slide {
+            flex-basis: calc((100% - var(--bbh-gallery-gap)) / 2);
+        }
+    }
+
+    @media (max-width: 767px) {
+        .bbh-heading {
+            font-size: 24px;
+            line-height: 32px;
+        }
+
+        .bbh-public h1.bbh-hero-title {
+            font-size: 40px !important;
+            line-height: 48px !important;
+        }
+
+        .bbh-public .bbh-hero-copy {
+            font-size: 12px !important;
+            line-height: 16px !important;
+        }
+
+        .bbh-stat-card {
+            border-radius: 32px;
+        }
+
+        .bbh-gallery {
+            border-radius: 28px;
+        }
+
+        .bbh-result-title {
+            font-size: 28px;
+            line-height: 38px;
+        }
+
+        .bbh-result-card-title {
+            font-size: 24px;
+            line-height: 34px;
+        }
+    }
+}

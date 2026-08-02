@@ -1,0 +1,52 @@
+# Local environment
+**/.env
+**/.env.*
+!**/.env.example
+
+# Dependencies
+**/vendor/
+**/node_modules/
+
+# Build output
+**/public/build/
+**/public/hot
+**/public/storage
+
+# Runtime storage, logs, and caches
+**/.phpunit.cache/
+**/.phpunit.result.cache
+**/storage/*.key
+**/storage/app/certificates/
+**/storage/app/keys/
+**/storage/framework/cache/data/*
+!**/storage/framework/cache/data/.gitignore
+**/storage/framework/views/*
+!**/storage/framework/views/.gitignore
+**/storage/logs/*.log
+**/storage/logs/*.out.log
+**/storage/logs/*.err.log
+**/bootstrap/cache/*.php
+!**/bootstrap/cache/.gitignore
+
+# Local databases
+**/database/*.sqlite
+**/database/*.sqlite-*
+
+# Documentation artifacts
+docs/
+
+# Local cleanup backups
+_cleanup-backup-*/
+_cleanup-backup-*.zip
+
+# Tool/runtime caches
+.cache/
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+.fleet/
+.idea/
+.vscode/
+.zed/
+.cursor/

@@ -1,0 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+@import 'tailwindcss';
+@import './settings.css';
+@import './components/public.css';
+@import './components/shared.css';
+@import './components/admin.css';
+@import './components/dashboard.css';
+@import './utilities.css';

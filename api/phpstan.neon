@@ -1,0 +1,7 @@
+parameters:
+    level: max
+    paths:
+        - app
+        - database/seeders
+includes:
+    - vendor/larastan/larastan/extension.neon

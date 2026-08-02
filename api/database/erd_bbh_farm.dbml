@@ -1,0 +1,444 @@
+Project bbh_farm {
+  database_type: 'MySQL'
+  Note: 'ERD generated from bbh_farm_api.sql. Laravel framework tables are omitted for ERD clarity.'
+}
+
+
+Enum animal_sex {
+  male
+  female
+}
+
+Enum animal_life_status {
+  alive
+  dead
+}
+
+Enum breeding_period_status {
+  active
+  closed
+}
+
+Enum birth_status {
+  alive
+  dead
+}
+
+Enum certificate_type_code {
+  BIBIT_UNGGUL
+  KELAHIRAN
+  KEMATIAN
+}
+
+Enum certificate_status {
+  active
+  revoked
+  expired
+}
+
+Enum signature_status {
+  active
+  inactive
+  superseded
+}
+
+Table sys_users {
+  id bigint [pk, increment]
+  name varchar(255) [not null]
+  email varchar(255) [not null, unique]
+  email_verified_at timestamp
+  password varchar(255) [not null]
+  role varchar(30)
+  remember_token varchar(100)
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table animal_breeds {
+  id bigint [pk, increment]
+  breed_name varchar(150) [not null, unique]
+  description text
+  is_active boolean [not null, default: true]
+  created_at datetime
+  updated_at datetime
+}
+
+Table animals {
+  id bigint [pk, increment]
+  tag_number varchar(100) [not null, unique]
+  breed_id bigint [not null]
+  sex animal_sex [not null]
+  generation varchar(30) [not null]
+  birth_date date
+  birth_place varchar(255)
+  life_status animal_life_status [not null, default: 'alive']
+  notes text
+  created_at datetime
+  updated_at datetime
+  is_impor boolean [default: false]
+  origin_type varchar(50) [not null, default: 'unknown']
+  origin_detail varchar(255)
+
+  indexes {
+    breed_id [name: 'idx_animals_breed']
+  }
+}
+
+Table animal_pens {
+  id bigint [pk, increment]
+  pen_code varchar(100) [not null, unique]
+  colony_type varchar(100) [not null]
+  location varchar(255)
+  capacity int
+  created_at datetime
+  updated_at datetime
+}
+
+Table breed_periods {
+  id bigint [pk, increment]
+  colony_pen_id bigint [not null]
+  period_code varchar(100) [not null]
+  start_date date [not null]
+  end_date date
+  male_animal_id bigint [not null]
+  status breeding_period_status [not null, default: 'active']
+  notes text
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    (colony_pen_id, period_code) [unique, name: 'uq_breeding_period']
+    colony_pen_id [name: 'idx_bp_pen']
+    male_animal_id [name: 'idx_bp_male']
+  }
+}
+
+Table breed_females {
+  id bigint [pk, increment]
+  breeding_period_id bigint [not null]
+  female_animal_id bigint [not null]
+  entry_date date [not null]
+  exit_date date
+  exit_reason varchar(255)
+  exit_reason_code varchar(80)
+  exit_notes text
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    (breeding_period_id, female_animal_id) [unique, name: 'uq_breeding_females']
+    breeding_period_id [name: 'idx_bf_period']
+    female_animal_id [name: 'idx_bf_female']
+  }
+}
+
+Table breed_pregnancies {
+  id bigint [pk, increment]
+  breeding_female_id bigint [not null]
+  breeding_period_id bigint [not null]
+  female_animal_id bigint [not null]
+  check_date date [not null]
+  is_pregnant boolean [not null]
+  method varchar(100)
+  estimated_gestation_days int
+  notes text
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    (breeding_period_id, female_animal_id, check_date) [unique, name: 'uq_preg_checks']
+    (breeding_female_id, check_date) [unique, name: 'uq_pregnancy_checks_breeding_female_date']
+    breeding_female_id [name: 'idx_pregnancy_checks_breeding_female']
+    breeding_period_id [name: 'idx_preg_checks_period']
+    female_animal_id [name: 'idx_preg_checks_female']
+  }
+}
+
+Table breed_births {
+  id bigint [pk, increment]
+  dam_id bigint [not null]
+  sire_id bigint
+  birth_date date [not null]
+  birth_time time
+  offspring_count int [not null]
+  birth_process varchar(100) [not null]
+  dam_grade varchar(50)
+  birth_place varchar(255)
+  notes text
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    dam_id [name: 'idx_birth_dam']
+    sire_id [name: 'idx_birth_sire']
+  }
+}
+
+Table breed_offsprings {
+  id bigint [pk, increment]
+  birth_event_id bigint [not null]
+  offspring_animal_id bigint [not null]
+  birth_weight_kg decimal(6,2) [not null]
+  birth_status birth_status [not null, default: 'alive']
+  notes text
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    (birth_event_id, offspring_animal_id) [unique, name: 'uq_offspring_births']
+    birth_event_id [name: 'idx_ob_event']
+    offspring_animal_id [name: 'idx_ob_animal']
+  }
+}
+
+Table med_postnatal_cares {
+  id bigint [pk, increment]
+  offspring_birth_id bigint [not null]
+  birth_event_id bigint [not null]
+  target_animal_id bigint [not null]
+  care_date date [not null]
+  administration_method varchar(100)
+  volume_ml decimal(8,2)
+  navel_iodine_status varchar(50)
+  vitamin_ade_ml decimal(8,2)
+  vitamin_b_complex_ml decimal(8,2)
+  intracin_ml decimal(8,2)
+  notes text
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    (birth_event_id, target_animal_id) [unique, name: 'postnatal_event_animal_unique']
+    offspring_birth_id [unique, name: 'uq_postnatal_care_offspring_birth']
+    offspring_birth_id [name: 'idx_postnatal_offspring_birth']
+    birth_event_id [name: 'idx_pcr_event']
+    target_animal_id [name: 'idx_pcr_target']
+  }
+}
+
+Table animal_weights {
+  id bigint [pk, increment]
+  animal_id bigint [not null]
+  record_date date [not null]
+  weight_kg decimal(6,2) [not null]
+  notes text
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    (animal_id, record_date) [unique, name: 'uq_weight_records_animal_date']
+    animal_id [name: 'idx_weight_records_animal']
+  }
+}
+
+Table med_treatments {
+  id bigint [pk, increment]
+  animal_id bigint [not null]
+  treatment_group varchar(100) [not null]
+  product_name varchar(255) [not null]
+  treatment_date date [not null]
+  dosage varchar(100)
+  administration_route varchar(100)
+  action_category varchar(100)
+  notes text
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    animal_id [name: 'idx_health_treatments_animal']
+    treatment_date [name: 'idx_health_treatments_date']
+  }
+}
+
+Table med_vaccinations {
+  id bigint [pk, increment]
+  animal_id bigint [not null]
+  category_name varchar(100) [not null]
+  vaccination_date date [not null]
+  product_name varchar(255) [not null]
+  dosage varchar(100)
+  administration_route varchar(100)
+  notes text
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    animal_id [name: 'idx_vacc_animal']
+    (animal_id, category_name, vaccination_date) [name: 'idx_med_vacc_animal_category_date']
+  }
+}
+
+Table cert_types {
+  id bigint [pk, increment]
+  type_code certificate_type_code [not null, unique]
+  type_name varchar(255)
+  description text
+  template_version varchar(50)
+  is_active boolean [not null, default: true]
+  created_at datetime
+  updated_at datetime
+}
+
+Table cert_rsa_keys {
+  id bigint [pk, increment]
+  user_id bigint [not null]
+  key_identifier varchar(150) [not null, unique]
+  public_key_pem text [not null]
+  private_key_path varchar(255)
+  algorithm varchar(50) [not null, default: 'RSA']
+  key_length int [not null]
+  fingerprint_sha256 varchar(255) [not null, unique]
+  is_active boolean [not null, default: true]
+  key_status varchar(30) [not null, default: 'active']
+  retired_at datetime
+  compromised_at datetime
+  last_used_at datetime
+  status_reason varchar(255)
+  created_at datetime
+  updated_at datetime
+}
+
+Table certs {
+  id bigint [pk, increment]
+  animal_id bigint [not null]
+  certificate_type_id bigint [not null]
+  certificate_number varchar(150) [not null, unique]
+  verification_token varchar(100) [not null, unique]
+  issue_date date [not null]
+  issue_place varchar(255)
+  birth_event_id bigint
+  valid_from date
+  valid_until date
+  death_date date
+  death_time time
+  cause_of_death varchar(255)
+  barcode_value varchar(255)
+  barcode_format varchar(50)
+  payload_snapshot text [not null]
+  canonical_method varchar(100) [not null, default: 'canonical-json']
+  hash_sha256 varchar(255) [not null]
+  status certificate_status [not null, default: 'active']
+  official_pdf_path varchar(255)
+  official_pdf_hash_sha256 varchar(64)
+  official_pdf_signature_base64 text
+  official_pdf_signature_scheme varchar(100)
+  official_pdf_rsa_key_id bigint
+  official_pdf_signed_at datetime
+  official_pdf_generated_at datetime
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    animal_id [name: 'idx_cert_animal']
+    certificate_type_id [name: 'idx_cert_type']
+    birth_event_id [name: 'idx_cert_birth_event']
+    certificate_number [name: 'idx_certificates_certificate_number']
+    verification_token [name: 'idx_certificates_verification_token']
+    status [name: 'idx_certificates_status']
+    official_pdf_hash_sha256 [name: 'certificates_official_pdf_hash_sha256_index']
+  }
+}
+
+Table cert_signatures {
+  id bigint [pk, increment]
+  certificate_id bigint [not null]
+  rsa_key_id bigint [not null]
+  signed_by_user_id bigint [not null]
+  signature_scheme varchar(100) [not null]
+  signature_base64 text [not null]
+  signed_at datetime [not null]
+  status signature_status [not null, default: 'active']
+  created_at datetime
+  updated_at datetime
+
+  indexes {
+    rsa_key_id [name: 'idx_cs_key']
+    status [name: 'idx_certificate_signatures_status']
+    certificate_id [name: 'idx_certificate_signatures_cert']
+    (certificate_id, status) [name: 'idx_certificate_signatures_cert_status']
+    signed_by_user_id [name: 'idx_certificate_signatures_signed_by']
+  }
+}
+
+Table cert_revocations {
+  id bigint [pk, increment]
+  certificate_id bigint [not null, unique]
+  revoked_at datetime [not null]
+  reason text [not null]
+  created_at datetime
+  updated_at datetime
+}
+
+Table cert_log {
+  id bigint [pk, increment]
+  certificate_id bigint [not null]
+  verification_time datetime [not null]
+  is_valid boolean [not null]
+  certificate_status_at_verification varchar(50) [not null]
+  failure_reason text
+  used_key_fingerprint varchar(255)
+  used_barcode_value varchar(255)
+  created_at datetime
+
+  indexes {
+    certificate_id [name: 'idx_cvl_cert']
+    verification_time [name: 'idx_cvl_time']
+  }
+}
+
+Table sys_activity_logs {
+  id bigint [pk, increment]
+  admin_id bigint
+  admin_name varchar(255)
+  admin_email varchar(255)
+  action varchar(80) [not null]
+  module varchar(80) [not null]
+  description text
+  subject_type varchar(255)
+  subject_id bigint
+  method varchar(10) [not null]
+  path varchar(255) [not null]
+  status_code smallint
+  ip_address varchar(45)
+  user_agent text
+  metadata json
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (admin_id, created_at) [name: 'idx_admin_activity_admin_time']
+    (module, created_at) [name: 'idx_admin_activity_module_time']
+    (action, created_at) [name: 'idx_admin_activity_action_time']
+  }
+
+  Note: 'subject_type and subject_id are polymorphic audit targets, not database foreign keys.'
+}
+
+Ref: animals.breed_id > animal_breeds.id
+Ref: breed_periods.colony_pen_id > animal_pens.id
+Ref: breed_periods.male_animal_id > animals.id
+Ref: breed_females.breeding_period_id > breed_periods.id
+Ref: breed_females.female_animal_id > animals.id
+Ref: breed_pregnancies.breeding_female_id > breed_females.id
+Ref: breed_pregnancies.breeding_period_id > breed_periods.id
+Ref: breed_pregnancies.female_animal_id > animals.id
+Ref: breed_births.dam_id > animals.id
+Ref: breed_births.sire_id > animals.id
+Ref: breed_offsprings.birth_event_id > breed_births.id
+Ref: breed_offsprings.offspring_animal_id > animals.id
+Ref: med_postnatal_cares.offspring_birth_id > breed_offsprings.id
+Ref: med_postnatal_cares.birth_event_id > breed_births.id
+Ref: med_postnatal_cares.target_animal_id > animals.id
+Ref: animal_weights.animal_id > animals.id
+Ref: med_treatments.animal_id > animals.id
+Ref: med_vaccinations.animal_id > animals.id
+Ref: certs.animal_id > animals.id
+Ref: certs.certificate_type_id > cert_types.id
+Ref: certs.birth_event_id > breed_births.id
+Ref: certs.official_pdf_rsa_key_id > cert_rsa_keys.id
+Ref: cert_rsa_keys.user_id > sys_users.id [delete: cascade]
+Ref: cert_signatures.certificate_id > certs.id
+Ref: cert_signatures.rsa_key_id > cert_rsa_keys.id
+Ref: cert_signatures.signed_by_user_id > sys_users.id
+Ref: cert_revocations.certificate_id > certs.id
+Ref: cert_log.certificate_id > certs.id
+Ref: sys_activity_logs.admin_id > sys_users.id [delete: set null]

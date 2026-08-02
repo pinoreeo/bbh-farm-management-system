@@ -1,0 +1,107 @@
+@layer components {
+    .dashboard-stat-card {
+        position: relative;
+        overflow: hidden;
+        min-height: 138px;
+        border: 1px solid var(--app-border);
+        background: var(--app-surface);
+        box-shadow: var(--app-shadow);
+        border-radius: calc(var(--app-radius) + 2px);
+        @apply p-5;
+    }
+
+    .dashboard-stat-card[data-tone="green"] {
+        --stat-accent: #FF5A1F;
+        --stat-soft: #FFE8DD;
+        --stat-text: #C2410C;
+    }
+
+    .dashboard-stat-card[data-tone="blue"] {
+        --stat-accent: #0E7490;
+        --stat-soft: #E5F4F7;
+        --stat-text: #0E7490;
+    }
+
+    .dashboard-stat-card[data-tone="yellow"] {
+        --stat-accent: #F59E0B;
+        --stat-soft: #FFF7E6;
+        --stat-text: #B45309;
+    }
+
+    .dashboard-stat-card[data-tone="orange"] {
+        --stat-accent: #14B8A6;
+        --stat-soft: #E4F8F5;
+        --stat-text: #0F766E;
+    }
+
+    .dashboard-stat-note {
+        color: var(--stat-text, var(--app-active-text));
+        @apply inline-flex text-xs font-medium;
+    }
+
+    .dashboard-sparkline {
+        color: var(--stat-accent, var(--app-accent));
+        @apply absolute inset-x-0 bottom-0 h-12 w-full;
+    }
+
+    .dashboard-sparkline path:first-child {
+        opacity: .12;
+    }
+
+    .dashboard-chart-shell {
+        border: 1px solid var(--app-border);
+        background: var(--app-surface);
+        border-radius: calc(var(--app-radius) + 2px);
+        @apply h-[420px] p-5;
+    }
+
+    .dashboard-line-chart {
+        color: #FF5A1F;
+        @apply h-full w-full;
+    }
+
+    .dashboard-progress-track {
+        background: var(--app-border);
+        @apply h-2 overflow-hidden rounded-full;
+    }
+
+    .dashboard-progress-fill {
+        background: var(--progress-color, #FF5A1F);
+        @apply h-full rounded-full;
+    }
+
+    .dashboard-activity-icon {
+        background: var(--activity-bg, var(--app-surface-soft));
+        color: var(--activity-color, var(--app-muted));
+        @apply grid h-8 w-8 shrink-0 place-items-center rounded-lg;
+    }
+
+    .dashboard-scroll-list {
+        overflow-y: auto;
+        padding-right: .25rem;
+        scrollbar-width: thin;
+        scrollbar-color: color-mix(in srgb, var(--app-muted) 35%, transparent) transparent;
+    }
+
+    .dashboard-scroll-list-3 {
+        max-height: 226px;
+    }
+
+    .dashboard-scroll-list-5 {
+        max-height: 330px;
+    }
+
+    .dashboard-scroll-list::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .dashboard-scroll-list::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .dashboard-scroll-list::-webkit-scrollbar-thumb {
+        background: color-mix(in srgb, var(--app-muted) 28%, transparent);
+        border-radius: 999px;
+    }
+
+}

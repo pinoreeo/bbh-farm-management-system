@@ -1,0 +1,277 @@
+@layer components {
+    .layout-main {
+        background: var(--app-bg);
+        @apply min-h-screen lg:pl-[260px];
+    }
+
+    .content-wrap {
+        @apply mx-auto w-full max-w-[1536px] px-4 py-5 sm:px-6 lg:px-7;
+    }
+
+    .admin-list-toolbar {
+        border: 1px solid var(--app-border);
+        background: var(--app-surface);
+        box-shadow: var(--app-shadow);
+        border-radius: calc(var(--app-radius) + 2px);
+        @apply p-3;
+    }
+
+    .layout-main .ui-btn-primary {
+        border: 1px solid var(--app-accent);
+        background: var(--app-accent);
+        color: #FFFFFF;
+    }
+
+    .layout-main .ui-btn-primary:hover {
+        border-color: var(--app-accent-strong);
+        background: var(--app-accent-strong);
+    }
+
+    .admin-panel {
+        @apply overflow-hidden;
+    }
+
+    .admin-page-actions {
+        @apply mb-5 flex flex-wrap items-center justify-between gap-3;
+    }
+
+    .admin-inline-actions {
+        @apply flex flex-wrap items-center gap-2;
+    }
+
+    .admin-alert {
+        border: 1px solid var(--alert-border, var(--app-border));
+        background: var(--alert-bg, var(--app-surface-soft));
+        color: var(--alert-color, var(--app-text));
+        border-radius: calc(var(--app-radius) + 2px);
+        @apply mb-5 px-4 py-3 text-sm;
+    }
+
+    .admin-alert-success {
+        --alert-border: color-mix(in oklab, var(--app-success) 24%, var(--app-border));
+        --alert-bg: color-mix(in oklab, var(--app-success) 10%, white);
+        --alert-color: color-mix(in oklab, var(--app-success) 82%, black);
+    }
+
+    .admin-alert-danger {
+        --alert-border: color-mix(in oklab, var(--app-danger) 30%, var(--app-border));
+        --alert-bg: color-mix(in oklab, var(--app-danger) 8%, white);
+        --alert-color: color-mix(in oklab, var(--app-danger) 86%, black);
+    }
+
+    .admin-detail-item {
+        border: 1px solid var(--app-border);
+        background: var(--app-surface);
+        border-radius: calc(var(--app-radius) + 2px);
+        @apply p-4 transition-colors;
+    }
+
+    .admin-detail-item:hover {
+        background: var(--app-surface-soft);
+    }
+
+    .admin-field-summary {
+        border: 1px solid var(--app-border);
+        background: var(--app-surface-soft);
+        border-radius: calc(var(--app-radius) + 2px);
+        @apply p-4;
+    }
+
+    .admin-form-shell {
+        @apply mx-auto max-w-5xl;
+    }
+
+    .admin-readonly-field {
+        border: 1px solid var(--app-border);
+        background: var(--app-surface-soft);
+        border-radius: calc(var(--app-radius) + 2px);
+        @apply p-4;
+    }
+
+    .admin-readonly-field span {
+        color: var(--app-muted);
+        @apply mb-1 block text-xs font-medium;
+    }
+
+    .admin-readonly-field strong {
+        color: var(--app-text);
+        @apply block text-sm font-semibold;
+    }
+
+    .admin-filter-popover {
+        @apply relative;
+    }
+
+    .admin-filter-popover > summary {
+        list-style: none;
+    }
+
+    .admin-filter-popover > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .admin-filter-panel {
+        border: 1px solid var(--app-border);
+        background: var(--app-surface);
+        box-shadow: 0 12px 32px rgb(0 0 0 / 9%);
+        border-radius: calc(var(--app-radius) + 2px);
+        @apply absolute right-0 top-12 z-10 w-[min(720px,calc(100vw-2rem))] p-4;
+    }
+
+    .ui-filter-label {
+        color: var(--app-muted);
+        @apply mb-1.5 block text-xs font-medium;
+    }
+
+    .admin-sidebar-shell {
+        background: var(--app-sidebar);
+        color: var(--app-sidebar-text);
+        border-color: var(--app-border);
+    }
+
+    .admin-sidebar-brand {
+        color: var(--app-sidebar-text);
+    }
+
+    .admin-sidebar-muted {
+        color: var(--app-sidebar-muted);
+    }
+
+    .admin-sidebar-group {
+        color: color-mix(in oklab, var(--app-sidebar-muted) 62%, transparent);
+        letter-spacing: .1em;
+    }
+
+    .admin-sidebar-link {
+        color: var(--app-sidebar-muted);
+        border-radius: calc(var(--app-radius) - 2px);
+        @apply relative flex items-center gap-3 px-3 py-2 text-sm font-medium transition;
+    }
+
+    .admin-sidebar-link:hover {
+        background: var(--app-sidebar-soft);
+        color: var(--app-sidebar-text);
+    }
+
+    .admin-sidebar-link-active {
+        background: color-mix(in oklab, var(--app-accent) 10%, transparent);
+        color: var(--app-active-text);
+        box-shadow: none;
+    }
+
+    .admin-sidebar-card {
+        border: 1px solid var(--app-border);
+        background: var(--app-surface);
+        border-radius: calc(var(--app-radius) + 2px);
+        @apply p-3;
+    }
+
+    .admin-sidebar-card .ui-btn-soft {
+        border-color: var(--app-border);
+        background: var(--app-surface);
+        color: var(--app-sidebar-muted);
+        box-shadow: none;
+    }
+
+    .admin-sidebar-card .ui-btn-soft:hover {
+        background: var(--app-sidebar-soft);
+        color: var(--app-sidebar-text);
+    }
+
+    .admin-topbar {
+        background: var(--app-bg);
+        border-color: var(--app-border);
+    }
+
+    .admin-icon-button {
+        color: var(--app-muted);
+        @apply grid h-9 w-9 place-items-center rounded-lg transition;
+    }
+
+    .admin-icon-button:hover {
+        background: var(--app-surface-soft);
+        color: var(--app-text);
+    }
+
+    .admin-notification-menu {
+        position: absolute;
+        right: 0;
+        top: calc(100% + .75rem);
+        z-index: 40;
+        width: min(360px, calc(100vw - 2rem));
+        overflow: hidden;
+        border: 1px solid var(--app-border);
+        background: var(--app-surface);
+        color: var(--app-text);
+        border-radius: calc(var(--app-radius) + 4px);
+        box-shadow: 0 22px 45px rgb(0 0 0 / 14%);
+    }
+
+    .admin-notification-menu[hidden] {
+        display: none;
+    }
+
+    .admin-notification-header {
+        background: color-mix(in oklab, var(--app-accent) 18%, var(--app-surface));
+        border-bottom: 1px solid var(--app-border);
+        @apply px-4 py-3 text-sm font-semibold;
+    }
+
+    .admin-notification-list {
+        max-height: 320px;
+        overflow-y: auto;
+    }
+
+    .admin-notification-item {
+        display: block;
+        border-bottom: 1px solid var(--app-border);
+        @apply px-4 py-3 text-sm transition-colors;
+    }
+
+    .admin-notification-item:hover {
+        background: var(--app-surface-soft);
+    }
+
+    .admin-notification-footer {
+        display: block;
+        @apply px-4 py-3 text-sm font-medium transition-colors;
+    }
+
+    .admin-notification-footer:hover {
+        background: var(--app-surface-soft);
+        color: var(--app-active-text);
+    }
+
+    .certificate-preview-error-page {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #ffffff;
+        color: #171717;
+        font-family: var(--font-sans);
+    }
+
+    .certificate-preview-error-alert {
+        width: min(520px, calc(100% - 32px));
+        border: 1px solid #e5e5e5;
+        border-radius: 10px;
+        background: #ffffff;
+        padding: 18px 20px;
+        box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+    }
+
+    .certificate-preview-error-title {
+        margin: 0 0 8px;
+        font-size: 18px;
+        line-height: 1.4;
+        letter-spacing: 0;
+    }
+
+    .certificate-preview-error-message {
+        margin: 0;
+        color: #737373;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+}
