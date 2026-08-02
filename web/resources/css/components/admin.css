@@ -263,7 +263,7 @@
 
     .certificate-preview-error-title {
         margin: 0 0 8px;
-        font-size: 18px;
+        font-size: 19px;
         line-height: 1.4;
         letter-spacing: 0;
     }
@@ -271,7 +271,7 @@
     .certificate-preview-error-message {
         margin: 0;
         color: #737373;
-        font-size: 14px;
+        font-size: 15px;
         line-height: 1.6;
     }
 }

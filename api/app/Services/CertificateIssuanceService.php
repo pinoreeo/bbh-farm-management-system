@@ -154,7 +154,7 @@ class CertificateIssuanceService
                 $certificateData['valid_until'] = Carbon::parse($issueDate)
                     ->addYears((int) config('bbh_certificates.superior_seed_validity_years', 9))
                     ->toDateString();
-                $certificateData['barcode_value'] = $this->publicVerificationUrl((string) $certificateData['verification_token']);
+                $certificateData['barcode_value'] = $this->publicVerificationUrl($certificateData['verification_token']);
                 $certificateData['barcode_format'] = 'qrcode';
                 break;
 
@@ -177,13 +177,9 @@ class CertificateIssuanceService
 
     private function publicVerificationUrl(string $token): string
     {
-        $webUrl = rtrim((string) config('bbh.public.web_url'), '/');
-        if ($webUrl !== '') {
-            $locale = trim((string) config('bbh.public.default_locale', 'id-id'), '/');
+        $baseUrl = rtrim((string) (config('bbh.public_web_url') ?: config('app.url')), '/');
+        $locale = trim((string) config('bbh.public_default_locale', 'id-id'), '/');
 
-            return $webUrl.'/'.$locale.'/verifikasi/'.rawurlencode($token);
-        }
-
-        return url('/api/v1/public/certificates/verify/'.$token);
+        return "{$baseUrl}/{$locale}/verifikasi/".rawurlencode($token);
     }
 }

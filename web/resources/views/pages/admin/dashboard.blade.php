@@ -1,6 +1,13 @@
 <x-layouts.admin title="Dashboard" skeleton="dashboard">
     @php($topStats = $dashboard['stats'] ?? [])
 
+    @if (! empty($dashboard['apiFailureMessage']))
+        <div class="admin-alert admin-alert-danger">
+            <p class="font-semibold">Data Dashboard Tidak Lengkap</p>
+            <p class="mt-1 theme-muted">{{ $dashboard['apiFailureMessage'] }}</p>
+        </div>
+    @endif
+
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         @foreach ($topStats as $stat)
             <x-stat-card :label="$stat['label']" :value="$stat['value']" :note="$stat['note']" :tone="$stat['tone']" />

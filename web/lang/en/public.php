@@ -48,9 +48,9 @@ return [
         'next' => 'Next activity',
         'position' => 'Gallery position',
         'items' => [
-            ['bbh-feed-management-enhanced.png', 'Independent Feed Management', 'High-quality feed formulation is monitored regularly to support parent stock health and productivity.', 'object-[50%_58%]'],
+            ['bbh-feed-management-enhanced.webp', 'Independent Feed Management', 'High-quality feed formulation is monitored regularly to support parent stock health and productivity.', 'object-[50%_58%]'],
             ['hero-landing-app.webp', 'Hygienic Raised Barns', 'Applying modern barn management with strict sanitation and biosecurity to support livestock comfort.', 'object-[51%_52%]'],
-            ['bbh-kid-care-enhanced.png', 'Premium Genetic Selection', 'Intensive early care to ensure the next generation of dairy goat breeding stock is resilient and superior.', 'object-[50%_62%]'],
+            ['bbh-kid-care-enhanced.webp', 'Premium Genetic Selection', 'Intensive early care to ensure the next generation of dairy goat breeding stock is resilient and superior.', 'object-[50%_62%]'],
         ],
     ],
     'ecosystem' => [

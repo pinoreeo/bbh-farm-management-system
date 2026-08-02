@@ -33,7 +33,7 @@
             @endif
 
             @if (isset($reportMap[$slug]))
-                <a class="ui-btn ui-btn-soft" href="{{ route('admin.reports.xlsx', ['report' => $reportMap[$slug], 'date_from' => request('date_from'), 'date_to' => request('date_to'), 'year' => request('year'), 'month' => request('month')]) }}">
+                <a class="ui-btn ui-btn-soft" href="{{ route('admin.reports.xlsx', ['report' => $reportMap[$slug], 'date_from' => request('date_from'), 'date_to' => request('date_to'), 'year' => request('year'), 'month' => request('month')]) }}" data-no-skeleton>
                     <x-icons name="file" class="h-4 w-4" />
                     Export
                 </a>

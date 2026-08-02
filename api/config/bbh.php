@@ -16,10 +16,8 @@ return [
         'email' => env('BBH_FARM_EMAIL', 'admin@bbhfarm.domain'),
     ],
 
-    'public' => [
-        'web_url' => env('BBH_PUBLIC_WEB_URL'),
-        'default_locale' => env('BBH_PUBLIC_DEFAULT_LOCALE', 'id-id'),
-    ],
+    'public_web_url' => env('BBH_PUBLIC_WEB_URL'),
+    'public_default_locale' => env('BBH_PUBLIC_DEFAULT_LOCALE', 'id-id'),
 
     'pdf' => [
         'browser_path' => env('BBH_PDF_BROWSER_PATH'),

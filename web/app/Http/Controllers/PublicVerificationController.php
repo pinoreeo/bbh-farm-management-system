@@ -91,13 +91,13 @@ class PublicVerificationController extends Controller
         if ((! $response->successful() && ! $canShowVerificationResult) || ! is_array($result)) {
             return redirect()
                 ->route('verification')
-                ->with('verificationError', 'Gagal: Kode QR tidak terhubung dengan sertifikat yang terdaftar.');
+                ->with('verificationError', 'Gagal: Kode QR tidak terhubung dengan sertifikat yang terdaftar pada sistem.');
         }
 
-        return redirect()
-            ->route('verification.result')
-            ->with('verificationResult', $this->formatVerificationResult($result, false, 'QR Code'))
-            ->with('uploadedFilename', null);
+        return view('pages.public.verification-result', [
+            'verificationResult' => $this->formatVerificationResult($result, false, 'QR Code'),
+            'uploadedFilename' => null,
+        ]);
     }
 
     /**

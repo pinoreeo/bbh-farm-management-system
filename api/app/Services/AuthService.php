@@ -223,7 +223,7 @@ class AuthService
 
     private function resetUrl(string $token): string
     {
-        $webUrl = rtrim((string) (config('bbh.public.web_url') ?: config('app.url')), '/');
+        $webUrl = rtrim((string) (config('bbh.public_web_url') ?: config('app.url')), '/');
 
         return $webUrl.'/reset-kata-sandi/'.rawurlencode($token);
     }

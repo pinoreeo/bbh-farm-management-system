@@ -31,6 +31,7 @@ class AdminResourceController extends Controller
                 'subtitle' => $subtitle,
                 'columns' => $columns,
                 'records' => $records,
+                'apiFailureMessage' => $pageData->failureMessage(),
             ]);
         }
 
@@ -42,6 +43,7 @@ class AdminResourceController extends Controller
             'records' => $records,
             'filterYears' => $filterYears,
             'filterMonths' => $filterMonths,
+            'apiFailureMessage' => $pageData->failureMessage(),
         ]);
     }
 
@@ -66,7 +68,7 @@ class AdminResourceController extends Controller
             'pageTitle' => match ($resource) {
                 'certificates' => 'Terbitkan Sertifikat',
                 'users' => 'Tambah Admin',
-                default => 'Tambah ' . $title,
+                default => 'Tambah '.$title,
             },
             'subtitle' => $subtitle,
             'fields' => $resources->fields($resource, $this->form($resource, $columns), session('bbh_api_token')),
@@ -180,7 +182,7 @@ class AdminResourceController extends Controller
         return view('pages.admin.show', [
             'slug' => $resource,
             'id' => $id,
-            'pageTitle' => $resource === 'users' ? 'Detail Admin' : 'Detail ' . $title,
+            'pageTitle' => $resource === 'users' ? 'Detail Admin' : 'Detail '.$title,
             'subtitle' => $subtitle,
             'columns' => $columns,
             'row' => $row,
@@ -214,7 +216,7 @@ class AdminResourceController extends Controller
 
         return view('pages.admin.form', [
             'slug' => $resource,
-            'pageTitle' => $resource === 'users' ? 'Edit Admin' : 'Edit ' . $title,
+            'pageTitle' => $resource === 'users' ? 'Edit Admin' : 'Edit '.$title,
             'subtitle' => $subtitle,
             'fields' => $resources->fields($resource, $this->form($resource, $columns), session('bbh_api_token')),
             'values' => $values,
@@ -384,5 +386,4 @@ class AdminResourceController extends Controller
 
         return [$records, $filterYears, $filterMonths];
     }
-
 }
