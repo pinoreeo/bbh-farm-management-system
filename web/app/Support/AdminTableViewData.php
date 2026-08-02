@@ -2,12 +2,21 @@
 
 namespace App\Support;
 
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
+use Throwable;
 
 class AdminTableViewData
 {
+    private ?string $failureMessage = null;
+
     public function __construct(private readonly BbhApiClient $api) {}
+
+    public function failureMessage(): ?string
+    {
+        return $this->failureMessage;
+    }
 
     /**
      * @param  array<int, array<int, string>>  $fallbackRows
@@ -33,8 +42,17 @@ class AdminTableViewData
             return [];
         }
 
-        $response = $this->api->get($endpoint, $this->queryFor($slug), $token);
+        try {
+            $response = $this->api->get($endpoint, $this->queryFor($slug), $token);
+        } catch (Throwable) {
+            $this->failureMessage = 'Gagal: Layanan API tidak merespons. Data tidak dapat dimuat saat ini.';
+
+            return [];
+        }
+
         if (! $response->successful()) {
+            $this->failureMessage = $this->apiFailureMessage($response);
+
             return [];
         }
 
@@ -53,6 +71,19 @@ class AdminTableViewData
         )));
 
         return $rows;
+    }
+
+    private function apiFailureMessage(Response $response): string
+    {
+        $message = $response->json('message');
+        $message = is_string($message) && $message !== '' ? $message : null;
+
+        return match (true) {
+            $response->status() === 401 => 'Sesi Berakhir: Silakan masuk kembali sebelum melihat data admin.',
+            $response->status() === 403 => $message ?: 'Gagal: Akun Anda tidak memiliki izin untuk melihat data ini.',
+            $response->serverError() => 'Gagal: Layanan API sedang bermasalah. Data tidak dapat dimuat saat ini.',
+            default => $message ?: 'Gagal: Data tidak dapat dimuat dari API. Silakan coba muat ulang halaman.',
+        };
     }
 
     public function endpoint(string $slug): ?string

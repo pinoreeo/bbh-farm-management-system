@@ -4,9 +4,12 @@ namespace App\Support;
 
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
+use Throwable;
 
 class DashboardViewData
 {
+    private ?string $failureMessage = null;
+
     public function __construct(private readonly BbhApiClient $api) {}
 
     /**
@@ -67,6 +70,7 @@ class DashboardViewData
                 $this->status($this->value($animal, 'life_status')),
                 substr($this->value($animal, 'updated_at'), 0, 10),
             ], $animals), 0, 5),
+            'apiFailureMessage' => $this->failureMessage,
         ];
     }
 
@@ -75,7 +79,25 @@ class DashboardViewData
      */
     private function items(string $endpoint, string $token, int $perPage): array
     {
-        $response = $this->api->get($endpoint, ['per_page' => $perPage], $token);
+        try {
+            $response = $this->api->get($endpoint, ['per_page' => $perPage], $token);
+        } catch (Throwable) {
+            $this->failureMessage ??= 'Gagal: Layanan API tidak merespons. Sebagian data dashboard tidak dapat dimuat.';
+
+            return [];
+        }
+
+        if (! $response->successful()) {
+            $message = $response->json('message');
+            $this->failureMessage ??= match (true) {
+                $response->status() === 401 => 'Sesi Berakhir: Silakan masuk kembali sebelum melihat dashboard.',
+                $response->status() === 403 => is_string($message) && $message !== '' ? $message : 'Gagal: Akun Anda tidak memiliki izin untuk melihat sebagian data dashboard.',
+                $response->serverError() => 'Gagal: Layanan API sedang bermasalah. Sebagian data dashboard tidak dapat dimuat.',
+                default => is_string($message) && $message !== '' ? $message : 'Gagal: Sebagian data dashboard tidak dapat dimuat dari API.',
+            };
+
+            return [];
+        }
 
         return $response->successful() && is_array($response->json('data'))
             ? $response->json('data')
@@ -480,6 +502,7 @@ class DashboardViewData
                 ['BBH-014', 'Saanen', 'Betina', 'Hidup', '30 Mei 2026'],
                 ['BBH-022', 'Etawa', 'Betina', 'Hidup', '30 Mei 2026'],
             ],
+            'apiFailureMessage' => null,
         ];
     }
 

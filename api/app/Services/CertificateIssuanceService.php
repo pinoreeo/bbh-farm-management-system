@@ -154,7 +154,7 @@ class CertificateIssuanceService
                 $certificateData['valid_until'] = Carbon::parse($issueDate)
                     ->addYears((int) config('bbh_certificates.superior_seed_validity_years', 9))
                     ->toDateString();
-                $certificateData['barcode_value'] = url('/api/v1/public/certificates/verify/'.$certificateData['verification_token']);
+                $certificateData['barcode_value'] = $this->publicVerificationUrl($certificateData['verification_token']);
                 $certificateData['barcode_format'] = 'qrcode';
                 break;
 
@@ -173,5 +173,13 @@ class CertificateIssuanceService
     private function error(string $message, int $status = 422): array
     {
         return ['ok' => false, 'status' => $status, 'message' => $message];
+    }
+
+    private function publicVerificationUrl(string $token): string
+    {
+        $baseUrl = rtrim((string) (config('bbh.public_web_url') ?: config('app.url')), '/');
+        $locale = trim((string) config('bbh.public_default_locale', 'id-id'), '/');
+
+        return "{$baseUrl}/{$locale}/verifikasi/{$token}";
     }
 }

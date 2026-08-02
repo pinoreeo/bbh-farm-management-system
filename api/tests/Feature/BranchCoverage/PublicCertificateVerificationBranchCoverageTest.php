@@ -17,7 +17,12 @@ class PublicCertificateVerificationBranchCoverageTest extends ApiTestCase
         $this->postJson('/api/v1/public/certificates/verify', [
             'certificate_number' => $certificate->certificate_number,
         ])->assertOk()
-            ->assertJsonPath('is_valid', true);
+            ->assertJsonPath('is_valid', true)
+            ->assertJsonMissingPath('animal.photo_url')
+            ->assertJsonMissingPath('animal.reproductive_status')
+            ->assertJsonMissingPath('animal.current_pen')
+            ->assertJsonMissingPath('animal.latest_weight')
+            ->assertJsonMissingPath('animal.health_history');
 
         $this->postJson('/api/v1/public/certificates/verify', [
             'certificate_number' => 'BBH-NOT-FOUND',
