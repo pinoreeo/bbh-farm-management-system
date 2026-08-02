@@ -25,7 +25,6 @@
             ['label' => 'Akte & Sertifikat', 'route' => 'admin.certificates', 'icon' => 'certificate'],
             ['label' => 'RSA Key', 'route' => 'admin.rsa-keys', 'icon' => 'key'],
             ['label' => 'Log Sertifikat', 'route' => 'admin.certificate-logs', 'icon' => 'history'],
-            ['label' => 'Log Aktivitas', 'route' => 'admin.activity-logs', 'icon' => 'activity'],
         ],
     ];
 
@@ -33,6 +32,8 @@
         $groups = ['Super Admin' => [
             ['label' => 'Manajemen Pengguna', 'route' => 'admin.users', 'icon' => 'key'],
         ]] + $groups;
+
+        $groups['Dokumen'][] = ['label' => 'Log Aktivitas', 'route' => 'admin.activity-logs', 'icon' => 'activity'];
     }
 
     $initials = collect(explode(' ', trim($adminUser['name'] ?? 'Admin')))

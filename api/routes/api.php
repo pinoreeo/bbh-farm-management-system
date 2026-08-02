@@ -1,8 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AdminActivityLogController;
-use App\Http\Controllers\Api\V1\AnimalPenMovementController;
 use App\Http\Controllers\Api\V1\AnimalController;
+use App\Http\Controllers\Api\V1\AnimalPenMovementController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BirthEventController;
 use App\Http\Controllers\Api\V1\BreedController;
@@ -22,12 +22,13 @@ use App\Http\Controllers\Api\V1\OffspringBirthController;
 use App\Http\Controllers\Api\V1\PostnatalCareRecordController;
 use App\Http\Controllers\Api\V1\PregnancyCheckController;
 use App\Http\Controllers\Api\V1\Public\CertificateVerificationController;
-use App\Http\Controllers\Api\V1\RsaKeyController;
 use App\Http\Controllers\Api\V1\ReportExportController;
+use App\Http\Controllers\Api\V1\RsaKeyController;
 use App\Http\Controllers\Api\V1\UserManagementController;
 use App\Http\Controllers\Api\V1\VaccinationController;
 use App\Http\Controllers\Api\V1\WeightRecordController;
 use App\Http\Middleware\IsAdmin;
+use App\Http\Middleware\IsSuperAdmin;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -63,7 +64,9 @@ Route::prefix('v1')->group(function () {
 
         Route::get('farm', [FarmProfileController::class, 'show']);
         Route::put('farm', [FarmProfileController::class, 'update']);
-        Route::apiResource('users', UserManagementController::class)->except(['destroy']);
+        Route::apiResource('users', UserManagementController::class)
+            ->except(['destroy'])
+            ->middleware(IsSuperAdmin::class);
 
         Route::apiResource('breeds', BreedController::class)->except(['destroy']);
         Route::post('animals/{animal}', [AnimalController::class, 'update']);
@@ -125,7 +128,9 @@ Route::prefix('v1')->group(function () {
         Route::get('certificate-verification-logs', [CertificateVerificationLogController::class, 'index']);
         Route::get('certificate-verification-logs/{certificateVerificationLog}', [CertificateVerificationLogController::class, 'show']);
 
-        Route::get('admin-activity-logs', [AdminActivityLogController::class, 'index']);
-        Route::get('admin-activity-logs/{adminActivityLog}', [AdminActivityLogController::class, 'show']);
+        Route::middleware(IsSuperAdmin::class)->group(function (): void {
+            Route::get('admin-activity-logs', [AdminActivityLogController::class, 'index']);
+            Route::get('admin-activity-logs/{adminActivityLog}', [AdminActivityLogController::class, 'show']);
+        });
     });
 });

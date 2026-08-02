@@ -12,7 +12,11 @@ class CertificateSignatureController extends Controller
     public function index(Request $request): JsonResponse
     {
         $perPage = $this->perPage($request);
-        $q = CertificateSignature::query()->with(['certificate', 'rsaKey']);
+        $q = CertificateSignature::query()
+            ->with([
+                'certificate:id,certificate_number,status',
+                'rsaKey:id,user_id,key_identifier,fingerprint_sha256,key_status,is_active',
+            ]);
 
         if ($request->filled('certificate_id')) {
             $q->where('certificate_id', (int) $request->query('certificate_id'));

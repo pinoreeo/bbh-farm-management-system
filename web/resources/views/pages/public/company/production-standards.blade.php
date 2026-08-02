@@ -11,7 +11,7 @@
             ['#d48bc8', '#d0b4d4', ...$copy['production']['cards'][1]],
             ['#ffae62', '#d0b4d4', ...$copy['production']['cards'][2]],
         ] as $item)
-            <article class="bbh-stat-card relative h-full overflow-hidden p-7 text-left" style="background: {{ $item[0] }}; box-shadow: 0 0 32px 10px {{ $item[1] }};">
+            <article class="bbh-stat-card relative h-full overflow-hidden p-7 text-left" style="background: {{ $item[0] }};">
                 <div class="relative mx-auto h-[130px] w-[220px]" aria-hidden="true">
                     <span class="absolute bottom-3 left-1/2 h-20 w-36 -translate-x-1/2 rotate-[-8deg] rounded-[16px] bg-[#4264d9]"></span>
                     <span class="absolute bottom-8 left-1/2 h-16 w-32 -translate-x-1/2 rotate-[-8deg] rounded-[12px] bg-[#f1d84f]"></span>
