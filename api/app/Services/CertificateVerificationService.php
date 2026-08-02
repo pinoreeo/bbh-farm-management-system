@@ -114,51 +114,6 @@ class CertificateVerificationService
     public function publicCertificateData(Certificate $certificate): array
     {
         $animal = $certificate->animal;
-        $latestWeight = $animal?->weightRecords()
-            ->latest('record_date')
-            ->latest('id')
-            ->first();
-
-        $healthTreatments = $animal?->healthTreatments()
-            ->latest('treatment_date')
-            ->latest('id')
-            ->limit(5)
-            ->get()
-            ->map(fn ($record) => [
-                'type' => 'Perawatan',
-                'date' => $record->treatment_date?->toDateString(),
-                'title' => trim((string) $record->treatment_group) ?: 'Perawatan kesehatan',
-                'description' => trim(implode(' - ', array_filter([
-                    $record->product_name,
-                    $record->dosage,
-                    $record->administration_route,
-                ]))) ?: null,
-                'notes' => $record->notes,
-            ]) ?? collect();
-
-        $vaccinations = $animal?->vaccinations()
-            ->latest('vaccination_date')
-            ->latest('id')
-            ->limit(5)
-            ->get()
-            ->map(fn ($record) => [
-                'type' => 'Vaksinasi',
-                'date' => $record->vaccination_date?->toDateString(),
-                'title' => $record->category_name ?: 'Vaksinasi',
-                'description' => trim(implode(' - ', array_filter([
-                    $record->product_name,
-                    $record->dosage ? $record->dosage.' ml' : null,
-                    $record->administration_route,
-                ]))) ?: null,
-                'notes' => $record->notes,
-            ]) ?? collect();
-
-        $healthHistory = $healthTreatments
-            ->concat($vaccinations)
-            ->sortByDesc(fn ($record) => $record['date'] ?? '')
-            ->values()
-            ->take(5)
-            ->all();
 
         return [
             'certificate_type' => $certificate->certificateType?->type_code,
@@ -187,32 +142,15 @@ class CertificateVerificationService
                 'compromised_at' => $certificate->officialPdfRsaKey?->compromised_at?->toIso8601String(),
             ] : null,
             'animal' => $animal ? [
-                'id' => $animal->id,
                 'tag_number' => $animal->tag_number,
-                'photo_url' => $animal->photo_url,
                 'breed_name' => $animal->breed?->breed_name,
                 'sex' => $animal->sex,
-                'male_role' => $animal->male_role,
                 'generation' => $animal->generation,
                 'birth_date' => $animal->birth_date?->toDateString(),
                 'birth_place' => $animal->birth_place,
                 'life_status' => $animal->life_status,
-                'reproductive_status' => $animal->reproductive_status,
-                'current_pen' => $animal->currentPen ? [
-                    'pen_code' => $animal->currentPen->pen_code,
-                    'colony_code' => $animal->currentPen->colony_code,
-                    'colony_name' => $animal->currentPen->colony_name,
-                    'colony_type' => $animal->currentPen->colony_type,
-                    'colony_phase' => $animal->currentPen->colony_phase,
-                    'location' => $animal->currentPen->location,
-                ] : null,
                 'umur' => $animal->umur,
                 'kategori_umur' => $animal->kategori_umur,
-                'latest_weight' => $latestWeight ? [
-                    'weight_kg' => $latestWeight->weight_kg,
-                    'record_date' => $latestWeight->record_date?->toDateString(),
-                ] : null,
-                'health_history' => $healthHistory,
             ] : null,
         ];
     }

@@ -1,11 +1,18 @@
 @props(['title' => null, 'subtitle' => null, 'skeleton' => 'table'])
 
+@php
+    $pageTitle = isset($title) && $title !== 'Bumiku Bumimu Hijau Farm'
+        ? $title . ' - Bumiku Bumimu Hijau Farm'
+        : 'Bumiku Bumimu Hijau Farm';
+@endphp
+
 <!doctype html>
 <html lang="id">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ isset($title) && $title !== 'Bumiku Bumimu Hijau Farm' ? $title . ' - Bumiku Bumimu Hijau Farm' : 'Bumiku Bumimu Hijau Farm' }}</title>
+    <title>{{ $pageTitle }}</title>
+    <meta name="description" content="Dashboard pengelolaan operasional Bumiku Bumimu Hijau Farm.">
     <link rel="icon" type="image/webp" href="{{ asset('logo-main.webp') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>

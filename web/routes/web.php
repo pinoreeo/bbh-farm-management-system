@@ -17,6 +17,7 @@ Route::middleware('public.locale')
     ->group(function (): void {
         Route::get('/', [PublicVerificationController::class, 'index'])->name('verification');
         Route::post('/verifikasi', [PublicVerificationController::class, 'verify'])->name('verification.submit');
+        Route::get('/verifikasi/{token}', [PublicVerificationController::class, 'verifyToken'])->name('verification.token');
         Route::get('/hasil-verifikasi', [PublicVerificationController::class, 'result'])->name('verification.result');
         Route::view('/sertifikat-elektronik', 'pages.public.certificate-info')->name('certificate.info');
         Route::view('/lokasi', 'pages.public.location')->name('location');

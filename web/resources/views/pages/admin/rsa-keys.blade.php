@@ -20,6 +20,13 @@
         </div>
     @endif
 
+    @if (! empty($apiFailureMessage))
+        <div class="admin-alert admin-alert-danger">
+            <p class="font-semibold">Data Tidak Dapat Dimuat</p>
+            <p class="mt-1 theme-muted">{{ $apiFailureMessage }}</p>
+        </div>
+    @endif
+
     <x-panel title="Manajemen RSA Key">
         <x-slot:actions>
             <a class="ui-btn ui-btn-primary" href="{{ route('admin.resource.create', ['resource' => 'rsa-keys']) }}">

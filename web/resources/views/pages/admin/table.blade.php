@@ -50,6 +50,13 @@
 
     <x-admin.resource-flash />
 
+    @if (! empty($apiFailureMessage))
+        <div class="admin-alert admin-alert-danger">
+            <p class="font-semibold">Data Tidak Dapat Dimuat</p>
+            <p class="mt-1 theme-muted">{{ $apiFailureMessage }}</p>
+        </div>
+    @endif
+
     <x-panel :title="$title">
         <x-admin.resource-table
             :columns="$columns"

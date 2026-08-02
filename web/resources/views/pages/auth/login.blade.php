@@ -43,19 +43,15 @@
 
                         <label class="block">
                             <span class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Email</span>
-                            <input class="ui-input" type="email" name="email" value="{{ old('email') }}" placeholder="admin@example.com" required autofocus>
+                            <input class="ui-input" type="email" name="email" value="{{ old('email') }}" placeholder="admin@example.com" autocomplete="username" required autofocus>
                         </label>
 
                         <label class="block">
                             <span class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Kata Sandi</span>
-                            <input class="ui-input" type="password" name="password" placeholder="Masukkan kata sandi" required>
+                            <input class="ui-input" type="password" name="password" placeholder="Masukkan kata sandi" autocomplete="current-password" required>
                         </label>
 
-                        <div class="flex items-center justify-between text-sm">
-                            <label class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                                <input type="checkbox" name="remember" value="1" class="h-4 w-4 rounded border-gray-300 text-[var(--app-accent)] focus:ring-[var(--app-accent)]">
-                                Ingat saya
-                            </label>
+                        <div class="flex justify-end text-sm">
                             <a href="{{ route('password.request') }}" class="font-medium text-[var(--app-accent)] hover:text-[var(--app-accent-strong)]">Lupa kata sandi?</a>
                         </div>
 

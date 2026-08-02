@@ -31,6 +31,7 @@ class AdminResourceController extends Controller
                 'subtitle' => $subtitle,
                 'columns' => $columns,
                 'records' => $records,
+                'apiFailureMessage' => $pageData->failureMessage(),
             ]);
         }
 
@@ -42,6 +43,7 @@ class AdminResourceController extends Controller
             'records' => $records,
             'filterYears' => $filterYears,
             'filterMonths' => $filterMonths,
+            'apiFailureMessage' => $pageData->failureMessage(),
         ]);
     }
 
