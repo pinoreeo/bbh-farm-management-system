@@ -28,7 +28,6 @@ class AuthController extends Controller
     {
         $data = $this->validated($request, [
             'email' => ['required', 'email'],
-            'reset_url_template' => ['required', 'string', 'max:500'],
         ]);
 
         return response()->json($this->auth->forgotPassword($data));

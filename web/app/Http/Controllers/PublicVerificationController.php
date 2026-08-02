@@ -78,7 +78,7 @@ class PublicVerificationController extends Controller
     public function verifyToken(string $locale, string $token, BbhApiClient $api)
     {
         try {
-            $response = $api->get("public/certificates/verify/{$token}");
+            $response = $api->get('public/certificates/verify/'.rawurlencode($token));
         } catch (ConnectionException) {
             return redirect()
                 ->route('verification')

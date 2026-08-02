@@ -180,6 +180,6 @@ class CertificateIssuanceService
         $baseUrl = rtrim((string) (config('bbh.public_web_url') ?: config('app.url')), '/');
         $locale = trim((string) config('bbh.public_default_locale', 'id-id'), '/');
 
-        return "{$baseUrl}/{$locale}/verifikasi/{$token}";
+        return "{$baseUrl}/{$locale}/verifikasi/".rawurlencode($token);
     }
 }

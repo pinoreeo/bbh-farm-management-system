@@ -4,11 +4,13 @@ namespace App\Services;
 
 use App\Models\Certificate;
 use App\Models\CertificateVerificationLog;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class CertificateVerificationService
 {
-    public function verify(Certificate $certificate, string $verificationMethod = 'certificate_number'): array
+    public function verify(Certificate $certificate, string $verificationMethod = 'certificate_number', ?Request $request = null): array
     {
         $isAuthentic = true;
         $authReason = null;
@@ -75,12 +77,12 @@ class CertificateVerificationService
         $signedValidUntil = $this->signedPayloadDate($certificate, 'valid_until')
             ?? $certificate->valid_until?->toDateString();
 
-        if ($isValid && $signedValidUntil && \Carbon\Carbon::parse($signedValidUntil)->lt(now()->startOfDay())) {
+        if ($isValid && $signedValidUntil && Carbon::parse($signedValidUntil)->lt(now()->startOfDay())) {
             $isValid = false;
             $reason = 'Certificate validity period has ended.';
         }
 
-        $this->logVerification($certificate, $isValid, $reason, $usedFingerprint, $authReason, $verificationMethod);
+        $this->logVerification($certificate, $isValid, $reason, $usedFingerprint, $authReason, $verificationMethod, $request);
 
         return [
             'certificate_number' => $certificate->certificate_number,
@@ -147,10 +149,7 @@ class CertificateVerificationService
                 'sex' => $animal->sex,
                 'generation' => $animal->generation,
                 'birth_date' => $animal->birth_date?->toDateString(),
-                'birth_place' => $animal->birth_place,
                 'life_status' => $animal->life_status,
-                'umur' => $animal->umur,
-                'kategori_umur' => $animal->kategori_umur,
             ] : null,
         ];
     }
@@ -161,9 +160,10 @@ class CertificateVerificationService
         ?string $reason,
         ?string $usedFingerprint,
         ?string $authReason,
-        string $verificationMethod
+        string $verificationMethod,
+        ?Request $request = null
     ): void {
-        DB::transaction(function () use ($certificate, $isValid, $reason, $usedFingerprint, $authReason, $verificationMethod) {
+        DB::transaction(function () use ($certificate, $isValid, $reason, $usedFingerprint, $authReason, $verificationMethod, $request) {
             $failureReason = $reason;
 
             if ($authReason !== null) {
@@ -181,6 +181,8 @@ class CertificateVerificationService
                 'failure_reason' => $failureReason,
                 'used_key_fingerprint' => $usedFingerprint,
                 'used_barcode_value' => $certificate->barcode_value,
+                'ip_address' => $request?->ip(),
+                'user_agent' => $request?->userAgent(),
                 'created_at' => now(),
             ]);
         });

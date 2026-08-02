@@ -29,7 +29,6 @@ class AuthSessionController extends Controller
 
         $response = $api->post('auth/forgot-password', [
             'email' => $data['email'],
-            'reset_url_template' => url('/reset-kata-sandi/{token}'),
         ]);
 
         if (! $response->successful()) {

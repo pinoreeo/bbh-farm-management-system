@@ -83,9 +83,6 @@
             ['Jenis Kelamin', $sexLabel],
             ['Generasi', $animal['generation'] ?? '-'],
             ['Tanggal Lahir', $formatDate($animal['birth_date'] ?? null)],
-            ['Tempat Lahir', $animal['birth_place'] ?? '-'],
-            ['Umur', $animal['umur'] ?? '-'],
-            ['Kategori Umur', $humanize($animal['kategori_umur'] ?? null)],
             ['Status Hidup', $lifeStatusLabel],
         ];
 

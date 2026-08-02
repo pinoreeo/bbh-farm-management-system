@@ -108,6 +108,6 @@ class Certificate extends Model
         $baseUrl = rtrim((string) (config('bbh.public_web_url') ?: config('app.url')), '/');
         $locale = trim((string) config('bbh.public_default_locale', 'id-id'), '/');
 
-        return "{$baseUrl}/{$locale}/verifikasi/{$this->verification_token}";
+        return "{$baseUrl}/{$locale}/verifikasi/".rawurlencode((string) $this->verification_token);
     }
 }

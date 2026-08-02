@@ -20,7 +20,9 @@ class CertificateExportController extends Controller
             ], 422);
         }
 
-        if (! $certificate->barcode_value) {
+        $verificationUrl = $certificate->public_verification_url ?? $certificate->barcode_value;
+
+        if (! $verificationUrl) {
             return response()->json([
                 'message' => 'Peringatan: QR code belum tersedia untuk sertifikat ini.',
             ], 422);
@@ -28,8 +30,8 @@ class CertificateExportController extends Controller
 
         return response()->json([
             'certificate_id' => $certificate->id,
-            'qr_base64' => 'data:image/svg+xml;base64,'.$viewData->makeQrBase64($certificate->barcode_value),
-            'url' => $certificate->barcode_value,
+            'qr_base64' => 'data:image/svg+xml;base64,'.$viewData->makeQrBase64($verificationUrl),
+            'url' => $verificationUrl,
         ]);
     }
 

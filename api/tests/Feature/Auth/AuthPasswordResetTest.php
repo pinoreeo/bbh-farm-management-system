@@ -16,11 +16,11 @@ class AuthPasswordResetTest extends ApiTestCase
 
         $this->postJson('/api/v1/auth/forgot-password', [])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['email', 'reset_url_template']);
+            ->assertJsonValidationErrors(['email'])
+            ->assertJsonMissingValidationErrors(['reset_url_template']);
 
         $this->postJson('/api/v1/auth/forgot-password', [
             'email' => 'unknown@example.test',
-            'reset_url_template' => 'https://bbh.test/reset/{token}',
         ])->assertOk()
             ->assertJsonPath('message', 'Info: Jika email terdaftar di sistem, tautan reset kata sandi akan dikirim.');
 
@@ -31,7 +31,7 @@ class AuthPasswordResetTest extends ApiTestCase
 
         $this->postJson('/api/v1/auth/forgot-password', [
             'email' => $this->admin->email,
-            'reset_url_template' => 'https://bbh.test/reset/{token}',
+            'reset_url_template' => 'https://attacker.test/reset/{token}',
         ])->assertOk()
             ->assertJsonPath('message', 'Info: Jika email terdaftar di sistem, tautan reset kata sandi akan dikirim.');
 

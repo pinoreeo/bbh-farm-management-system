@@ -68,8 +68,8 @@ class CertificateExportBranchCoverageTest extends ApiTestCase
         $certificate->forceFill(['barcode_value' => null])->save();
 
         $this->getJson('/api/v1/certificates/'.$certificate->id.'/qr')
-            ->assertUnprocessable()
-            ->assertJsonPath('message', 'Peringatan: QR code belum tersedia untuk sertifikat ini.');
+            ->assertOk()
+            ->assertJsonPath('url', $certificate->fresh()->public_verification_url);
 
         $birth = $this->issueCertificate('KELAHIRAN');
 
