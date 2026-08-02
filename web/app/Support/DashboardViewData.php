@@ -15,7 +15,7 @@ class DashboardViewData
     /**
      * @return array<string, mixed>
      */
-    public function data(?string $token, ?int $selectedBirthYear = null): array
+    public function data(?string $token, ?int $selectedBirthYear = null, bool $includeActivityLogs = false): array
     {
         $fallback = $this->fallback();
 
@@ -27,7 +27,7 @@ class DashboardViewData
         $birthEvents = $this->items('birth-events', $token, 200);
         $breedingFemales = $this->items('breeding-females', $token, 200);
         $healthTreatments = $this->items('health-treatments', $token, 200);
-        $activityLogs = $this->items('admin-activity-logs', $token, 12);
+        $activityLogs = $includeActivityLogs ? $this->items('admin-activity-logs', $token, 12) : [];
 
         $aliveAnimals = array_values(array_filter($animals, fn ($animal) => $this->value($animal, 'life_status') !== 'dead'));
         $kids = array_values(array_filter($aliveAnimals, fn ($animal) => $this->ageInMonths($animal) <= 6));

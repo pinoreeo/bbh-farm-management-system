@@ -12,7 +12,8 @@ class CertificateRevocationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $perPage = $this->perPage($request);
-        $q = CertificateRevocation::query()->with(['certificate']);
+        $q = CertificateRevocation::query()
+            ->with(['certificate:id,certificate_number,status']);
 
         if ($request->filled('certificate_id')) {
             $q->where('certificate_id', (int) $request->query('certificate_id'));

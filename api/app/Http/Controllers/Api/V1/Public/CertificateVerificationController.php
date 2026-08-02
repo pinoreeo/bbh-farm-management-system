@@ -9,12 +9,13 @@ use App\Services\CertificateVerificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class CertificateVerificationController extends Controller
 {
-    private const PUBLIC_RELATIONS = ['certificateType', 'animal.breed', 'animal.currentPen'];
+    private const PUBLIC_RELATIONS = ['certificateType', 'animal.breed'];
 
-    private const VERIFICATION_RELATIONS = ['signature.rsaKey', 'signature.signedByUser', 'certificateType', 'animal.breed', 'animal.currentPen', 'revocation'];
+    private const VERIFICATION_RELATIONS = ['signature.rsaKey', 'signature.signedByUser', 'certificateType', 'animal.breed', 'revocation'];
 
     private const PDF_VERIFICATION_RELATIONS = [
         'signature.rsaKey',
@@ -22,7 +23,6 @@ class CertificateVerificationController extends Controller
         'officialPdfRsaKey',
         'certificateType',
         'animal.breed',
-        'animal.currentPen',
         'revocation',
     ];
 
@@ -32,6 +32,12 @@ class CertificateVerificationController extends Controller
 
     public function showPublic(string $certificate_number): JsonResponse
     {
+        if (mb_strlen($certificate_number) > 150) {
+            return response()->json([
+                'message' => 'Peringatan: Sertifikat tidak ditemukan pada basis data resmi Bumiku Bumimu Hijau Farm.',
+            ], 404);
+        }
+
         $cert = Certificate::query()
             ->with(self::PUBLIC_RELATIONS)
             ->where('certificate_number', $certificate_number)
@@ -75,6 +81,13 @@ class CertificateVerificationController extends Controller
 
     public function verifyByToken(Request $request, string $token): JsonResponse
     {
+        if (! Str::isUuid($token)) {
+            return response()->json([
+                'message' => 'Peringatan: Kode QR tidak terhubung dengan sertifikat yang terdaftar pada basis data resmi Bumiku Bumimu Hijau Farm.',
+                'is_valid' => false,
+            ], 404);
+        }
+
         $cert = Certificate::query()
             ->with(self::VERIFICATION_RELATIONS)
             ->where('verification_token', $token)

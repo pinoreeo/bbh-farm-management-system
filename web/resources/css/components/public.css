@@ -152,7 +152,6 @@
     }
 
     .bbh-goat-cutout {
-        filter: drop-shadow(0 22px 18px rgb(0 75 10 / 24%));
         width: min(118vw, 520px);
         margin: 34px 0 -36px;
         transform: translateX(-12%);

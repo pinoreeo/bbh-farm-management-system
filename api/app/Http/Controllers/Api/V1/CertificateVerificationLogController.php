@@ -12,7 +12,21 @@ class CertificateVerificationLogController extends Controller
     public function index(Request $request): JsonResponse
     {
         $perPage = $this->perPage($request);
-        $q = CertificateVerificationLog::query()->with(['certificate']);
+        $q = CertificateVerificationLog::query()
+            ->select([
+                'id',
+                'certificate_id',
+                'verification_method',
+                'verification_time',
+                'is_valid',
+                'certificate_status_at_verification',
+                'failure_reason',
+                'used_key_fingerprint',
+                'used_barcode_value',
+                'ip_address',
+                'created_at',
+            ])
+            ->with(['certificate:id,certificate_number,status']);
 
         if ($request->filled('certificate_id')) {
             $q->where('certificate_id', (int) $request->query('certificate_id'));
