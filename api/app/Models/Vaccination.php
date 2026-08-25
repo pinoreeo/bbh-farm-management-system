@@ -24,6 +24,7 @@ class Vaccination extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
     public function animal(): BelongsTo
     {
         return $this->belongsTo(Animal::class, 'animal_id');

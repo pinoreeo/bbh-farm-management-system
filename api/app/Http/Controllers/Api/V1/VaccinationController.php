@@ -72,7 +72,6 @@ class VaccinationController extends Controller
             ], 422);
         }
 
-
         $row = Vaccination::create($data);
 
         return response()->json([
@@ -135,5 +134,4 @@ class VaccinationController extends Controller
             'data' => $vaccination->load(['animal']),
         ]);
     }
-
 }

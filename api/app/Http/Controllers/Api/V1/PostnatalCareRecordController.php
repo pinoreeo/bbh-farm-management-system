@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Models\BirthEvent;
 use App\Models\OffspringBirth;
 use App\Models\PostnatalCareRecord;
 use Illuminate\Http\JsonResponse;
@@ -15,8 +14,6 @@ class PostnatalCareRecordController extends Controller
     {
         $perPage = $this->perPage($request);
         $q = PostnatalCareRecord::query()->with(['offspringBirth.birthEvent', 'offspringBirth.offspringAnimal', 'birthEvent', 'targetAnimal']);
-
-
 
         if ($request->filled('birth_event_id')) {
             $q->where('birth_event_id', (int) $request->query('birth_event_id'));
@@ -86,7 +83,6 @@ class PostnatalCareRecordController extends Controller
                 'message' => 'Peringatan: Data perawatan pascalahir untuk cempe tersebut sudah pernah dicatat.',
             ], 422);
         }
-
 
         $row = PostnatalCareRecord::create($data);
 

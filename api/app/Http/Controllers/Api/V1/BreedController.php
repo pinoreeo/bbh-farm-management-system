@@ -76,5 +76,4 @@ class BreedController extends Controller
             'data' => $breed,
         ]);
     }
-
 }

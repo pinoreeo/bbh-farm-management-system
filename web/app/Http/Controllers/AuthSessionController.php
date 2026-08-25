@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\BbhApiClient;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -27,9 +28,15 @@ class AuthSessionController extends Controller
             'email.email' => 'Peringatan: Kolom email harus menggunakan format email yang valid.',
         ]);
 
-        $response = $api->post('auth/forgot-password', [
-            'email' => $data['email'],
-        ]);
+        try {
+            $response = $api->post('auth/forgot-password', [
+                'email' => $data['email'],
+            ]);
+        } catch (ConnectionException) {
+            throw ValidationException::withMessages([
+                'email' => 'Gagal: Layanan API Bumiku Bumimu Hijau Farm tidak merespons. Silakan coba lagi nanti.',
+            ]);
+        }
 
         if (! $response->successful()) {
             throw ValidationException::withMessages([
@@ -63,10 +70,16 @@ class AuthSessionController extends Controller
             'password.confirmed' => 'Peringatan: Konfirmasi kata sandi tidak cocok. Pastikan nilai sama dengan kolom sebelumnya.',
         ]);
 
-        $response = $api->post('auth/reset-password', [
-            ...$data,
-            'password_confirmation' => $request->input('password_confirmation'),
-        ]);
+        try {
+            $response = $api->post('auth/reset-password', [
+                ...$data,
+                'password_confirmation' => $request->input('password_confirmation'),
+            ]);
+        } catch (ConnectionException) {
+            throw ValidationException::withMessages([
+                'email' => 'Gagal: Layanan API Bumiku Bumimu Hijau Farm tidak merespons. Silakan coba lagi nanti.',
+            ]);
+        }
 
         if (! $response->successful()) {
             $message = $response->json('message') ?: 'Gagal: Data pengajuan reset kata sandi tidak valid.';
@@ -96,11 +109,17 @@ class AuthSessionController extends Controller
             'password.required' => 'Peringatan: Kolom kata sandi wajib diisi.',
         ]);
 
-        $response = $api->post('auth/login', [
-            ...$credentials,
-            'device_name' => 'bbh-laravel-frontend',
-            'revoke_existing_tokens' => true,
-        ]);
+        try {
+            $response = $api->post('auth/login', [
+                ...$credentials,
+                'device_name' => 'bbh-laravel-frontend',
+                'revoke_existing_tokens' => true,
+            ]);
+        } catch (ConnectionException) {
+            throw ValidationException::withMessages([
+                'email' => 'Gagal Masuk: Layanan API Bumiku Bumimu Hijau Farm tidak merespons. Silakan coba lagi nanti.',
+            ]);
+        }
 
         if (! $response->successful()) {
             $message = $response->json('message');
@@ -128,8 +147,12 @@ class AuthSessionController extends Controller
     {
         $token = session('bbh_api_token');
 
-        if (is_string($token) && $token !== '') {
-            $api->post('auth/logout', [], $token);
+        try {
+            if (is_string($token) && $token !== '') {
+                $api->post('auth/logout', [], $token);
+            }
+        } catch (ConnectionException) {
+            // Session lokal tetap diakhiri walaupun API sedang tidak dapat dihubungi.
         }
 
         session()->forget(['bbh_api_token', 'bbh_admin_user']);

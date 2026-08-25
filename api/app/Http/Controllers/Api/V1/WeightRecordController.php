@@ -64,7 +64,6 @@ class WeightRecordController extends Controller
             ], 422);
         }
 
-
         $row = WeightRecord::create($data);
 
         return response()->json([
@@ -123,5 +122,4 @@ class WeightRecordController extends Controller
             'data' => $weightRecord->load('animal'),
         ]);
     }
-
 }

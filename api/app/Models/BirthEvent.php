@@ -29,7 +29,8 @@ class BirthEvent extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
-public function dam(): BelongsTo
+
+    public function dam(): BelongsTo
     {
         return $this->belongsTo(Animal::class, 'dam_id');
     }

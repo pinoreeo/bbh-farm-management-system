@@ -14,20 +14,20 @@ class BbhApiClientTest extends TestCase
 
         Http::fake([
             'http://api.test/api/v1/animals*' => Http::sequence()
-            ->push([
-                'current_page' => 1,
-                'last_page' => 2,
-                'data' => [
-                    ['id' => 1, 'tag_number' => '26-001'],
-                ],
-            ])
-            ->push([
-                'current_page' => 2,
-                'last_page' => 2,
-                'data' => [
-                    ['id' => 2, 'tag_number' => '26-002'],
-                ],
-            ]),
+                ->push([
+                    'current_page' => 1,
+                    'last_page' => 2,
+                    'data' => [
+                        ['id' => 1, 'tag_number' => '26-001'],
+                    ],
+                ])
+                ->push([
+                    'current_page' => 2,
+                    'last_page' => 2,
+                    'data' => [
+                        ['id' => 2, 'tag_number' => '26-002'],
+                    ],
+                ]),
         ]);
 
         $result = app(BbhApiClient::class)->paginatedData('animals', [], 'token');
