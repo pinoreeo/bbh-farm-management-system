@@ -9,43 +9,54 @@
                 <div class="mx-auto max-w-[1012px]">
                     <h1 class="bbh-h1 max-w-[780px] text-white">{{ $page['title'] }}</h1>
                     <p class="bbh-text mt-5 max-w-3xl text-white/68">{{ $page['intro'] }}</p>
+                    <div class="mt-8">
+                        <a href="{{ route('verification') }}#verifikasi" class="bbh-hero-action bg-[#007d12] text-white hover:bg-[#006f10]">{{ $page['verification_link'] }}</a>
+                    </div>
                 </div>
             </section>
 
             <section class="bg-white px-5 py-14 sm:px-8 lg:px-10 lg:py-16">
-                <article class="bbh-text mx-auto max-w-[980px] text-[#46524b]">
-                    <p>{{ $page['paragraphs'][0] }}</p>
+                <article class="mx-auto max-w-[980px] text-[#46524b]">
+                    <p class="bbh-text max-w-[880px]">{{ $page['paragraphs'][0] }}</p>
 
-                    <p class="mt-4">{{ $page['paragraphs'][1] }}</p>
+                    <p class="bbh-text mt-8 font-semibold text-[#101820]">{{ $page['paragraphs'][1] }}</p>
 
-                    <ol class="mt-2 list-decimal space-y-1 pl-6">
+                    <div class="mt-4 grid gap-4 md:grid-cols-2">
                         @foreach ($page['sign_verify'] as $item)
-                            <li><strong class="font-semibold text-[#101820]">{{ $item['term'] }}</strong>, {{ $item['copy'] }}</li>
+                            <div class="rounded-xl border border-[#dfe7df] bg-[#f8faf6] p-5">
+                                <h2 class="bbh-h3 text-[#101820]">{{ $item['term'] }}</h2>
+                                <p class="bbh-text mt-3">{{ $item['copy'] }}</p>
+                            </div>
                         @endforeach
-                    </ol>
+                    </div>
 
-                    <p class="mt-4">{{ $page['goals_intro'] }}</p>
+                    <p class="bbh-text mt-10 font-semibold text-[#101820]">{{ $page['goals_intro'] }}</p>
 
-                    <ol class="mt-2 list-decimal space-y-1 pl-6">
+                    <div class="mt-4 grid gap-4 md:grid-cols-3">
                         @foreach ($page['goals'] as $item)
-                            <li><strong class="font-semibold text-[#101820]">{{ $item['term'] }}</strong>, {{ $item['copy'] }}</li>
+                            <div class="rounded-xl border border-[#dfe7df] bg-white p-5 shadow-[0_12px_30px_rgb(16_24_32_/_6%)]">
+                                <h2 class="bbh-h3 text-[#101820]">{{ $item['term'] }}</h2>
+                                <p class="bbh-text mt-3">{{ $item['copy'] }}</p>
+                            </div>
                         @endforeach
-                    </ol>
+                    </div>
 
                     @foreach ($page['closing'] as $paragraph)
-                        <p class="mt-4">{{ $paragraph }}</p>
+                        <p class="bbh-text mt-6">{{ $paragraph }}</p>
                     @endforeach
 
-                    <h2 class="bbh-h2 pt-7 text-[#101820]">{{ $page['technical_title'] }}</h2>
+                    <div class="mt-10 rounded-2xl border border-[#dfe7df] bg-[#f8faf6] p-6">
+                        <h2 class="bbh-h2 text-[#101820]">{{ $page['technical_title'] }}</h2>
 
-                    <ul class="mt-2 list-disc space-y-1 pl-6">
-                        @foreach ($page['technical_items'] as $item)
-                            <li>{{ $item }}</li>
-                        @endforeach
-                    </ul>
+                        <ul class="mt-4 grid list-none gap-3 md:grid-cols-3">
+                            @foreach ($page['technical_items'] as $item)
+                                <li class="bbh-text rounded-lg border border-[#dfe7df] bg-white px-4 py-3 font-semibold text-[#101820]">{{ $item }}</li>
+                            @endforeach
+                        </ul>
 
-                    <div class="mt-8">
-                        <a href="{{ route('verification') }}#verifikasi" class="bbh-text font-semibold text-[#00aa13] hover:text-[#008c15]">{{ $page['verification_link'] }}</a>
+                        <div class="mt-6">
+                            <a href="{{ route('verification') }}#verifikasi" class="bbh-text inline-flex rounded-full bg-[#007d12] px-6 py-3 font-extrabold text-white transition hover:bg-[#006f10]">{{ $page['verification_link'] }}</a>
+                        </div>
                     </div>
                 </article>
             </section>

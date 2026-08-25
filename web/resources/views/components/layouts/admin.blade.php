@@ -14,6 +14,9 @@
     <title>{{ $pageTitle }}</title>
     <meta name="description" content="Dashboard pengelolaan operasional Bumiku Bumimu Hijau Farm.">
     <link rel="icon" type="image/webp" href="{{ asset('logo-main.webp') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[var(--app-bg)] antialiased">

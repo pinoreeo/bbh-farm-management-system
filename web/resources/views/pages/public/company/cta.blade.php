@@ -27,7 +27,7 @@
                     <h3 class="bbh-h3 font-extrabold">{{ $item[0] }}</h3>
                     <p class="mt-4 bbh-text font-medium text-[#626c65]">{{ $item[1] }}</p>
                     <div class="mt-auto pt-8">
-                        <a href="{{ $targetUrl }}" @if ($external) target="_blank" rel="noopener noreferrer" @endif class="bbh-small inline-flex rounded-full bg-[#00aa13] px-6 py-2 font-extrabold text-white hover:bg-[#008c15]">{{ $item[2] }}</a>
+                        <a href="{{ $targetUrl }}" @if ($external) target="_blank" rel="noopener noreferrer" @endif class="bbh-small inline-flex rounded-full bg-[#007d12] px-6 py-2 font-extrabold text-white transition hover:bg-[#006f10]">{{ $item[2] }}</a>
                     </div>
                 </div>
             @endforeach

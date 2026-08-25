@@ -62,8 +62,8 @@
     .bbh-public select,
     .bbh-public dt,
     .bbh-public dd {
-        font-size: 13px;
-        line-height: 17px;
+        font-size: 14px;
+        line-height: 22px;
         letter-spacing: 0;
     }
 
@@ -97,8 +97,8 @@
     }
 
     .bbh-public :where(.bbh-text, p, li, a, button, label, input, textarea, select, dt, dd) {
-        font-size: 13px !important;
-        line-height: 17px !important;
+        font-size: 14px !important;
+        line-height: 22px !important;
     }
 
     .bbh-public :where(p, li, input, textarea, select, dt, dd) {
@@ -138,13 +138,13 @@
     }
 
     .bbh-public .bbh-hero-copy {
-        font-size: 13px !important;
+        font-size: 15px !important;
         font-weight: 600 !important;
-        line-height: 17px !important;
+        line-height: 23px !important;
     }
 
     .bbh-hero-section {
-        min-height: 660px;
+        min-height: 640px;
     }
 
     .bbh-hero-inner {
@@ -152,9 +152,9 @@
     }
 
     .bbh-goat-cutout {
-        width: min(118vw, 520px);
-        margin: 34px 0 -36px;
-        transform: translateX(-12%);
+        width: min(106vw, 440px);
+        margin: 18px 0 -34px;
+        transform: translateX(-9%);
     }
 
     .bbh-stat-card {
@@ -360,7 +360,7 @@
         }
 
         .bbh-hero-section {
-            min-height: 720px;
+            min-height: 680px;
         }
 
         .bbh-goat-cutout {
@@ -392,17 +392,17 @@
         }
 
         .bbh-public h1.bbh-hero-title {
-            font-size: 35px !important;
-            line-height: 43px !important;
+            font-size: 31px !important;
+            line-height: 38px !important;
         }
 
         .bbh-public .bbh-hero-copy {
-            font-size: 13px !important;
-            line-height: 17px !important;
+            font-size: 14px !important;
+            line-height: 22px !important;
         }
 
         .bbh-hero-inner {
-            padding-top: 34px;
+            padding-top: 28px;
         }
 
         .bbh-stat-card {

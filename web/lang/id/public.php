@@ -64,8 +64,8 @@ return [
     'verification' => [
         'title' => 'Periksa keaslian dokumen Bumiku Bumimu Hijau Farm dengan lebih mudah',
         'copy' => 'Masukkan nomor sertifikat atau pilih berkas PDF resmi untuk melihat hasil pemeriksaan dokumen.',
-        'placeholder' => 'Masukkan nomor sertifikat atau pilih file PDF untuk diverifikasi',
-        'browse' => 'Browse PDF',
+        'placeholder' => 'Nomor sertifikat',
+        'browse' => 'Pilih PDF',
         'button' => 'Periksa Sekarang',
         'failed' => 'Gagal',
     ],
