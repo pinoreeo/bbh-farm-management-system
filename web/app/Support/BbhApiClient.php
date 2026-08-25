@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Pool;
 use Illuminate\Http\Client\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
@@ -22,6 +23,45 @@ class BbhApiClient
     public function get(string $path, array $query = [], ?string $token = null): Response
     {
         return $this->request($token)->get($this->url($path), $query);
+    }
+
+    /**
+     * @param  array<string, array{path:string,query?:array<string, mixed>}>  $requests
+     * @return array<string, Response>
+     */
+    public function getMany(array $requests, ?string $token = null): array
+    {
+        if ($requests === []) {
+            return [];
+        }
+
+        $connectTimeout = (int) config('services.bbh_api.connect_timeout', 5);
+        $timeout = (int) config('services.bbh_api.timeout', 20);
+        $retryTimes = (int) config('services.bbh_api.retry_times', 1);
+        $retrySleep = (int) config('services.bbh_api.retry_sleep', 150);
+
+        /** @var array<string, Response> $responses */
+        $responses = Http::pool(function (Pool $pool) use ($requests, $token, $connectTimeout, $timeout, $retryTimes, $retrySleep): array {
+            $pooled = [];
+
+            foreach ($requests as $key => $request) {
+                $pendingRequest = $pool->as((string) $key)
+                    ->acceptJson()
+                    ->connectTimeout($connectTimeout)
+                    ->timeout($timeout)
+                    ->retry($retryTimes, $retrySleep, throw: false);
+
+                if ($token !== null && $token !== '') {
+                    $pendingRequest = $pendingRequest->withToken($token);
+                }
+
+                $pooled[] = $pendingRequest->get($this->url($request['path']), $request['query'] ?? []);
+            }
+
+            return $pooled;
+        });
+
+        return $responses;
     }
 
     /**
@@ -66,6 +106,101 @@ class BbhApiClient
             'response' => $response,
             'truncated' => $page <= $lastPage,
         ];
+    }
+
+    /**
+     * @param  array<string, array{path:string,query?:array<string, mixed>}>  $requests
+     * @return array<string, array{ok:bool,data:array<int, mixed>,response:?Response,truncated:bool}>
+     */
+    public function paginatedBatchData(array $requests, ?string $token = null, int $maxPages = 50): array
+    {
+        $results = [];
+        $firstPageRequests = [];
+        $baseQueries = [];
+
+        foreach ($requests as $key => $request) {
+            $query = $request['query'] ?? [];
+            $query['per_page'] = 100;
+            $baseQueries[$key] = $query;
+            $firstPageRequests[$key] = [
+                'path' => $request['path'],
+                'query' => array_merge($query, ['page' => 1]),
+            ];
+        }
+
+        $firstPageResponses = $this->getMany($firstPageRequests, $token);
+        $followUpRequests = [];
+        $followUpOwners = [];
+
+        foreach ($requests as $key => $request) {
+            $response = $firstPageResponses[$key] ?? null;
+
+            if (! $response instanceof Response) {
+                $results[$key] = [
+                    'ok' => false,
+                    'data' => [],
+                    'response' => null,
+                    'truncated' => false,
+                ];
+
+                continue;
+            }
+
+            if (! $response->successful()) {
+                $results[$key] = [
+                    'ok' => false,
+                    'data' => [],
+                    'response' => $response,
+                    'truncated' => false,
+                ];
+
+                continue;
+            }
+
+            $pageItems = $response->json('data', []);
+            $pageItems = is_array($pageItems) ? $pageItems : [];
+            $currentPage = max(1, (int) $response->json('current_page', 1));
+            $lastPage = max($currentPage, (int) $response->json('last_page', $currentPage));
+
+            $results[$key] = [
+                'ok' => true,
+                'data' => $pageItems,
+                'response' => $response,
+                'truncated' => $lastPage > $maxPages,
+            ];
+
+            for ($page = $currentPage + 1; $page <= $lastPage && $page <= $maxPages; $page++) {
+                $followUpKey = $key.'::'.$page;
+                $followUpOwners[$followUpKey] = $key;
+                $followUpRequests[$followUpKey] = [
+                    'path' => $request['path'],
+                    'query' => array_merge($baseQueries[$key], ['page' => $page]),
+                ];
+            }
+        }
+
+        foreach ($this->getMany($followUpRequests, $token) as $followUpKey => $response) {
+            $owner = $followUpOwners[$followUpKey] ?? null;
+            if (! is_string($owner) || ! isset($results[$owner])) {
+                continue;
+            }
+
+            $results[$owner]['response'] = $response;
+
+            if (! $response->successful()) {
+                $results[$owner]['ok'] = false;
+                $results[$owner]['data'] = [];
+
+                continue;
+            }
+
+            $pageItems = $response->json('data', []);
+            if (is_array($pageItems)) {
+                array_push($results[$owner]['data'], ...$pageItems);
+            }
+        }
+
+        return $results;
     }
 
     /**
