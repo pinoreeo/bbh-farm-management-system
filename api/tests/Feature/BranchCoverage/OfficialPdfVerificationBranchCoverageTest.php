@@ -4,6 +4,7 @@ namespace Tests\Feature\BranchCoverage;
 
 use App\Services\CertificateSigningService;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Storage;
 use Tests\Feature\Support\ApiTestCase;
 
@@ -11,7 +12,7 @@ class OfficialPdfVerificationBranchCoverageTest extends ApiTestCase
 {
     public function test_pdf_verification_covers_lookup_integrity_signature_and_status_branches(): void
     {
-        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
+        $this->withoutMiddleware(ThrottleRequests::class);
         $this->actingAsAdmin();
 
         $this->postJson('/api/v1/public/certificates/verify-pdf', [])

@@ -2,6 +2,8 @@
 
 Laravel backend API for livestock management, digital certificate issuance, and RSA-SHA256 certificate verification at BBH Farm.
 
+This application lives inside the `api` directory of the BBH Farm monorepo. It is intentionally separated from the `web` application so the same backend can later serve a mobile app, third-party integration, kiosk, or another frontend.
+
 ## Main Features
 
 ### Livestock Management
@@ -74,11 +76,11 @@ Make sure the following tools are installed:
 
 ## Installation
 
-Clone the repository:
+Clone the monorepo and enter the API application:
 
 ```bash
-git clone https://github.com/USERNAME/bbh-farm-api.git
-cd bbh-farm-api
+git clone https://github.com/USERNAME/bbh-farm-v3.git
+cd bbh-farm-v3/api
 ```
 
 Install dependencies:
@@ -105,10 +107,10 @@ Configure your database in `.env`, then run migrations and seeders:
 php artisan migrate --seed
 ```
 
-Start the local development server:
+Start the local development server. Use port `8000` so the web application can point to `http://127.0.0.1:8000/api/v1`.
 
 ```bash
-php artisan serve
+php artisan serve --port=8000
 ```
 
 The API will be available at:

@@ -25,7 +25,7 @@ class SimpleXlsxWriter
         $xlsxPath = $path.'.xlsx';
         @rename($path, $xlsxPath);
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         if ($zip->open($xlsxPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             throw new RuntimeException('Gagal: File XLSX gagal dibuat.');
         }

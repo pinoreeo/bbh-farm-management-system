@@ -5,8 +5,8 @@ namespace App\Services;
 use App\Models\Certificate;
 use App\Models\CertificateSignature;
 use App\Models\RsaKey;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 
 class CertificateSigningService
 {

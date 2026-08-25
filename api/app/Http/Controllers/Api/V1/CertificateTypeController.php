@@ -52,5 +52,4 @@ class CertificateTypeController extends Controller
             'data' => $certificateType,
         ]);
     }
-
 }

@@ -7,8 +7,11 @@ use Illuminate\Validation\Rule;
 class AnimalStoreRequest extends ApiRequest
 {
     public const GENERATION_OPTIONS = ['F1', 'F2', 'F3', 'F4', 'F5', 'Pure Breed'];
+
     public const REPRODUCTIVE_STATUS_OPTIONS = ['kosong', 'kawin', 'bunting', 'kering', 'laktasi_kosong', 'melahirkan', 'afkir'];
+
     public const EXIT_STATUS_OPTIONS = ['sold', 'culled', 'lost'];
+
     public const ORIGIN_TYPE_OPTIONS = ['internal_birth', 'purchase', 'import', 'grant', 'unknown'];
 
     /**

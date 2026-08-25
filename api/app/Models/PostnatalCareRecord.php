@@ -35,7 +35,8 @@ class PostnatalCareRecord extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
-public function birthEvent(): BelongsTo
+
+    public function birthEvent(): BelongsTo
     {
         return $this->belongsTo(BirthEvent::class, 'birth_event_id');
     }

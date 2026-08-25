@@ -57,8 +57,7 @@ class AdminActivityLogger
         ?string $module = null,
         array $metadata = [],
         ?Response $response = null
-    ): void
-    {
+    ): void {
         $user = $request->user();
         $action ??= $this->resolveAction($request);
         $module ??= $this->resolveModule($request);
@@ -172,8 +171,7 @@ class AdminActivityLogger
         ?string $subjectLabel,
         ?int $statusCode,
         string $detailPhrase = ''
-    ): string
-    {
+    ): string {
         $moduleLabel = self::MODULE_LABELS[$module] ?? str($module)->replace('-', ' ')->title()->toString();
         $adminLabel = 'Admin '.($adminName ?: 'sistem');
         $target = $this->targetPhrase($module, $subjectLabel);

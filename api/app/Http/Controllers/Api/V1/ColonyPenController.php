@@ -109,5 +109,4 @@ class ColonyPenController extends Controller
             'data' => $colonyPen,
         ]);
     }
-
 }

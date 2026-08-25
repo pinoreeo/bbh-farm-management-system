@@ -32,7 +32,8 @@ class PregnancyCheck extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
-public function breedingPeriod(): BelongsTo
+
+    public function breedingPeriod(): BelongsTo
     {
         return $this->belongsTo(BreedingPeriod::class, 'breeding_period_id');
     }

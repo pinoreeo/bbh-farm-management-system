@@ -78,7 +78,6 @@ class HealthTreatmentController extends Controller
             ], 422);
         }
 
-
         $row = HealthTreatment::create($data);
 
         return response()->json([
@@ -147,5 +146,4 @@ class HealthTreatmentController extends Controller
             'data' => $healthTreatment->load('animal'),
         ]);
     }
-
 }

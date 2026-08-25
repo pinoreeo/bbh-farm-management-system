@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\RestrictApiDocumentation;
 use L5Swagger\Generator;
 use OpenApi\scan;
 
@@ -73,10 +74,10 @@ return [
              * Middleware allows to prevent unexpected access to API documentation
              */
             'middleware' => [
-                'api' => [\App\Http\Middleware\RestrictApiDocumentation::class],
-                'asset' => [\App\Http\Middleware\RestrictApiDocumentation::class],
-                'docs' => [\App\Http\Middleware\RestrictApiDocumentation::class],
-                'oauth2_callback' => [\App\Http\Middleware\RestrictApiDocumentation::class],
+                'api' => [RestrictApiDocumentation::class],
+                'asset' => [RestrictApiDocumentation::class],
+                'docs' => [RestrictApiDocumentation::class],
+                'oauth2_callback' => [RestrictApiDocumentation::class],
             ],
 
             /*
