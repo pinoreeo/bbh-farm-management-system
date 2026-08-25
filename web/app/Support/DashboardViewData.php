@@ -23,11 +23,19 @@ class DashboardViewData
             return $fallback;
         }
 
-        $animals = $this->items('animals', $token);
-        $birthEvents = $this->items('birth-events', $token);
-        $breedingFemales = $this->items('breeding-females', $token);
-        $healthTreatments = $this->items('health-treatments', $token);
-        $activityLogs = $includeActivityLogs ? $this->items('admin-activity-logs', $token) : [];
+        $dashboardItems = $this->batchItems([
+            'animals' => 'animals',
+            'birthEvents' => 'birth-events',
+            'breedingFemales' => 'breeding-females',
+            'healthTreatments' => 'health-treatments',
+            ...($includeActivityLogs ? ['activityLogs' => 'admin-activity-logs'] : []),
+        ], $token);
+
+        $animals = $dashboardItems['animals'];
+        $birthEvents = $dashboardItems['birthEvents'];
+        $breedingFemales = $dashboardItems['breedingFemales'];
+        $healthTreatments = $dashboardItems['healthTreatments'];
+        $activityLogs = $dashboardItems['activityLogs'] ?? [];
 
         $aliveAnimals = array_values(array_filter($animals, fn ($animal) => $this->value($animal, 'life_status') !== 'dead'));
         $kids = array_values(array_filter($aliveAnimals, fn ($animal) => $this->ageInMonths($animal) <= 6));
@@ -89,18 +97,59 @@ class DashboardViewData
 
         $response = $result['response'];
         if (! $result['ok'] && $response !== null) {
-            $message = $response->json('message');
-            $this->failureMessage ??= match (true) {
-                $response->status() === 401 => 'Sesi Berakhir: Silakan masuk kembali sebelum melihat dashboard.',
-                $response->status() === 403 => is_string($message) && $message !== '' ? $message : 'Gagal: Akun Anda tidak memiliki izin untuk melihat sebagian data dashboard.',
-                $response->serverError() => 'Gagal: Layanan API sedang bermasalah. Sebagian data dashboard tidak dapat dimuat.',
-                default => is_string($message) && $message !== '' ? $message : 'Gagal: Sebagian data dashboard tidak dapat dimuat dari API.',
-            };
+            $this->setFailureMessageFromResponse($response);
 
             return [];
         }
 
         return $result['data'];
+    }
+
+    /**
+     * @param  array<string, string>  $endpoints
+     * @return array<string, array<int, array<string, mixed>>>
+     */
+    private function batchItems(array $endpoints, string $token): array
+    {
+        $items = array_fill_keys(array_keys($endpoints), []);
+        $requests = [];
+
+        foreach ($endpoints as $key => $endpoint) {
+            $requests[$key] = ['path' => $endpoint];
+        }
+
+        try {
+            $results = $this->api->paginatedBatchData($requests, $token);
+        } catch (Throwable) {
+            $this->failureMessage ??= 'Gagal: Layanan API tidak merespons. Sebagian data dashboard tidak dapat dimuat.';
+
+            return $items;
+        }
+
+        foreach ($results as $key => $result) {
+            $response = $result['response'];
+
+            if (! $result['ok'] && $response !== null) {
+                $this->setFailureMessageFromResponse($response);
+
+                continue;
+            }
+
+            $items[$key] = $result['data'];
+        }
+
+        return $items;
+    }
+
+    private function setFailureMessageFromResponse($response): void
+    {
+        $message = $response->json('message');
+        $this->failureMessage ??= match (true) {
+            $response->status() === 401 => 'Sesi Berakhir: Silakan masuk kembali sebelum melihat dashboard.',
+            $response->status() === 403 => is_string($message) && $message !== '' ? $message : 'Gagal: Akun Anda tidak memiliki izin untuk melihat sebagian data dashboard.',
+            $response->serverError() => 'Gagal: Layanan API sedang bermasalah. Sebagian data dashboard tidak dapat dimuat.',
+            default => is_string($message) && $message !== '' ? $message : 'Gagal: Sebagian data dashboard tidak dapat dimuat dari API.',
+        };
     }
 
     /**

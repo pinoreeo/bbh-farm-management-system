@@ -4,6 +4,7 @@ namespace App\Support;
 
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Throwable;
 
 class AdminNotificationViewData
@@ -19,26 +20,30 @@ class AdminNotificationViewData
             return [];
         }
 
-        $breedingFemales = $this->apiItems('breeding-females', $token);
-        $healthTreatments = $this->apiItems('health-treatments', $token);
-        $rsaKeys = $this->apiItems('rsa-keys', $token, ['include_inactive' => 1]);
+        return Cache::remember('bbh_admin_notifications:'.hash('sha256', $token), now()->addSeconds(30), function () use ($token): array {
+            $apiItems = $this->apiItemsBatch([
+                'breedingFemales' => ['path' => 'breeding-females'],
+                'healthTreatments' => ['path' => 'health-treatments'],
+                'rsaKeys' => ['path' => 'rsa-keys', 'query' => ['include_inactive' => 1]],
+            ], $token);
 
-        $items = [
-            ...$this->breedingNotifications($breedingFemales),
-            ...$this->healthNotifications($healthTreatments),
-            ...$this->rsaNotifications($rsaKeys),
-        ];
+            $items = [
+                ...$this->breedingNotifications($apiItems['breedingFemales']),
+                ...$this->healthNotifications($apiItems['healthTreatments']),
+                ...$this->rsaNotifications($apiItems['rsaKeys']),
+            ];
 
-        usort($items, function (array $a, array $b): int {
-            return [$a['priority'] ?? 99, $a['date'] ?? '9999-12-31'] <=> [$b['priority'] ?? 99, $b['date'] ?? '9999-12-31'];
+            usort($items, function (array $a, array $b): int {
+                return [$a['priority'] ?? 99, $a['date'] ?? '9999-12-31'] <=> [$b['priority'] ?? 99, $b['date'] ?? '9999-12-31'];
+            });
+
+            return array_slice(array_map(fn (array $item) => [
+                'title' => $item['title'],
+                'body' => $item['body'],
+                'time' => $this->timeLabel($item['date'] ?? null),
+                'url' => $item['url'],
+            ], $items), 0, 8);
         });
-
-        return array_slice(array_map(fn (array $item) => [
-            'title' => $item['title'],
-            'body' => $item['body'],
-            'time' => $this->timeLabel($item['date'] ?? null),
-            'url' => $item['url'],
-        ], $items), 0, 8);
     }
 
     /**
@@ -56,6 +61,36 @@ class AdminNotificationViewData
         return $response->successful() && is_array($response->json('data'))
             ? $response->json('data')
             : [];
+    }
+
+    /**
+     * @param  array<string, array{path:string,query?:array<string, mixed>}>  $requests
+     * @return array<string, array<int, array<string, mixed>>>
+     */
+    private function apiItemsBatch(array $requests, string $token): array
+    {
+        $items = array_fill_keys(array_keys($requests), []);
+        $batchRequests = [];
+
+        foreach ($requests as $key => $request) {
+            $batchRequests[$key] = [
+                'path' => $request['path'],
+                'query' => ['per_page' => 100, ...($request['query'] ?? [])],
+            ];
+        }
+
+        try {
+            $responses = $this->api->getMany($batchRequests, $token);
+        } catch (Throwable) {
+            return $items;
+        }
+
+        foreach ($responses as $key => $response) {
+            $data = $response->successful() ? $response->json('data', []) : [];
+            $items[$key] = is_array($data) ? $data : [];
+        }
+
+        return $items;
     }
 
     /**
