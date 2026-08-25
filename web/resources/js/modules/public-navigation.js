@@ -51,4 +51,14 @@ export const initPublicNavigation = () => {
         button.setAttribute('aria-expanded', String(!isOpen));
     });
     menu.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeMenu));
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeMenu();
+        }
+    });
+    window.addEventListener('scroll', () => {
+        if (menu.classList.contains('hidden')) return;
+
+        closeMenu();
+    }, { passive: true });
 };

@@ -1,7 +1,7 @@
 @php($copy = $publicCopy ?? \App\Support\PublicSiteCopy::current())
 
-<section id="beranda" class="bbh-hero-section relative scroll-mt-[72px] overflow-hidden bg-[#00aa13] text-white lg:h-[711px] lg:scroll-mt-[84px]">
-    <div class="pointer-events-none absolute inset-y-0 right-0 hidden w-[52%] text-[#007d12] lg:block" aria-hidden="true">
+<section id="beranda" class="bbh-hero-section relative scroll-mt-[72px] overflow-hidden bg-[#008f16] text-white lg:h-[711px] lg:scroll-mt-[84px]">
+    <div class="pointer-events-none absolute inset-y-0 right-0 hidden w-[52%] text-[#006f12] lg:block" aria-hidden="true">
         <span class="absolute right-[-8%] top-[78px] h-[238px] w-[91%] border-[5px] border-current"></span>
         <span class="absolute right-[5%] top-[20px] h-[90px] w-[74%] border-[5px] border-b-0 border-current"></span>
         <span class="absolute right-[6%] top-[183px] h-[310px] w-[25%] border-[5px] border-current"></span>

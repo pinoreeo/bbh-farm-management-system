@@ -64,8 +64,8 @@ return [
     'verification' => [
         'title' => 'Verify Bumiku Bumimu Hijau Farm documents with ease',
         'copy' => 'Enter the certificate number or choose an official PDF file to view the document verification result.',
-        'placeholder' => 'Enter certificate number or choose a PDF file for verification',
-        'browse' => 'Browse PDF',
+        'placeholder' => 'Certificate number',
+        'browse' => 'Choose PDF',
         'button' => 'Verify Now',
         'failed' => 'Failed',
     ],

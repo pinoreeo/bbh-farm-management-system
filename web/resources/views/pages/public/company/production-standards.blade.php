@@ -7,11 +7,11 @@
 
     <div class="mx-auto mt-8 grid max-w-[1012px] items-stretch gap-8 md:grid-cols-3 lg:gap-10">
         @foreach ([
-            ['#7ccc6c', '#b2e5b8', ...$copy['production']['cards'][0]],
-            ['#d48bc8', '#d0b4d4', ...$copy['production']['cards'][1]],
-            ['#ffae62', '#d0b4d4', ...$copy['production']['cards'][2]],
+            ['#edf8ea', '#b7dfaa', ...$copy['production']['cards'][0]],
+            ['#f1f4f8', '#ccd6e0', ...$copy['production']['cards'][1]],
+            ['#fff2df', '#efd0a5', ...$copy['production']['cards'][2]],
         ] as $item)
-            <article class="bbh-stat-card relative h-full overflow-hidden p-7 text-left" style="background: {{ $item[0] }};">
+            <article class="bbh-stat-card relative h-full overflow-hidden border p-7 text-left shadow-[0_14px_34px_rgb(16_24_32_/_7%)]" style="background: {{ $item[0] }}; border-color: {{ $item[1] }};">
                 <div class="relative mx-auto h-[130px] w-[220px]" aria-hidden="true">
                     <span class="absolute bottom-3 left-1/2 h-20 w-36 -translate-x-1/2 rotate-[-8deg] rounded-[16px] bg-[#4264d9]"></span>
                     <span class="absolute bottom-8 left-1/2 h-16 w-32 -translate-x-1/2 rotate-[-8deg] rounded-[12px] bg-[#f1d84f]"></span>
@@ -30,7 +30,7 @@
                     @endif
                 </div>
                 <h3 class="mt-2 bbh-h3 font-extrabold">{{ $item[2] }}</h3>
-                <p class="mt-4 bbh-text font-medium text-[#173124]/75">{{ $item[3] }}</p>
+                <p class="mt-4 bbh-text font-medium text-[#314139]">{{ $item[3] }}</p>
             </article>
         @endforeach
     </div>
