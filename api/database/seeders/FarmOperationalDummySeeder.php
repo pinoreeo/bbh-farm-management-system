@@ -15,6 +15,7 @@ use App\Models\PostnatalCareRecord;
 use App\Models\PregnancyCheck;
 use App\Models\Vaccination;
 use App\Models\WeightRecord;
+use App\Support\TypeValue;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -65,10 +66,19 @@ class FarmOperationalDummySeeder extends Seeder
      */
     private function breeds(): array
     {
-        return Breed::query()
+        $rows = Breed::query()
             ->whereIn('breed_name', ['Saanen', 'Alpine', 'Sapera', 'Peranakan Etawa', 'Toggenburg'])
             ->pluck('id', 'breed_name')
             ->all();
+
+        $breeds = [];
+        foreach ($rows as $name => $id) {
+            if (is_string($name)) {
+                $breeds[$name] = TypeValue::int($id);
+            }
+        }
+
+        return $breeds;
     }
 
     /**

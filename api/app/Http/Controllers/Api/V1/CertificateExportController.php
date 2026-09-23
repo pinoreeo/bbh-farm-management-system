@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Certificate;
 use App\Services\CertificatePdfIntegrityService;
 use App\Services\CertificateViewDataService;
+use App\Support\TypeValue;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -20,7 +21,8 @@ class CertificateExportController extends Controller
             ], 422);
         }
 
-        $verificationUrl = $certificate->public_verification_url ?? $certificate->barcode_value;
+        $verificationUrl = TypeValue::nullableString($certificate->public_verification_url)
+            ?? TypeValue::nullableString($certificate->barcode_value);
 
         if (! $verificationUrl) {
             return response()->json([
@@ -58,7 +60,7 @@ class CertificateExportController extends Controller
 
         $data = $viewData->build($certificate);
         $qr = $certificate->certificateType->type_code === 'BIBIT_UNGGUL'
-            ? $viewData->makeQrBase64($data['verification_url'])
+            ? $viewData->makeQrBase64(TypeValue::nullableString($data['verification_url'] ?? null))
             : null;
 
         return view($bladeView, [

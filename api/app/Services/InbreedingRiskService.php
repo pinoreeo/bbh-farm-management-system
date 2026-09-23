@@ -94,11 +94,15 @@ class InbreedingRiskService
 
         while ($queue !== []) {
             [$currentId, $depth] = array_shift($queue);
+            if (! is_int($currentId) || ! is_int($depth)) {
+                continue;
+            }
+
             if ($depth >= $maxDepth) {
                 continue;
             }
 
-            foreach ($this->parentsOf((int) $currentId) as $parentId) {
+            foreach ($this->parentsOf($currentId) as $parentId) {
                 $nextDepth = $depth + 1;
                 if (! isset($ancestors[$parentId]) || $nextDepth < $ancestors[$parentId]) {
                     $ancestors[$parentId] = $nextDepth;

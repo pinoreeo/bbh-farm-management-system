@@ -8,6 +8,9 @@ use Symfony\Component\HttpFoundation\Response;
 
 class IsSuperAdmin
 {
+    /**
+     * @param  Closure(Request): Response  $next
+     */
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
@@ -18,7 +21,7 @@ class IsSuperAdmin
 
         if (($user->role ?? null) !== 'super_admin' || ! (bool) ($user->is_active ?? true)) {
             return response()->json([
-                'message' => 'Gagal: Tindakan gagal diproses. Hanya Super Admin yang dapat mengelola RSA Key.',
+                'message' => 'Gagal: Tindakan ini hanya dapat diproses oleh Super Admin aktif.',
             ], 403);
         }
 

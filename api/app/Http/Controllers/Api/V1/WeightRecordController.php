@@ -7,6 +7,7 @@ use App\Models\Animal;
 use App\Models\WeightRecord;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class WeightRecordController extends Controller
 {
@@ -39,37 +40,43 @@ class WeightRecordController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
-        $animal = Animal::find($data['animal_id']);
+        $animalId = $this->intValue($data['animal_id']);
+        $recordDate = $this->stringValue($data['record_date']);
 
-        if (! $animal || $animal->life_status !== 'alive') {
+        return DB::transaction(function () use ($data, $animalId, $recordDate): JsonResponse {
+            $animal = Animal::query()->whereKey($animalId)->lockForUpdate()->first();
+
+            if (! $animal || ($animal->life_status !== 'alive'
+                && (! $animal->status_date || $recordDate > $animal->status_date->toDateString()))) {
+                return response()->json([
+                    'message' => 'Peringatan: Tanggal timbang tidak boleh setelah tanggal kematian kambing.',
+                ], 422);
+            }
+
+            if ($animal->birth_date && $recordDate < $animal->birth_date->toDateString()) {
+                return response()->json([
+                    'message' => 'Peringatan: Tanggal timbang tidak boleh lebih awal dari tanggal lahir kambing.',
+                ], 422);
+            }
+
+            $exists = WeightRecord::query()
+                ->where('animal_id', $animalId)
+                ->whereDate('record_date', $recordDate)
+                ->exists();
+
+            if ($exists) {
+                return response()->json([
+                    'message' => 'Peringatan: Catatan bobot kambing ini pada tanggal tersebut sudah tersedia.',
+                ], 422);
+            }
+
+            $row = WeightRecord::create($data);
+
             return response()->json([
-                'message' => 'Peringatan: Catatan bobot hanya dapat dibuat untuk kambing yang masih hidup.',
-            ], 422);
-        }
-
-        if ($animal->birth_date && $data['record_date'] < $animal->birth_date->toDateString()) {
-            return response()->json([
-                'message' => 'Peringatan: Tanggal timbang tidak boleh lebih awal dari tanggal lahir kambing.',
-            ], 422);
-        }
-
-        $exists = WeightRecord::query()
-            ->where('animal_id', $data['animal_id'])
-            ->whereDate('record_date', $data['record_date'])
-            ->exists();
-
-        if ($exists) {
-            return response()->json([
-                'message' => 'Peringatan: Catatan bobot untuk kambing dan tanggal tersebut sudah ada.',
-            ], 422);
-        }
-
-        $row = WeightRecord::create($data);
-
-        return response()->json([
-            'message' => 'Sukses: Catatan bobot berhasil disimpan.',
-            'data' => $row->load('animal'),
-        ], 201);
+                'message' => 'Sukses: Catatan bobot berhasil disimpan.',
+                'data' => $row->load('animal'),
+            ], 201);
+        }, 3);
     }
 
     public function show(WeightRecord $weightRecord): JsonResponse
@@ -85,41 +92,45 @@ class WeightRecordController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
-        $animal = $weightRecord->animal;
+        return DB::transaction(function () use ($data, $weightRecord): JsonResponse {
+            $animal = Animal::query()->whereKey($weightRecord->animal_id)->lockForUpdate()->first();
+            $weightRecord = WeightRecord::query()->whereKey($weightRecord->id)->lockForUpdate()->firstOrFail();
 
-        $newRecordDate = $data['record_date'] ?? $weightRecord->record_date?->toDateString();
+            $newRecordDate = $this->stringValue($data['record_date'] ?? $weightRecord->record_date?->toDateString());
 
-        if ($animal && $animal->life_status !== 'alive') {
-            return response()->json([
-                'message' => 'Peringatan: Catatan bobot hanya dapat dibuat untuk kambing yang masih hidup.',
-            ], 422);
-        }
-
-        if ($animal && $animal->birth_date && $newRecordDate < $animal->birth_date->toDateString()) {
-            return response()->json([
-                'message' => 'Peringatan: Tanggal timbang tidak boleh lebih awal dari tanggal lahir kambing.',
-            ], 422);
-        }
-
-        if (array_key_exists('record_date', $data)) {
-            $exists = WeightRecord::query()
-                ->where('id', '!=', $weightRecord->id)
-                ->where('animal_id', $weightRecord->animal_id)
-                ->whereDate('record_date', $newRecordDate)
-                ->exists();
-
-            if ($exists) {
+            if (! $animal || ($animal->life_status !== 'alive'
+                && (! $animal->status_date || $newRecordDate > $animal->status_date->toDateString()))) {
                 return response()->json([
-                    'message' => 'Peringatan: Catatan bobot lain untuk kambing dan tanggal tersebut sudah ada.',
+                    'message' => 'Peringatan: Catatan bobot hanya dapat diperbaiki untuk tanggal sebelum atau saat kambing mati.',
                 ], 422);
             }
-        }
 
-        $weightRecord->fill($data)->save();
+            if ($animal->birth_date && $newRecordDate < $animal->birth_date->toDateString()) {
+                return response()->json([
+                    'message' => 'Peringatan: Tanggal timbang tidak boleh lebih awal dari tanggal lahir kambing.',
+                ], 422);
+            }
 
-        return response()->json([
-            'message' => 'Sukses: Catatan bobot berhasil diperbarui.',
-            'data' => $weightRecord->load('animal'),
-        ]);
+            if (array_key_exists('record_date', $data)) {
+                $exists = WeightRecord::query()
+                    ->where('id', '!=', $weightRecord->id)
+                    ->where('animal_id', $weightRecord->animal_id)
+                    ->whereDate('record_date', $newRecordDate)
+                    ->exists();
+
+                if ($exists) {
+                    return response()->json([
+                        'message' => 'Peringatan: Catatan bobot kambing ini pada tanggal tersebut sudah tersedia.',
+                    ], 422);
+                }
+            }
+
+            $weightRecord->fill($data)->save();
+
+            return response()->json([
+                'message' => 'Sukses: Catatan bobot berhasil diperbarui.',
+                'data' => $weightRecord->load('animal'),
+            ]);
+        }, 3);
     }
 }

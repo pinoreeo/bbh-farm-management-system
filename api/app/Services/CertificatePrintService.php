@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Certificate;
+use App\Support\TypeValue;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 
@@ -33,7 +34,7 @@ class CertificatePrintService
 
         $data = $this->viewData->build($certificate);
         $qr = $typeCode === 'BIBIT_UNGGUL'
-            ? $this->viewData->makeQrBase64($data['verification_url'])
+            ? $this->viewData->makeQrBase64(TypeValue::nullableString($data['verification_url'] ?? null))
             : null;
         $assets = $this->pdfIntegrity->templateAssets();
 

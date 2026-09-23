@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\AuthService;
+use App\Support\TypeValue;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -68,6 +69,32 @@ class AuthController extends Controller
         ]);
 
         return response()->json($this->auth->changePassword($user, $data));
+    }
+
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user instanceof User) {
+            return response()->json(['message' => 'Sesi Habis: Sesi masuk tidak valid. Silakan masuk kembali.'], 401);
+        }
+
+        $data = $this->validated($request, [
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['prohibited'],
+            'phone' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        if (array_key_exists('phone', $data)) {
+            $user->phone = TypeValue::nullableString($data['phone']);
+        }
+
+        $user->name = TypeValue::string($data['name']);
+        $user->save();
+
+        return response()->json([
+            'message' => 'Sukses: Profil pengguna berhasil diperbarui.',
+            'user' => $this->auth->userPayload($user),
+        ]);
     }
 
     public function logout(Request $request): JsonResponse

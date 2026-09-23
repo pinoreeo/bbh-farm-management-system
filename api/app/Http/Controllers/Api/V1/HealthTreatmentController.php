@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Animal;
 use App\Models\HealthTreatment;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class HealthTreatmentController extends Controller
 {
@@ -51,39 +53,55 @@ class HealthTreatmentController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
-        $animal = Animal::find($data['animal_id']);
+        $animalId = $this->intValue($data['animal_id']);
+        $treatmentGroup = $this->stringValue($data['treatment_group']);
+        $productName = $this->stringValue($data['product_name']);
+        $treatmentDate = $this->stringValue($data['treatment_date']);
 
-        if (! $animal || $animal->life_status !== 'alive') {
+        return DB::transaction(function () use ($data, $animalId, $treatmentGroup, $productName, $treatmentDate): JsonResponse {
+            $animal = Animal::query()->whereKey($animalId)->lockForUpdate()->first();
+
+            if (! $animal || ($animal->life_status !== 'alive'
+                && (! $animal->status_date || $treatmentDate > $animal->status_date->toDateString()))) {
+                return response()->json([
+                    'message' => 'Peringatan: Tanggal perawatan tidak boleh setelah tanggal kematian kambing.',
+                ], 422);
+            }
+
+            if ($animal->birth_date && $treatmentDate < $animal->birth_date->toDateString()) {
+                return response()->json([
+                    'message' => 'Peringatan: Tanggal perawatan tidak boleh lebih awal dari tanggal lahir kambing.',
+                ], 422);
+            }
+
+            $exists = HealthTreatment::query()
+                ->where('animal_id', $animalId)
+                ->where('treatment_group', $treatmentGroup)
+                ->where('product_name', $productName)
+                ->whereDate('treatment_date', $treatmentDate)
+                ->exists();
+
+            if ($exists) {
+                return response()->json([
+                    'message' => 'Peringatan: Catatan kesehatan untuk kambing, jenis perawatan, produk, dan tanggal tersebut sudah ada.',
+                ], 422);
+            }
+
+            try {
+                $row = HealthTreatment::create($data);
+            } catch (QueryException $e) {
+                if (! $this->isDuplicateKey($e)) {
+                    throw $e;
+                }
+
+                return response()->json(['message' => 'Peringatan: Catatan kesehatan untuk kambing, jenis perawatan, produk, dan tanggal tersebut sudah ada.'], 422);
+            }
+
             return response()->json([
-                'message' => 'Peringatan: Catatan kesehatan hanya dapat dibuat untuk kambing yang masih hidup.',
-            ], 422);
-        }
-
-        if ($animal->birth_date && $data['treatment_date'] < $animal->birth_date->toDateString()) {
-            return response()->json([
-                'message' => 'Peringatan: Tanggal perawatan tidak boleh lebih awal dari tanggal lahir kambing.',
-            ], 422);
-        }
-
-        $exists = HealthTreatment::query()
-            ->where('animal_id', $data['animal_id'])
-            ->where('treatment_group', $data['treatment_group'])
-            ->where('product_name', $data['product_name'])
-            ->whereDate('treatment_date', $data['treatment_date'])
-            ->exists();
-
-        if ($exists) {
-            return response()->json([
-                'message' => 'Peringatan: Catatan kesehatan untuk kambing, jenis perawatan, produk, dan tanggal tersebut sudah ada.',
-            ], 422);
-        }
-
-        $row = HealthTreatment::create($data);
-
-        return response()->json([
-            'message' => 'Sukses: Catatan kesehatan berhasil disimpan.',
-            'data' => $row->load('animal'),
-        ], 201);
+                'message' => 'Sukses: Catatan kesehatan berhasil disimpan.',
+                'data' => $row->load('animal'),
+            ], 201);
+        }, 3);
     }
 
     public function show(HealthTreatment $healthTreatment): JsonResponse
@@ -107,43 +125,60 @@ class HealthTreatmentController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
-        $animal = $healthTreatment->animal;
+        return DB::transaction(function () use ($data, $healthTreatment): JsonResponse {
+            $animal = Animal::query()->whereKey($healthTreatment->animal_id)->lockForUpdate()->first();
+            $healthTreatment = HealthTreatment::query()->whereKey($healthTreatment->id)->lockForUpdate()->firstOrFail();
 
-        if (! $animal || $animal->life_status !== 'alive') {
+            $newTreatmentDate = $this->stringValue($data['treatment_date'] ?? $healthTreatment->treatment_date?->toDateString());
+            if (! $animal || ($animal->life_status !== 'alive'
+                && (! $animal->status_date || $newTreatmentDate > $animal->status_date->toDateString()))) {
+                return response()->json([
+                    'message' => 'Peringatan: Catatan kesehatan hanya dapat diperbaiki untuk tanggal sebelum atau saat kambing mati.',
+                ], 422);
+            }
+
+            $newTreatmentGroup = $this->stringValue($data['treatment_group'] ?? $healthTreatment->treatment_group);
+            $newProductName = $this->stringValue($data['product_name'] ?? $healthTreatment->product_name);
+
+            if ($animal->birth_date && $newTreatmentDate < $animal->birth_date->toDateString()) {
+                return response()->json([
+                    'message' => 'Peringatan: Tanggal perawatan tidak boleh lebih awal dari tanggal lahir kambing.',
+                ], 422);
+            }
+
+            $exists = HealthTreatment::query()
+                ->where('id', '!=', $healthTreatment->id)
+                ->where('animal_id', $healthTreatment->animal_id)
+                ->where('treatment_group', $newTreatmentGroup)
+                ->where('product_name', $newProductName)
+                ->whereDate('treatment_date', $newTreatmentDate)
+                ->exists();
+
+            if ($exists) {
+                return response()->json([
+                    'message' => 'Peringatan: Catatan kesehatan lain untuk kambing, jenis perawatan, produk, dan tanggal tersebut sudah ada.',
+                ], 422);
+            }
+
+            try {
+                $healthTreatment->fill($data)->save();
+            } catch (QueryException $e) {
+                if (! $this->isDuplicateKey($e)) {
+                    throw $e;
+                }
+
+                return response()->json(['message' => 'Peringatan: Catatan kesehatan lain untuk kambing, jenis perawatan, produk, dan tanggal tersebut sudah ada.'], 422);
+            }
+
             return response()->json([
-                'message' => 'Peringatan: Catatan kesehatan hanya dapat dibuat untuk kambing yang masih hidup.',
-            ], 422);
-        }
+                'message' => 'Sukses: Catatan kesehatan berhasil diperbarui.',
+                'data' => $healthTreatment->load('animal'),
+            ]);
+        }, 3);
+    }
 
-        $newTreatmentGroup = $data['treatment_group'] ?? $healthTreatment->treatment_group;
-        $newProductName = $data['product_name'] ?? $healthTreatment->product_name;
-        $newTreatmentDate = $data['treatment_date'] ?? $healthTreatment->treatment_date?->toDateString();
-
-        if ($animal->birth_date && $newTreatmentDate < $animal->birth_date->toDateString()) {
-            return response()->json([
-                'message' => 'Peringatan: Tanggal perawatan tidak boleh lebih awal dari tanggal lahir kambing.',
-            ], 422);
-        }
-
-        $exists = HealthTreatment::query()
-            ->where('id', '!=', $healthTreatment->id)
-            ->where('animal_id', $healthTreatment->animal_id)
-            ->where('treatment_group', $newTreatmentGroup)
-            ->where('product_name', $newProductName)
-            ->whereDate('treatment_date', $newTreatmentDate)
-            ->exists();
-
-        if ($exists) {
-            return response()->json([
-                'message' => 'Peringatan: Catatan kesehatan lain untuk kambing, jenis perawatan, produk, dan tanggal tersebut sudah ada.',
-            ], 422);
-        }
-
-        $healthTreatment->fill($data)->save();
-
-        return response()->json([
-            'message' => 'Sukses: Catatan kesehatan berhasil diperbarui.',
-            'data' => $healthTreatment->load('animal'),
-        ]);
+    private function isDuplicateKey(QueryException $exception): bool
+    {
+        return in_array((string) $exception->getCode(), ['23000', '23505', '19'], true);
     }
 }

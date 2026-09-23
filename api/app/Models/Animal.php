@@ -5,8 +5,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * @property-read Breed|null $breed
+ * @property-read ColonyPen|null $currentPen
+ * @property-read Collection<int, OffspringBirth> $offspringBirths
+ * @property-read Collection<int, PostnatalCareRecord> $postnatalCareRecords
+ */
 class Animal extends Model
 {
     protected $table = 'animals';
@@ -46,76 +53,91 @@ class Animal extends Model
 
     protected $appends = ['umur', 'kategori_umur', 'photo_url'];
 
+    /** @return BelongsTo<Breed, $this> */
     public function breed(): BelongsTo
     {
         return $this->belongsTo(Breed::class);
     }
 
+    /** @return BelongsTo<ColonyPen, $this> */
     public function currentPen(): BelongsTo
     {
         return $this->belongsTo(ColonyPen::class, 'current_pen_id');
     }
 
+    /** @return HasMany<BirthEvent, $this> */
     public function birthEventsAsDam(): HasMany
     {
         return $this->hasMany(BirthEvent::class, 'dam_id');
     }
 
+    /** @return HasMany<BirthEvent, $this> */
     public function birthEventsAsSire(): HasMany
     {
         return $this->hasMany(BirthEvent::class, 'sire_id');
     }
 
+    /** @return HasMany<OffspringBirth, $this> */
     public function offspringBirths(): HasMany
     {
         return $this->hasMany(OffspringBirth::class, 'offspring_animal_id');
     }
 
+    /** @return HasMany<WeightRecord, $this> */
     public function weightRecords(): HasMany
     {
         return $this->hasMany(WeightRecord::class);
     }
 
+    /** @return HasMany<HealthTreatment, $this> */
     public function healthTreatments(): HasMany
     {
         return $this->hasMany(HealthTreatment::class);
     }
 
+    /** @return HasMany<Vaccination, $this> */
     public function vaccinations(): HasMany
     {
         return $this->hasMany(Vaccination::class);
     }
 
+    /** @return HasMany<PostnatalCareRecord, $this> */
     public function postnatalCareRecords(): HasMany
     {
         return $this->hasMany(PostnatalCareRecord::class, 'target_animal_id');
     }
 
+    /** @return HasMany<Certificate, $this> */
     public function certificates(): HasMany
     {
         return $this->hasMany(Certificate::class);
     }
 
+    /** @return HasMany<BreedingPeriod, $this> */
     public function breedingPeriodsAsMale(): HasMany
     {
         return $this->hasMany(BreedingPeriod::class, 'male_animal_id');
     }
 
+    /** @return HasMany<BreedingFemale, $this> */
     public function breedingFemales(): HasMany
     {
         return $this->hasMany(BreedingFemale::class, 'female_animal_id');
     }
 
+    /** @return HasMany<AnimalPenMovement, $this> */
     public function penMovements(): HasMany
     {
         return $this->hasMany(AnimalPenMovement::class);
     }
 
+    /** @return HasMany<PregnancyCheck, $this> */
     public function pregnancyChecks(): HasMany
     {
         return $this->hasMany(PregnancyCheck::class, 'female_animal_id');
     }
 
+    /** @return HasMany<OffspringBirth, $this> */
     public function parentBirthRecord(): HasMany
     {
         return $this->hasMany(OffspringBirth::class, 'offspring_animal_id');

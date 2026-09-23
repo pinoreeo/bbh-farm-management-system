@@ -17,6 +17,8 @@ class User extends Authenticatable
         'first_name',
         'last_name',
         'email',
+        'phone',
+        'phone_verified_at',
         'password',
         'role',
         'is_active',
@@ -32,6 +34,7 @@ class User extends Authenticatable
 
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'phone_verified_at' => 'datetime',
         'is_active' => 'boolean',
         'last_login_at' => 'datetime',
         'created_at' => 'datetime',

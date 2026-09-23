@@ -25,7 +25,7 @@ class AnimalStoreRequest extends ApiRequest
             'breed_id' => ['required', 'integer', 'exists:animal_breeds,id'],
             'sex' => ['required', 'in:male,female'],
             'generation' => ['required', Rule::in(self::GENERATION_OPTIONS)],
-            'birth_date' => ['nullable', 'date'],
+            'birth_date' => ['nullable', 'date', 'before_or_equal:today'],
             'birth_place' => ['nullable', 'string', 'max:255'],
             'current_pen_id' => ['nullable', 'integer', 'exists:animal_pens,id'],
             'reproductive_status' => ['nullable', Rule::in(self::REPRODUCTIVE_STATUS_OPTIONS)],

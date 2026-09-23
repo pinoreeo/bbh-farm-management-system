@@ -11,6 +11,9 @@ class LogAdminActivity
 {
     public function __construct(private readonly AdminActivityLogger $logger) {}
 
+    /**
+     * @param  Closure(Request): Response  $next
+     */
     public function handle(Request $request, Closure $next): Response
     {
         $response = $next($request);

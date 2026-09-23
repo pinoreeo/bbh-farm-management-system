@@ -3,13 +3,14 @@
 namespace App\Services;
 
 use App\Models\Animal;
-use App\Models\AnimalPenMovement;
 use App\Models\BreedingFemale;
 use App\Models\BreedingPeriod;
 use App\Models\ColonyPen;
+use App\Support\TypeValue;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class BreedingFemaleService
 {
@@ -23,49 +24,70 @@ class BreedingFemaleService
         'lainnya' => 'Lainnya',
     ];
 
-    public function __construct(private readonly InbreedingRiskService $inbreeding) {}
+    public function __construct(
+        private readonly InbreedingRiskService $inbreeding,
+        private readonly AnimalPenMovementService $movements,
+        private readonly ReproductiveStatusService $statuses,
+    ) {}
 
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<array-key, mixed>
+     */
     public function store(array $data): array
     {
-        $period = BreedingPeriod::query()->with('colonyPen')->find($data['breeding_period_id']);
-        if (! $period || $period->status !== 'active') {
-            return $this->error('Peringatan: Kode periode harus mengarah ke periode kawin yang masih aktif.');
-        }
-
-        $femaleIds = array_values(array_unique(array_map('intval', $data['female_animal_ids'] ?? [$data['female_animal_id']])));
-        $capacityError = $this->validateCapacity($period, count($femaleIds));
-        if ($capacityError !== null) {
-            return $capacityError;
-        }
-
-        foreach ($femaleIds as $femaleId) {
-            $femaleError = $this->validateFemaleForEntry($femaleId, $period);
-            if ($femaleError !== null) {
-                return $femaleError;
-            }
-        }
-
-        $dateError = $this->validateEntryAndMatingDates($data, $period);
-        if ($dateError !== null) {
-            return $dateError;
-        }
-
-        $matingDate = $data['mating_date'] ?? null;
+        $periodId = TypeValue::int($data['breeding_period_id']);
+        $rawFemaleIds = $data['female_animal_ids'] ?? [$data['female_animal_id']];
+        $femaleIds = collect(is_array($rawFemaleIds) ? $rawFemaleIds : [$rawFemaleIds])
+            ->map(fn (mixed $femaleId): int => TypeValue::int($femaleId))
+            ->unique()
+            ->values()
+            ->all();
+        $matingDate = TypeValue::nullableString($data['mating_date'] ?? null);
         $expectedBirthDate = $matingDate ? $this->expectedBirthDate($matingDate) : null;
-        $cycleStage = $data['cycle_stage'] ?? 'kawin';
+        $cycleStage = TypeValue::string($data['cycle_stage'] ?? 'kawin');
+        $entryDate = TypeValue::string($data['entry_date']);
 
-        $rows = DB::transaction(function () use ($data, $femaleIds, $period, $matingDate, $expectedBirthDate, $cycleStage) {
-            return collect($femaleIds)->map(function (int $femaleId) use ($data, $period, $matingDate, $expectedBirthDate, $cycleStage) {
-                Animal::query()->whereKey($femaleId)->update([
-                    'current_pen_id' => $period->colony_pen_id,
-                    'reproductive_status' => $cycleStage,
-                    'status_date' => $data['entry_date'],
-                ]);
+        return DB::transaction(function () use ($periodId, $femaleIds, $matingDate, $expectedBirthDate, $cycleStage, $entryDate, $data) {
+            $period = BreedingPeriod::query()->whereKey($periodId)->first();
+            $pen = ColonyPen::query()->whereKey($period?->colony_pen_id)->lockForUpdate()->first();
+            $period = BreedingPeriod::query()->with('colonyPen')->whereKey($periodId)->lockForUpdate()->first();
+            if (! $period || $period->status !== 'active' || ! $pen?->is_active || $pen->colony_phase !== 'koloni_kawin') {
+                return $this->error('Peringatan: Kode periode harus mengarah ke periode kawin yang masih aktif.');
+            }
+            $capacityError = $this->validateCapacity($period, count($femaleIds));
+            if ($capacityError !== null) {
+                return $capacityError;
+            }
+            $animals = Animal::query()->whereIn('id', $femaleIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            foreach ($femaleIds as $femaleId) {
+                $femaleError = $this->validateFemaleForEntry($femaleId, $period, $animals->get($femaleId));
+                if ($femaleError !== null) {
+                    return $femaleError;
+                }
+            }
+            $dateError = $this->validateEntryAndMatingDates($data, $period);
+            if ($dateError !== null) {
+                return $dateError;
+            }
 
-                return BreedingFemale::query()->create([
-                    'breeding_period_id' => $data['breeding_period_id'],
+            $rows = collect();
+            foreach ($femaleIds as $femaleId) {
+                $animal = $animals->get($femaleId);
+                if (! $animal instanceof Animal) {
+                    throw new \LogicException('A validated breeding female disappeared during registration.');
+                }
+                if ((string) $animal->current_pen_id !== (string) $period->colony_pen_id) {
+                    $move = $this->movements->record($animal, $period->colony_pen_id, $entryDate, 'Masuk periode kawin', null, true);
+                    if (isset($move['error'])) {
+                        throw ValidationException::withMessages(['entry_date' => [$move['error']]]);
+                    }
+                }
+
+                $row = BreedingFemale::query()->create([
+                    'breeding_period_id' => $periodId,
                     'female_animal_id' => $femaleId,
-                    'entry_date' => $data['entry_date'],
+                    'entry_date' => $entryDate,
                     'mating_date' => $matingDate,
                     'expected_birth_date' => $expectedBirthDate,
                     'cycle_stage' => $cycleStage,
@@ -75,17 +97,26 @@ class BreedingFemaleService
                     'exit_reason' => null,
                     'exit_reason_code' => null,
                     'exit_notes' => null,
-                ])->load(['breedingPeriod', 'femaleAnimal']);
-            })->values();
-        });
+                ]);
+                if (! $animal->status_date || $animal->status_date->toDateString() <= $entryDate) {
+                    $animal->forceFill(['reproductive_status' => $cycleStage, 'status_date' => $entryDate])->save();
+                    $this->statuses->sync($animal);
+                }
+                $rows->push($row->load(['breedingPeriod', 'femaleAnimal']));
+            }
 
-        return $this->success('Data betina kawin berhasil disimpan.', count($femaleIds) > 1 ? $rows->all() : $rows->first(), 201);
+            return $this->success('Data betina kawin berhasil disimpan.', count($femaleIds) > 1 ? $rows->all() : $rows->first(), 201);
+        }, 3);
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<array-key, mixed>
+     */
     public function update(BreedingFemale $breedingFemale, array $data): array
     {
         $period = $breedingFemale->breedingPeriod;
-        $entryDate = $data['entry_date'] ?? $breedingFemale->entry_date?->toDateString();
+        $entryDate = TypeValue::nullableString($data['entry_date'] ?? $breedingFemale->entry_date?->toDateString());
 
         if ($period?->start_date && $entryDate && $entryDate < $period->start_date->toDateString()) {
             return $this->error('Peringatan: Tanggal masuk tidak boleh lebih awal dari tanggal mulai periode kawin.');
@@ -98,19 +129,43 @@ class BreedingFemaleService
         if ($breedingFemale->mating_date && $entryDate && $entryDate > $breedingFemale->mating_date->toDateString()) {
             return $this->error('Peringatan: Tanggal masuk tidak boleh melewati tanggal kawin yang sudah dicatat.');
         }
-
-        $breedingFemale->fill($data)->save();
-
-        if (isset($data['cycle_stage'])) {
-            $breedingFemale->femaleAnimal?->forceFill([
-                'reproductive_status' => $data['cycle_stage'],
-                'status_date' => $entryDate,
-            ])->save();
+        if ($breedingFemale->exit_date && $entryDate && $entryDate > $breedingFemale->exit_date->toDateString()) {
+            return $this->error('Peringatan: Tanggal masuk tidak boleh melewati tanggal keluar betina.');
         }
 
-        return $this->success('Sukses: Data betina kawin berhasil diperbarui.', $breedingFemale->load(['breedingPeriod', 'femaleAnimal']));
+        return DB::transaction(function () use ($breedingFemale, $data, $entryDate) {
+            $animal = Animal::query()->whereKey($breedingFemale->female_animal_id)->lockForUpdate()->firstOrFail();
+            $oldEntryDate = $breedingFemale->entry_date?->toDateString();
+            if ($entryDate && $oldEntryDate && $entryDate !== $oldEntryDate) {
+                $entryMovement = $animal->penMovements()
+                    ->where('to_pen_id', $breedingFemale->breedingPeriod?->colony_pen_id)
+                    ->whereDate('movement_date', $oldEntryDate)
+                    ->where('reason', 'Masuk periode kawin')->first();
+                if ($entryMovement) {
+                    $error = $this->movements->reschedule($animal, $entryMovement, $entryDate);
+                    if ($error !== null) {
+                        throw ValidationException::withMessages(['entry_date' => [$error]]);
+                    }
+                }
+            }
+            $breedingFemale->fill($data)->save();
+            if ($animal->life_status === 'alive' && $entryDate && $oldEntryDate && $entryDate !== $oldEntryDate
+                && $animal->status_date?->toDateString() === $oldEntryDate) {
+                $animal->forceFill(['status_date' => $entryDate])->save();
+                $this->statuses->sync($animal);
+            }
+            if ($animal->life_status === 'alive' && isset($data['cycle_stage']) && $entryDate && (! $animal->status_date || $animal->status_date->toDateString() <= $entryDate)) {
+                $animal->forceFill(['reproductive_status' => TypeValue::string($data['cycle_stage']), 'status_date' => $entryDate])->save();
+                $this->statuses->sync($animal);
+            }
+
+            return $this->success('Sukses: Data betina kawin berhasil diperbarui.', $breedingFemale->load(['breedingPeriod', 'femaleAnimal']));
+        }, 3);
     }
 
+    /**
+     * @return array<array-key, mixed>
+     */
     public function recordMating(BreedingFemale $breedingFemale, string $matingDate): array
     {
         if ($breedingFemale->exit_date !== null) {
@@ -119,7 +174,7 @@ class BreedingFemaleService
 
         $period = $breedingFemale->breedingPeriod;
         if ($breedingFemale->entry_date && $matingDate < $breedingFemale->entry_date->toDateString()) {
-            return $this->error('Peringatan: Tanggal kawin tidak boleh lebih awal dari tanggal masuk betina.');
+            return $this->error('Peringatan: Tanggal kawin tidak boleh sebelum tanggal masuk betina.');
         }
 
         if ($period?->start_date && $matingDate < $period->start_date->toDateString()) {
@@ -130,20 +185,30 @@ class BreedingFemaleService
             return $this->error('Peringatan: Tanggal kawin tidak boleh melewati tanggal selesai periode kawin.');
         }
 
-        $breedingFemale->forceFill([
-            'mating_date' => $matingDate,
-            'expected_birth_date' => $this->expectedBirthDate($matingDate),
-            'cycle_stage' => 'kawin',
-        ])->save();
+        return DB::transaction(function () use ($breedingFemale, $matingDate) {
+            $animal = Animal::query()->whereKey($breedingFemale->female_animal_id)->lockForUpdate()->firstOrFail();
+            $breedingFemale = BreedingFemale::query()->whereKey($breedingFemale->id)->lockForUpdate()->firstOrFail();
+            if ($breedingFemale->exit_date !== null || $animal->life_status !== 'alive') {
+                return $this->error('Peringatan: Tanggal kawin tidak dapat dicatat karena betina tidak lagi aktif dalam periode kawin.');
+            }
+            $breedingFemale->forceFill([
+                'mating_date' => $matingDate,
+                'expected_birth_date' => $this->expectedBirthDate($matingDate),
+                'cycle_stage' => 'kawin',
+            ])->save();
+            if (! $animal->status_date || $animal->status_date->toDateString() <= $matingDate) {
+                $animal->forceFill(['reproductive_status' => 'kawin', 'status_date' => $matingDate])->save();
+                $this->statuses->sync($animal);
+            }
 
-        $breedingFemale->femaleAnimal?->forceFill([
-            'reproductive_status' => 'kawin',
-            'status_date' => $matingDate,
-        ])->save();
-
-        return $this->success('Sukses: Tanggal kawin berhasil dicatat.', $breedingFemale->load(['breedingPeriod.colonyPen', 'breedingPeriod.maleAnimal', 'femaleAnimal']));
+            return $this->success('Sukses: Tanggal kawin berhasil dicatat.', $breedingFemale->load(['breedingPeriod.colonyPen', 'breedingPeriod.maleAnimal', 'femaleAnimal']));
+        }, 3);
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<array-key, mixed>
+     */
     public function exit(BreedingFemale $breedingFemale, array $data): array
     {
         if ($breedingFemale->exit_date !== null) {
@@ -154,60 +219,54 @@ class BreedingFemaleService
         $period = $breedingFemale->breedingPeriod;
         $reasonLabel = $this->exitReasonLabel($data);
 
-        if ($breedingFemale->entry_date && $data['exit_date'] < $breedingFemale->entry_date->toDateString()) {
+        $exitDate = TypeValue::string($data['exit_date']);
+        $exitReasonCode = TypeValue::string($data['exit_reason_code']);
+        $toPenId = isset($data['to_pen_id']) ? TypeValue::int($data['to_pen_id']) : null;
+
+        if ($breedingFemale->entry_date && $exitDate < $breedingFemale->entry_date->toDateString()) {
             return $this->error('Peringatan: Tanggal keluar tidak boleh lebih awal dari tanggal masuk betina.');
         }
 
-        if ($breedingFemale->mating_date && $data['exit_date'] < $breedingFemale->mating_date->toDateString()) {
-            return $this->error('Peringatan: Tanggal keluar tidak boleh lebih awal dari tanggal kawin yang sudah dicatat.');
+        if ($breedingFemale->mating_date && $exitDate < $breedingFemale->mating_date->toDateString()) {
+            return $this->error('Peringatan: Tanggal keluar tidak boleh sebelum tanggal kawin.');
         }
 
-        if (! empty($data['to_pen_id'])) {
-            $destinationError = $this->validateDestinationPen($breedingFemale->femaleAnimal, ColonyPen::find($data['to_pen_id']));
-            if ($destinationError !== null) {
-                return $destinationError;
+        return DB::transaction(function () use ($breedingFemale, $data, $period, $reasonLabel, $exitDate, $exitReasonCode, $toPenId) {
+            $animal = Animal::query()->whereKey($breedingFemale->female_animal_id)->lockForUpdate()->firstOrFail();
+            $breedingFemale = BreedingFemale::query()->whereKey($breedingFemale->id)->lockForUpdate()->firstOrFail();
+            if ($breedingFemale->exit_date !== null) {
+                return $this->error('Peringatan: Betina ini sudah keluar dari periode kawin.');
             }
-        }
+            if ($toPenId !== null) {
+                $error = $this->movements->destinationError($animal, ColonyPen::query()->whereKey($toPenId)->first(), $exitDate);
+                if ($error !== null) {
+                    return $this->error($error);
+                }
+            }
 
-        $result = DB::transaction(function () use ($breedingFemale, $data, $period, $reasonLabel) {
+            $move = $this->movements->record(
+                $animal, $toPenId, $exitDate, $reasonLabel,
+                TypeValue::nullableString($data['exit_notes'] ?? null) ?? 'Keluar dari periode kawin '.($period?->period_code ?? '-').'.',
+            );
+            if (isset($move['error'])) {
+                return $this->error($move['error']);
+            }
+
             $breedingFemale->forceFill([
-                'exit_date' => $data['exit_date'],
+                'exit_date' => $exitDate,
                 'exit_reason' => $reasonLabel,
-                'exit_reason_code' => $data['exit_reason_code'],
+                'exit_reason_code' => $exitReasonCode,
                 'exit_notes' => $data['exit_notes'] ?? null,
             ])->save();
 
-            $animal = $breedingFemale->femaleAnimal;
-            if ($animal !== null) {
-                $animalUpdates = ['status_date' => $data['exit_date']];
-                $reproductiveStatus = $this->reproductiveStatusFromExitReasonCode($data['exit_reason_code']);
-
-                if ($reproductiveStatus !== null) {
-                    $animalUpdates['reproductive_status'] = $reproductiveStatus;
-                }
-
-                if (! empty($data['to_pen_id'])) {
-                    AnimalPenMovement::query()->create([
-                        'animal_id' => $animal->id,
-                        'from_pen_id' => $animal->current_pen_id ?: $period?->colony_pen_id,
-                        'to_pen_id' => $data['to_pen_id'],
-                        'movement_date' => $data['exit_date'],
-                        'reason' => $reasonLabel,
-                        'notes' => $data['exit_notes'] ?? 'Keluar dari periode kawin '.($period?->period_code ?? '-').'.',
-                    ]);
-
-                    $animalUpdates['current_pen_id'] = $data['to_pen_id'];
-                } else {
-                    $animalUpdates['current_pen_id'] = null;
-                }
-
-                $animal->forceFill($animalUpdates)->save();
+            $reproductiveStatus = $this->reproductiveStatusFromExitReasonCode($exitReasonCode);
+            if ($reproductiveStatus !== null && (! $animal->status_date || $animal->status_date->toDateString() <= $exitDate)) {
+                $animal->forceFill(['reproductive_status' => $reproductiveStatus, 'status_date' => $exitDate])->save();
+                $this->statuses->sync($animal);
             }
 
-            return $breedingFemale->load(['breedingPeriod.colonyPen', 'breedingPeriod.maleAnimal', 'femaleAnimal']);
-        });
-
-        return $this->success('Sukses: Betina berhasil dikeluarkan dari periode kawin.', $result);
+            return $this->success('Sukses: Catatan keluar betina dari periode perkawinan berhasil disimpan.', $breedingFemale->load(['breedingPeriod.colonyPen', 'breedingPeriod.maleAnimal', 'femaleAnimal']));
+        }, 3);
     }
 
     public function hasExitPayload(Request $request): bool
@@ -221,6 +280,9 @@ class BreedingFemaleService
         return $request->exists('mating_date') || $request->exists('expected_birth_date');
     }
 
+    /**
+     * @return array<array-key, mixed>|null
+     */
     private function validateCapacity(BreedingPeriod $period, int $incomingCount): ?array
     {
         $capacity = (int) ($period->colonyPen?->capacity ?? 0);
@@ -236,11 +298,14 @@ class BreedingFemaleService
         return null;
     }
 
-    private function validateFemaleForEntry(int $femaleId, BreedingPeriod $period): ?array
+    /**
+     * @return array<array-key, mixed>|null
+     */
+    private function validateFemaleForEntry(int $femaleId, BreedingPeriod $period, ?Animal $femaleAnimal = null): ?array
     {
-        $femaleAnimal = Animal::find($femaleId);
+        $femaleAnimal ??= Animal::query()->whereKey($femaleId)->first();
         if (! $femaleAnimal || $femaleAnimal->sex !== 'female' || $femaleAnimal->life_status !== 'alive' || $femaleAnimal->exit_status !== null) {
-            return $this->error('Peringatan: Tag betina harus mengarah ke kambing betina yang masih hidup dan tersedia.');
+            return $this->error('Peringatan: Tag betina harus mengarah ke kambing betina yang tercatat hidup dan tersedia.');
         }
 
         $activeInOtherPeriod = BreedingFemale::query()
@@ -259,7 +324,7 @@ class BreedingFemaleService
             ->exists();
 
         if ($exists) {
-            return $this->error("Betina dengan tag {$femaleAnimal->tag_number} sudah terdaftar pada periode kawin ini.");
+            return $this->error("Peringatan: Betina dengan eartag {$femaleAnimal->tag_number} sudah terdaftar pada periode perkawinan ini.");
         }
 
         $risk = $this->inbreeding->evaluate((int) $period->male_animal_id, $femaleId);
@@ -270,29 +335,36 @@ class BreedingFemaleService
         return null;
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<array-key, mixed>|null
+     */
     private function validateEntryAndMatingDates(array $data, BreedingPeriod $period): ?array
     {
-        if ($data['entry_date'] < $period->start_date->toDateString()) {
+        $entryDate = TypeValue::string($data['entry_date']);
+        $matingDate = TypeValue::nullableString($data['mating_date'] ?? null);
+
+        if ($entryDate < $period->start_date->toDateString()) {
             return $this->error('Peringatan: Tanggal masuk tidak boleh lebih awal dari tanggal mulai periode kawin.');
         }
 
-        if ($period->end_date && $data['entry_date'] > $period->end_date->toDateString()) {
+        if ($period->end_date && $entryDate > $period->end_date->toDateString()) {
             return $this->error('Peringatan: Tanggal masuk tidak boleh melewati tanggal selesai periode kawin.');
         }
 
-        if (empty($data['mating_date'])) {
+        if ($matingDate === null || $matingDate === '') {
             return null;
         }
 
-        if ($data['mating_date'] < $data['entry_date']) {
-            return $this->error('Peringatan: Tanggal kawin tidak boleh lebih awal dari tanggal masuk betina.');
+        if ($matingDate < $entryDate) {
+            return $this->error('Peringatan: Tanggal kawin tidak boleh sebelum tanggal masuk betina.');
         }
 
-        if ($data['mating_date'] < $period->start_date->toDateString()) {
+        if ($matingDate < $period->start_date->toDateString()) {
             return $this->error('Peringatan: Tanggal kawin tidak boleh lebih awal dari tanggal mulai periode kawin.');
         }
 
-        if ($period->end_date && $data['mating_date'] > $period->end_date->toDateString()) {
+        if ($period->end_date && $matingDate > $period->end_date->toDateString()) {
             return $this->error('Peringatan: Tanggal kawin tidak boleh melewati tanggal selesai periode kawin.');
         }
 
@@ -315,47 +387,32 @@ class BreedingFemaleService
         };
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     private function exitReasonLabel(array $data): string
     {
-        if (($data['exit_reason_code'] ?? null) === 'lainnya') {
-            return (string) $data['exit_reason'];
+        $reasonCode = TypeValue::string($data['exit_reason_code']);
+
+        if ($reasonCode === 'lainnya') {
+            return TypeValue::string($data['exit_reason']);
         }
 
-        return self::EXIT_REASONS[$data['exit_reason_code']] ?? 'Lainnya';
+        return self::EXIT_REASONS[$reasonCode] ?? 'Lainnya';
     }
 
-    private function validateDestinationPen(?Animal $animal, ?ColonyPen $destinationPen): ?array
-    {
-        if (! $animal) {
-            return $this->error('Peringatan: Data betina tidak tersedia sehingga tujuan koloni tidak dapat divalidasi.');
-        }
-
-        $phase = $destinationPen?->colony_phase ?? $destinationPen?->colony_type;
-
-        if (! $destinationPen || ! $destinationPen->is_active) {
-            return $this->error('Peringatan: Koloni tujuan tidak aktif atau tidak ditemukan.');
-        }
-
-        if ($phase === 'koloni_kawin') {
-            return $this->error('Peringatan: Pindah ke koloni kawin harus diproses melalui menu Periode Kawin agar pengecekan hubungan darah tetap berjalan.');
-        }
-
-        if ($phase === 'koloni_anak' && $animal->kategori_umur !== 'cempe') {
-            return $this->error('Peringatan: Koloni anak hanya dapat diisi oleh cempe berdasarkan kategori umur ternak.');
-        }
-
-        if (in_array($phase, ['koloni_bunting', 'koloni_kering', 'koloni_laktasi'], true) && $animal->sex !== 'female') {
-            return $this->error('Peringatan: Koloni bunting, kering, dan laktasi hanya dapat diisi oleh kambing betina.');
-        }
-
-        return null;
-    }
-
+    /**
+     * @return array<array-key, mixed>
+     */
     private function success(string $message, mixed $data, int $status = 200): array
     {
         return ['ok' => true, 'status' => $status, 'message' => $message, 'data' => $data];
     }
 
+    /**
+     * @param  array<array-key, mixed>  $extra
+     * @return array<array-key, mixed>
+     */
     private function error(string $message, int $status = 422, array $extra = []): array
     {
         return ['ok' => false, 'status' => $status, 'message' => $message] + $extra;

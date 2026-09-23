@@ -82,19 +82,23 @@ class RsaKeyController extends Controller
     public function compromise(CompromiseRsaKeyRequest $request, RsaKey $rsaKey): JsonResponse
     {
         $this->rsaKeys->authorizeKeyAccess($rsaKey, $request->user());
+        $reason = $request->validated('status_reason');
 
-        return $this->serviceResponse($this->rsaKeys->markCompromised($rsaKey, $request->validated('status_reason')));
+        return $this->serviceResponse($this->rsaKeys->markCompromised($rsaKey, is_string($reason) ? $reason : null));
     }
 
+    /**
+     * @param  array<array-key, mixed>  $result
+     */
     private function serviceResponse(array $result): JsonResponse
     {
         if (($result['ok'] ?? false) !== true) {
-            return response()->json(['message' => $result['message']], $result['status'] ?? 422);
+            return response()->json(['message' => $this->stringValue($result['message'] ?? '')], $this->intValue($result['status'] ?? 422));
         }
 
         return response()->json([
-            'message' => $result['message'],
+            'message' => $this->stringValue($result['message'] ?? ''),
             'data' => $result['data'],
-        ], $result['status'] ?? 200);
+        ], $this->intValue($result['status'] ?? 200));
     }
 }

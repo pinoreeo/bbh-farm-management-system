@@ -16,6 +16,9 @@ class InbreedingCheckController extends Controller
             'dam_id' => ['required', 'integer', 'exists:animals,id'],
         ]);
 
-        return response()->json($inbreeding->evaluate((int) $data['sire_id'], (int) $data['dam_id']));
+        return response()->json($inbreeding->evaluate(
+            $this->intValue($data['sire_id'] ?? null),
+            $this->intValue($data['dam_id'] ?? null),
+        ));
     }
 }

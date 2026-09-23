@@ -23,6 +23,7 @@ class WeightRecord extends Model
         'updated_at' => 'datetime',
     ];
 
+    /** @return BelongsTo<Animal, $this> */
     public function animal(): BelongsTo
     {
         return $this->belongsTo(Animal::class, 'animal_id');

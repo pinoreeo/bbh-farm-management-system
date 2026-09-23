@@ -8,6 +8,9 @@ use Symfony\Component\HttpFoundation\Response;
 
 class RestrictApiDocumentation
 {
+    /**
+     * @param  Closure(Request): Response  $next
+     */
     public function handle(Request $request, Closure $next): Response
     {
         abort_unless((bool) config('l5-swagger.defaults.routes.enabled', false), 404);

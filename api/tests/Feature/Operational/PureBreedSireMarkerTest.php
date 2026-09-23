@@ -172,6 +172,6 @@ class PureBreedSireMarkerTest extends ApiTestCase
             'birth_weight_kg' => 3.1,
             'birth_status' => 'alive',
         ])->assertUnprocessable()
-            ->assertJsonPath('message', 'Peringatan: Jumlah cempe yang dicatat sudah sesuai dengan jumlah anak pada data kelahiran.');
+            ->assertJsonPath('message', 'Peringatan: Jumlah cempe tidak boleh melebihi jumlah anak pada catatan kelahiran.');
     }
 }

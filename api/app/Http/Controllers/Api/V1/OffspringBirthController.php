@@ -58,12 +58,13 @@ class OffspringBirthController extends Controller
      */
     private function serviceResponse(array $result): JsonResponse
     {
-        $payload = ['message' => $result['message']];
+        $ok = ($result['ok'] ?? false) === true;
+        $payload = ['message' => $this->stringValue($result['message'] ?? '')];
 
         if (array_key_exists('data', $result)) {
             $payload['data'] = $result['data'];
         }
 
-        return response()->json($payload, $result['status'] ?? ($result['ok'] ? 200 : 422));
+        return response()->json($payload, $this->intValue($result['status'] ?? ($ok ? 200 : 422)));
     }
 }

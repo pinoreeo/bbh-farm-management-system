@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property-read BreedingPeriod|null $breedingPeriod
+ * @property-read BreedingFemale|null $breedingFemale
+ * @property-read Animal|null $femaleAnimal
+ */
 class PregnancyCheck extends Model
 {
     protected $table = 'breed_pregnancies';
@@ -33,16 +38,19 @@ class PregnancyCheck extends Model
         'updated_at' => 'datetime',
     ];
 
+    /** @return BelongsTo<BreedingPeriod, $this> */
     public function breedingPeriod(): BelongsTo
     {
         return $this->belongsTo(BreedingPeriod::class, 'breeding_period_id');
     }
 
+    /** @return BelongsTo<BreedingFemale, $this> */
     public function breedingFemale(): BelongsTo
     {
         return $this->belongsTo(BreedingFemale::class, 'breeding_female_id');
     }
 
+    /** @return BelongsTo<Animal, $this> */
     public function femaleAnimal(): BelongsTo
     {
         return $this->belongsTo(Animal::class, 'female_animal_id');

@@ -18,11 +18,16 @@ class Breed extends Model
         'updated_at' => 'datetime',
     ];
 
+    /**
+     * @param  Builder<Breed>  $query
+     * @return Builder<Breed>
+     */
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
     }
 
+    /** @return HasMany<Animal, $this> */
     public function animals(): HasMany
     {
         return $this->hasMany(Animal::class);

@@ -5,12 +5,18 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Animal;
 use App\Models\AnimalPenMovement;
-use App\Models\ColonyPen;
+use App\Models\BreedingFemale;
+use App\Services\AnimalPenMovementService;
+use App\Support\TypeValue;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class AnimalPenMovementController extends Controller
 {
+    public function __construct(private readonly AnimalPenMovementService $movements) {}
+
     public function index(Request $request): JsonResponse
     {
         $perPage = $this->perPage($request);
@@ -38,48 +44,37 @@ class AnimalPenMovementController extends Controller
         $data = $this->validated($request, [
             'animal_id' => ['required', 'integer', 'exists:animals,id'],
             'to_pen_id' => ['required', 'integer', 'exists:animal_pens,id'],
-            'movement_date' => ['required', 'date'],
+            'movement_date' => ['required', 'date', 'before_or_equal:today'],
             'reason' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
         ]);
 
-        $animal = Animal::find($data['animal_id']);
-        if (! $animal || $animal->life_status !== 'alive') {
+        $animalId = $this->intValue($data['animal_id']);
+        $destinationPenId = $this->intValue($data['to_pen_id']);
+        $movementDate = $this->stringValue($data['movement_date']);
+
+        return DB::transaction(function () use ($animalId, $destinationPenId, $movementDate, $data) {
+            $animal = Animal::query()->whereKey($animalId)->lockForUpdate()->first();
+            if (! $animal || $animal->life_status !== 'alive') {
+                return response()->json([
+                    'message' => 'Peringatan: Pindah koloni hanya dapat dicatat untuk kambing yang tercatat hidup.',
+                ], 422);
+            }
+
+            $result = $this->movements->record($animal, $destinationPenId, $movementDate, TypeValue::nullableString($data['reason'] ?? null), TypeValue::nullableString($data['notes'] ?? null));
+            if (isset($result['error'])) {
+                return response()->json(['message' => $result['error']], 422);
+            }
+            $row = $result['row'] ?? null;
+            if (! $row instanceof AnimalPenMovement) {
+                return response()->json(['message' => 'Gagal: Riwayat pindah koloni belum berhasil disimpan.'], 422);
+            }
+
             return response()->json([
-                'message' => 'Peringatan: Pindah koloni hanya dapat dicatat untuk kambing yang masih hidup.',
-            ], 422);
-        }
-
-        $destinationPen = ColonyPen::find($data['to_pen_id']);
-        $destinationError = $this->validateDestinationPen($animal, $destinationPen);
-        if ($destinationError) {
-            return $destinationError;
-        }
-
-        if ($animal->birth_date && $data['movement_date'] < $animal->birth_date->toDateString()) {
-            return response()->json([
-                'message' => 'Peringatan: Tanggal pindah koloni tidak boleh lebih awal dari tanggal lahir kambing.',
-            ], 422);
-        }
-
-        if ((int) $animal->current_pen_id === (int) $data['to_pen_id']) {
-            return response()->json([
-                'message' => 'Peringatan: Kambing sudah berada di koloni tujuan yang dipilih.',
-            ], 422);
-        }
-
-        $data['from_pen_id'] = $animal->current_pen_id;
-
-        $row = AnimalPenMovement::query()->create($data);
-        $animal->forceFill([
-            'current_pen_id' => $data['to_pen_id'],
-            'status_date' => $data['movement_date'],
-        ])->save();
-
-        return response()->json([
-            'message' => 'Sukses: Riwayat pindah koloni berhasil disimpan.',
-            'data' => $row->load(['animal', 'fromPen', 'toPen']),
-        ], 201);
+                'message' => 'Sukses: Riwayat pindah koloni berhasil disimpan.',
+                'data' => $row->refresh()->load(['animal', 'fromPen', 'toPen']),
+            ], 201);
+        }, 3);
     }
 
     public function show(AnimalPenMovement $animalPenMovement): JsonResponse
@@ -90,73 +85,81 @@ class AnimalPenMovementController extends Controller
     public function update(Request $request, AnimalPenMovement $animalPenMovement): JsonResponse
     {
         $data = $this->validated($request, [
-            'movement_date' => ['sometimes', 'date'],
+            'movement_date' => ['sometimes', 'date', 'before_or_equal:today'],
             'reason' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
         ]);
 
-        $animal = $animalPenMovement->animal;
-        if (isset($data['movement_date']) && $animal?->birth_date && $data['movement_date'] < $animal->birth_date->toDateString()) {
+        return DB::transaction(function () use ($animalPenMovement, $data) {
+            $animal = Animal::query()->whereKey($animalPenMovement->animal_id)->lockForUpdate()->firstOrFail();
+            if ($animal->life_status !== 'alive') {
+                return response()->json(['message' => 'Peringatan: Riwayat pindah koloni tidak dapat diubah untuk kambing yang berstatus mati.'], 422);
+            }
+            $movements = $this->movements->lockedMovements($animal->id);
+            $initialPenId = $movements->first()?->from_pen_id;
+            $movement = $movements->firstWhere('id', $animalPenMovement->id);
+            if (! $movement instanceof AnimalPenMovement) {
+                abort(404);
+            }
+            $managedExit = BreedingFemale::query()->where('female_animal_id', $animal->id)
+                ->whereDate('exit_date', $movement->movement_date?->toDateString())
+                ->where('exit_reason', $movement->reason)->exists();
+            if ($movement->to_pen_id === null || $movement->reason === 'Masuk periode kawin' || $managedExit) {
+                return response()->json(['message' => 'Peringatan: Perpindahan ini mengikuti catatan perkawinan atau status hidup kambing dan tidak dapat diedit langsung.'], 422);
+            }
+            $movementDate = isset($data['movement_date']) ? $this->stringValue($data['movement_date']) : $movement->movement_date->toDateString();
+
+            if ($animal->birth_date && $movementDate < $animal->birth_date->toDateString()) {
+                return response()->json([
+                    'message' => 'Peringatan: Tanggal pindah koloni tidak boleh lebih awal dari tanggal lahir kambing.',
+                ], 422);
+            }
+
+            if ($movement->toPen !== null) {
+                $destinationError = $this->movements->destinationError(
+                    $animal,
+                    $movement->toPen,
+                    $movementDate,
+                    true,
+                );
+                if ($destinationError) {
+                    return response()->json(['message' => $destinationError], 422);
+                }
+            }
+
+            $movement->fill($data);
+            $ordered = $movements->sortBy(fn (AnimalPenMovement $item) => sprintf(
+                '%s-%020d',
+                $item->movement_date?->toDateString(),
+                $item->id
+            ))->values();
+            if ($this->hasRedundantMovement($ordered, $initialPenId)) {
+                return response()->json([
+                    'message' => 'Peringatan: Perubahan tanggal membuat urutan perpindahan menuju koloni yang sama.',
+                ], 422);
+            }
+
+            $movement->save();
+            $this->movements->rebuildMovementChain($animal, $initialPenId);
+
             return response()->json([
-                'message' => 'Peringatan: Tanggal pindah koloni tidak boleh lebih awal dari tanggal lahir kambing.',
-            ], 422);
-        }
-
-        $animalPenMovement->fill($data)->save();
-        $this->syncCurrentAnimalStatusDate($animalPenMovement);
-
-        return response()->json([
-            'message' => 'Sukses: Riwayat pindah koloni berhasil diperbarui.',
-            'data' => $animalPenMovement->load(['animal', 'fromPen', 'toPen']),
-        ]);
+                'message' => 'Sukses: Riwayat pindah koloni berhasil diperbarui.',
+                'data' => $movement->refresh()->load(['animal', 'fromPen', 'toPen']),
+            ]);
+        }, 3);
     }
 
-    private function syncCurrentAnimalStatusDate(AnimalPenMovement $movement): void
+    /** @param Collection<int, AnimalPenMovement> $movements */
+    private function hasRedundantMovement(Collection $movements, ?int $initialPenId): bool
     {
-        $animal = $movement->animal;
-        if (! $animal || (int) $animal->current_pen_id !== (int) $movement->to_pen_id) {
-            return;
+        $sourcePenId = $initialPenId;
+        foreach ($movements as $movement) {
+            if ((string) $sourcePenId === (string) $movement->to_pen_id) {
+                return true;
+            }
+            $sourcePenId = $movement->to_pen_id;
         }
 
-        $latestMovement = AnimalPenMovement::query()
-            ->where('animal_id', $movement->animal_id)
-            ->orderByDesc('movement_date')
-            ->orderByDesc('id')
-            ->first();
-
-        if ($latestMovement?->is($movement)) {
-            $animal->forceFill(['status_date' => $movement->movement_date?->toDateString()])->save();
-        }
-    }
-
-    private function validateDestinationPen(Animal $animal, ?ColonyPen $destinationPen): ?JsonResponse
-    {
-        $phase = $destinationPen?->colony_phase ?? $destinationPen?->colony_type;
-
-        if (! $destinationPen || ! $destinationPen->is_active) {
-            return response()->json([
-                'message' => 'Peringatan: Koloni tujuan tidak aktif atau tidak ditemukan.',
-            ], 422);
-        }
-
-        if ($phase === 'koloni_kawin') {
-            return response()->json([
-                'message' => 'Peringatan: Pindah ke koloni kawin harus diproses melalui menu Periode Kawin agar pengecekan hubungan darah tetap berjalan.',
-            ], 422);
-        }
-
-        if ($phase === 'koloni_anak' && $animal->kategori_umur !== 'cempe') {
-            return response()->json([
-                'message' => 'Peringatan: Koloni anak hanya dapat diisi oleh cempe berdasarkan kategori umur ternak.',
-            ], 422);
-        }
-
-        if (in_array($phase, ['koloni_bunting', 'koloni_kering', 'koloni_laktasi'], true) && $animal->sex !== 'female') {
-            return response()->json([
-                'message' => 'Peringatan: Koloni bunting, kering, dan laktasi hanya dapat diisi oleh kambing betina.',
-            ], 422);
-        }
-
-        return null;
+        return false;
     }
 }

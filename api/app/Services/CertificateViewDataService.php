@@ -3,17 +3,29 @@
 namespace App\Services;
 
 use App\Models\Certificate;
+use App\Models\PostnatalCareRecord;
 use App\Support\PureBreedSireMarker;
+use App\Support\TypeValue;
 use Carbon\Carbon;
+use DateTimeInterface;
 use Illuminate\Support\Collection;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Stringable;
 
 class CertificateViewDataService
 {
     public function __construct(private readonly PureBreedSireMarker $sireMarker) {}
 
+    /**
+     * @return array<string, mixed>
+     */
     public function build(Certificate $certificate): array
     {
+        $snapshot = json_decode((string) $certificate->payload_snapshot, true);
+        if (is_array($snapshot) && isset($snapshot['view_data']) && is_array($snapshot['view_data'])) {
+            return [...TypeValue::stringKeyArray($snapshot['view_data']), 'certificate_status' => $certificate->status ?? '-'];
+        }
+
         $animal = $certificate->animal;
         $birthEvent = $certificate->birthEvent;
 
@@ -26,22 +38,26 @@ class CertificateViewDataService
 
         $animalGeneration = $animal?->generation;
         $animalBreed = $animal?->breed?->breed_name;
+        $lastPen = $animal?->currentPen;
+        if (! $lastPen && $animal?->life_status === 'dead') {
+            $lastPen = $animal->penMovements()->with('fromPen')
+                ->whereNull('to_pen_id')->where('reason', 'Kambing mati')
+                ->orderByDesc('movement_date')->orderByDesc('id')->first()?->fromPen;
+        }
 
-        return [
+        $data = [
             'certificate_number' => $certificate->certificate_number ?? '-',
             'certificate_type' => $certificate->certificateType?->type_name ?? '-',
             'certificate_type_code' => $certificate->certificateType?->type_code ?? '-',
             'certificate_status' => $certificate->status ?? '-',
             'issue_date' => $this->formatDate($certificate->issue_date),
             'issue_date_full' => $this->formatDateFull($certificate->issue_date),
-            'issue_day_date' => $certificate->issue_date
-                ? Carbon::parse($certificate->issue_date)->locale('id')->translatedFormat('l, j F Y')
-                : '-',
+            'issue_day_date' => $this->formatDayDate($certificate->issue_date),
             'issue_place' => $certificate->issue_place ?? '-',
             'valid_from' => $this->formatDate($certificate->valid_from),
             'valid_until' => $this->formatDate($certificate->valid_until),
             'animal_tag' => $animal?->tag_number ?? '-',
-            'animal_name' => $animal?->name ?? '-',
+            'animal_name' => $animal?->tag_number ?? '-',
             'animal_sex' => $this->formatSex($animal?->sex),
             'animal_birth_date' => $this->formatDate($animal?->birth_date),
             'animal_birth_date_full' => $this->formatDateFull($animal?->birth_date),
@@ -49,7 +65,7 @@ class CertificateViewDataService
             'animal_generation' => $animalGeneration ?? '-',
             'animal_breed' => $animalBreed ?? '-',
             'animal_generation_breed' => $this->combineGenerationBreed($animalGeneration, $animalBreed),
-            'animal_current_pen' => $this->formatPen($animal?->currentPen),
+            'animal_current_pen' => $this->formatPen($lastPen),
             'animal_reproductive_status' => $this->formatReproductiveStatus($animal?->reproductive_status),
             'animal_status_date' => $this->formatDate($animal?->status_date),
             'animal_life_status' => $this->formatLifeStatus($animal?->life_status),
@@ -83,22 +99,56 @@ class CertificateViewDataService
                 ?? '-',
             'postnatal_cares' => $this->mapPostnatalCares($postnatalCares),
         ];
+
+        if (is_array($snapshot) && array_key_exists('animal_tag_number', $snapshot)) {
+            $generation = $this->snapshotString($snapshot, 'animal_generation');
+            $breed = $this->snapshotString($snapshot, 'animal_breed_name');
+            $data['animal_tag'] = $this->snapshotString($snapshot, 'animal_tag_number') ?? '-';
+            $data['animal_name'] = $data['animal_tag'];
+            $data['animal_sex'] = $this->formatSex($this->snapshotString($snapshot, 'animal_sex'));
+            $data['animal_birth_date'] = $this->formatDate($this->snapshotString($snapshot, 'animal_birth_date'));
+            $data['animal_birth_date_full'] = $this->formatDateFull($this->snapshotString($snapshot, 'animal_birth_date'));
+            $data['animal_generation'] = $generation ?? '-';
+            $data['animal_breed'] = $breed ?? '-';
+            $data['animal_generation_breed'] = $this->combineGenerationBreed($generation, $breed);
+            if (array_key_exists('animal_life_status', $snapshot)) {
+                $data['animal_life_status'] = $this->formatLifeStatus($this->snapshotString($snapshot, 'animal_life_status'));
+            }
+        }
+
+        return $data;
+    }
+
+    /** @param array<array-key, mixed> $snapshot */
+    private function snapshotString(array $snapshot, string $key): ?string
+    {
+        $value = $snapshot[$key] ?? null;
+
+        return is_string($value) ? $value : null;
     }
 
     public function makeQrBase64(?string $value): string
     {
-        return base64_encode(
-            QrCode::format('svg')
-                ->size(200)
-                ->margin(1)
-                ->generate($value ?: '-')
-        );
+        $svg = QrCode::format('svg')
+            ->size(200)
+            ->margin(1)
+            ->generate($value ?: '-');
+
+        if (is_string($svg)) {
+            return base64_encode($svg);
+        }
+
+        return $svg instanceof Stringable ? base64_encode((string) $svg) : '';
     }
 
+    /**
+     * @param  Collection<int, PostnatalCareRecord>  $postnatalCares
+     * @return Collection<int, array{care_name: string, administration_method: string, dose: string}>
+     */
     private function mapPostnatalCares(Collection $postnatalCares): Collection
     {
         return $postnatalCares
-            ->flatMap(fn ($care) => [
+            ->flatMap(fn (PostnatalCareRecord $care): array => [
                 [
                     'care_name' => 'Metode Pemberian',
                     'administration_method' => $care->administration_method ?? '-',
@@ -181,10 +231,10 @@ class CertificateViewDataService
         }
 
         $parts = array_filter([
-            $pen->pen_code ?? null,
-            $pen->colony_code ?? null,
-            $pen->colony_name ?? null,
-        ]);
+            $this->formatScalar(data_get($pen, 'pen_code')),
+            $this->formatScalar(data_get($pen, 'colony_code')),
+            $this->formatScalar(data_get($pen, 'colony_name')),
+        ], fn (?string $part): bool => $part !== null && $part !== '');
 
         return $parts !== [] ? implode(' - ', $parts) : '-';
     }
@@ -203,19 +253,44 @@ class CertificateViewDataService
         };
     }
 
-    private function formatDate($date): string
+    private function formatDate(DateTimeInterface|string|int|float|null $date): string
     {
-        return $date ? Carbon::parse($date)->format('d-m-Y') : '-';
+        $carbon = $this->carbon($date);
+
+        return $carbon ? $carbon->format('d-m-Y') : '-';
     }
 
-    private function formatDateFull($date): string
+    private function formatDateFull(DateTimeInterface|string|int|float|null $date): string
     {
-        return $date ? Carbon::parse($date)->locale('id')->translatedFormat('j F Y') : '-';
+        $carbon = $this->carbon($date);
+
+        if (! $carbon) {
+            return '-';
+        }
+
+        $carbon->locale('id');
+
+        return $carbon->translatedFormat('j F Y');
     }
 
-    private function formatTime($time): string
+    private function formatDayDate(DateTimeInterface|string|int|float|null $date): string
     {
-        return $time ? Carbon::parse($time)->format('H.i').' WIB' : '-';
+        $carbon = $this->carbon($date);
+
+        if (! $carbon) {
+            return '-';
+        }
+
+        $carbon->locale('id');
+
+        return $carbon->translatedFormat('l, j F Y');
+    }
+
+    private function formatTime(DateTimeInterface|string|int|float|null $time): string
+    {
+        $carbon = $this->carbon($time);
+
+        return $carbon ? $carbon->format('H.i').' WIB' : '-';
     }
 
     private function formatNumber(mixed $value, string $suffix = ''): string
@@ -224,8 +299,43 @@ class CertificateViewDataService
             return '-';
         }
 
-        $formatted = rtrim(rtrim((string) $value, '0'), '.');
+        $scalar = $this->formatScalar($value);
+        if ($scalar === null) {
+            return '-';
+        }
+
+        $formatted = rtrim(rtrim($scalar, '0'), '.');
 
         return ($formatted === '' ? '0' : $formatted).$suffix;
+    }
+
+    private function carbon(DateTimeInterface|string|int|float|null $value): ?Carbon
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if ($value instanceof Carbon) {
+            return $value;
+        }
+
+        if ($value instanceof DateTimeInterface) {
+            return Carbon::instance($value);
+        }
+
+        return Carbon::parse($value);
+    }
+
+    private function formatScalar(mixed $value): ?string
+    {
+        if (is_string($value)) {
+            return $value;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+
+        return null;
     }
 }

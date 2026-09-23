@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property-read BirthEvent|null $birthEvent
+ * @property-read OffspringBirth|null $offspringBirth
+ * @property-read Animal|null $targetAnimal
+ */
 class PostnatalCareRecord extends Model
 {
     protected $table = 'med_postnatal_cares';
@@ -36,16 +41,19 @@ class PostnatalCareRecord extends Model
         'updated_at' => 'datetime',
     ];
 
+    /** @return BelongsTo<BirthEvent, $this> */
     public function birthEvent(): BelongsTo
     {
         return $this->belongsTo(BirthEvent::class, 'birth_event_id');
     }
 
+    /** @return BelongsTo<OffspringBirth, $this> */
     public function offspringBirth(): BelongsTo
     {
         return $this->belongsTo(OffspringBirth::class, 'offspring_birth_id');
     }
 
+    /** @return BelongsTo<Animal, $this> */
     public function targetAnimal(): BelongsTo
     {
         return $this->belongsTo(Animal::class, 'target_animal_id');

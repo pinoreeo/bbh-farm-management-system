@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Certificate;
+use App\Support\TypeValue;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\Process;
@@ -16,32 +18,35 @@ class CertificatePdfIntegrityService
 
     public function ensureOfficialPdf(Certificate $certificate, bool $force = false): Certificate
     {
-        $certificate = $this->loadForPdf($certificate);
+        return DB::transaction(function () use ($certificate, $force): Certificate {
+            $certificate = Certificate::query()->whereKey($certificate->id)->lockForUpdate()->firstOrFail();
+            $certificate = $this->loadForPdf($certificate);
 
-        if (! $force && $this->hasStoredOfficialPdf($certificate)) {
-            return $certificate;
-        }
+            if (! $force && $this->hasStoredOfficialPdf($certificate)) {
+                return $certificate;
+            }
 
-        $rendered = $this->render($certificate);
-        $hash = hash('sha256', $rendered['bytes']);
-        $signedHash = $this->signingService->signHash($hash);
-        $path = $this->storagePathFor($certificate, $rendered['filename']);
+            $rendered = $this->render($certificate);
+            $hash = hash('sha256', $rendered['bytes']);
+            $signedHash = $this->signingService->signHash($hash);
+            $path = $this->storagePathFor($certificate, $rendered['filename'], $hash);
 
-        if (! Storage::disk('local')->put($path, $rendered['bytes'])) {
-            throw new \RuntimeException('Failed to store official certificate PDF.');
-        }
+            if (! Storage::disk('local')->exists($path) && ! Storage::disk('local')->put($path, $rendered['bytes'])) {
+                throw new \RuntimeException('Failed to store official certificate PDF.');
+            }
 
-        $certificate->forceFill([
-            'official_pdf_path' => $path,
-            'official_pdf_hash_sha256' => $hash,
-            'official_pdf_signature_base64' => $signedHash['signature_base64'],
-            'official_pdf_signature_scheme' => config('bbh_signing.signature_scheme', 'RSA-SHA256'),
-            'official_pdf_rsa_key_id' => $signedHash['rsa_key']->id,
-            'official_pdf_signed_at' => now(),
-            'official_pdf_generated_at' => now(),
-        ])->save();
+            $certificate->forceFill([
+                'official_pdf_path' => $path,
+                'official_pdf_hash_sha256' => $hash,
+                'official_pdf_signature_base64' => $signedHash['signature_base64'],
+                'official_pdf_signature_scheme' => config('bbh_signing.signature_scheme', 'RSA-SHA256'),
+                'official_pdf_rsa_key_id' => $signedHash['rsa_key']->id,
+                'official_pdf_signed_at' => now(),
+                'official_pdf_generated_at' => now(),
+            ])->save();
 
-        return $this->loadForPdf($certificate->fresh());
+            return $this->loadForPdf($certificate->refresh());
+        }, 3);
     }
 
     public function clearOfficialPdfIntegrity(Certificate $certificate): void
@@ -85,6 +90,9 @@ class CertificatePdfIntegrityService
         return Storage::disk('local')->path($certificate->official_pdf_path);
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public function downloadFilenameFor(Certificate $certificate, array $data): string
     {
         $title = match ($certificate->certificateType?->type_code) {
@@ -95,7 +103,7 @@ class CertificatePdfIntegrityService
         };
 
         $certificateNumber = $this->filenameSegment($certificate->certificate_number ?: 'Tanpa-Nomor');
-        $issueDate = $this->filenameSegment($data['issue_date'] ?? now()->format('d-m-Y'));
+        $issueDate = $this->filenameSegment(TypeValue::string($data['issue_date'] ?? now()->format('d-m-Y')));
 
         return "{$title}_{$certificateNumber}_{$issueDate}.pdf";
     }
@@ -118,6 +126,9 @@ class CertificatePdfIntegrityService
         return $certificate;
     }
 
+    /**
+     * @return view-string|null
+     */
     public function bladeViewFor(Certificate $certificate): ?string
     {
         return match ($certificate->certificateType?->type_code) {
@@ -128,6 +139,9 @@ class CertificatePdfIntegrityService
         };
     }
 
+    /**
+     * @return array{0: int, 1: int, 2: float|int, 3: int}|string
+     */
     public function paperFor(Certificate $certificate): array|string
     {
         return match ($certificate->certificateType?->type_code) {
@@ -138,6 +152,9 @@ class CertificatePdfIntegrityService
         };
     }
 
+    /**
+     * @return array{bytes: string, data: array<string, mixed>, filename: string}
+     */
     public function render(Certificate $certificate): array
     {
         $certificate = $this->loadForPdf($certificate);
@@ -150,8 +167,9 @@ class CertificatePdfIntegrityService
         $this->validateRenderable($certificate);
 
         $data = $this->viewData->build($certificate);
-        $qr = $certificate->certificateType->type_code === 'BIBIT_UNGGUL'
-            ? $this->viewData->makeQrBase64($data['verification_url'])
+        $typeCode = $certificate->certificateType?->type_code;
+        $qr = $typeCode === 'BIBIT_UNGGUL'
+            ? $this->viewData->makeQrBase64(TypeValue::nullableString($data['verification_url'] ?? null))
             : null;
 
         $viewPayload = [
@@ -190,11 +208,14 @@ class CertificatePdfIntegrityService
             $this->isOfficialPdfFreshForTemplate($certificate);
     }
 
-    private function storagePathFor(Certificate $certificate, string $filename): string
+    private function storagePathFor(Certificate $certificate, string $filename, string $hash): string
     {
-        return 'certificates/official/'.$certificate->id.'/'.$filename;
+        return 'certificates/official/'.$certificate->id.'/'.$hash.'-'.$filename;
     }
 
+    /**
+     * @return array{logo: string|null, signature: string|null}
+     */
     public function templateAssets(): array
     {
         return [
@@ -252,6 +273,10 @@ class CertificatePdfIntegrityService
         return 'data:'.$mimeType.';base64,'.base64_encode($bytes);
     }
 
+    /**
+     * @param  view-string  $bladeView
+     * @param  array<string, mixed>  $viewPayload
+     */
     private function renderWithBrowser(string $bladeView, array $viewPayload): string
     {
         $browserPath = $this->browserExecutablePath();
@@ -324,15 +349,20 @@ class CertificatePdfIntegrityService
         throw new \RuntimeException('Browser executable for PDF rendering is not configured. Set BBH_PDF_BROWSER_PATH to Chrome or Edge.');
     }
 
+    /**
+     * @return array<int, string>
+     */
     private function defaultBrowserPaths(): array
     {
+        $localAppData = getenv('LOCALAPPDATA');
+
         return [
             'C:\Program Files\Google\Chrome\Application\chrome.exe',
             'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
             'C:\Program Files\Microsoft\Edge\Application\msedge.exe',
             'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe',
             'C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe',
-            getenv('LOCALAPPDATA') ? getenv('LOCALAPPDATA').'\BraveSoftware\Brave-Browser\Application\brave.exe' : '',
+            is_string($localAppData) ? $localAppData.'\BraveSoftware\Brave-Browser\Application\brave.exe' : '',
             '/usr/bin/google-chrome',
             '/usr/bin/chromium-browser',
             '/usr/bin/chromium',
@@ -357,6 +387,9 @@ class CertificatePdfIntegrityService
         return true;
     }
 
+    /**
+     * @return array<int, string>
+     */
     private function templateDependencyPaths(Certificate $certificate): array
     {
         $bladeView = $this->bladeViewFor($certificate);
@@ -376,8 +409,8 @@ class CertificatePdfIntegrityService
 
     private function filenameSegment(string $value): string
     {
-        $normalized = preg_replace('/[^A-Za-z0-9\-]+/', '-', trim($value));
-        $normalized = trim((string) $normalized, '-');
+        $normalized = preg_replace('/[^A-Za-z0-9\-]+/', '-', trim($value)) ?? '';
+        $normalized = trim($normalized, '-');
 
         return $normalized !== '' ? $normalized : 'Tidak-Tersedia';
     }

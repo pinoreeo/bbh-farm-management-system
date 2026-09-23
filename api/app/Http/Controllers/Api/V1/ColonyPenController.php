@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\BreedingFemale;
+use App\Models\BreedingPeriod;
 use App\Models\ColonyPen;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class ColonyPenController extends Controller
@@ -102,11 +105,32 @@ class ColonyPenController extends Controller
             $data['colony_type'] = $data['colony_type'] ?? $data['colony_phase'];
         }
 
-        $colonyPen->fill($data)->save();
+        return DB::transaction(function () use ($colonyPen, $data) {
+            $colonyPen = ColonyPen::query()->whereKey($colonyPen->id)->lockForUpdate()->firstOrFail();
+            $occupants = $colonyPen->animals()->count();
+            $activeFemales = BreedingFemale::query()
+                ->whereHas('breedingPeriod', fn ($query) => $query->where('colony_pen_id', $colonyPen->id))
+                ->whereNull('exit_date')->count();
+            $activePeriod = BreedingPeriod::query()->where('colony_pen_id', $colonyPen->id)->where('status', 'active')->exists();
+            if (isset($data['capacity']) && $data['capacity'] > 0 && $data['capacity'] < max($occupants, $activeFemales)) {
+                return response()->json(['message' => 'Peringatan: Kapasitas kandang tidak boleh lebih kecil dari jumlah kambing yang tercatat di dalamnya.'], 422);
+            }
+            if (array_key_exists('is_active', $data) && ! $data['is_active'] && ($occupants > 0 || $activePeriod)) {
+                return response()->json(['message' => 'Peringatan: Kandang yang masih berisi kambing atau memiliki periode kawin aktif tidak dapat dinonaktifkan.'], 422);
+            }
+            if (isset($data['colony_phase']) && $data['colony_phase'] !== $colonyPen->colony_phase && ($occupants > 0 || $activePeriod)) {
+                return response()->json(['message' => 'Peringatan: Fase koloni tidak dapat diubah selama kandang masih berisi kambing atau memiliki periode kawin aktif.'], 422);
+            }
+            if (isset($data['colony_type']) && $data['colony_type'] !== $colonyPen->colony_type && ($occupants > 0 || $activePeriod)) {
+                return response()->json(['message' => 'Peringatan: Jenis koloni tidak dapat diubah selama kandang masih berisi kambing atau memiliki periode kawin aktif.'], 422);
+            }
 
-        return response()->json([
-            'message' => 'Sukses: Data kandang berhasil diperbarui.',
-            'data' => $colonyPen,
-        ]);
+            $colonyPen->fill($data)->save();
+
+            return response()->json([
+                'message' => 'Sukses: Data kandang berhasil diperbarui.',
+                'data' => $colonyPen,
+            ]);
+        }, 3);
     }
 }

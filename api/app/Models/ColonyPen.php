@@ -27,16 +27,19 @@ class ColonyPen extends Model
         'updated_at' => 'datetime',
     ];
 
+    /** @return HasMany<BreedingPeriod, $this> */
     public function breedingPeriods(): HasMany
     {
         return $this->hasMany(BreedingPeriod::class, 'colony_pen_id');
     }
 
+    /** @return HasMany<Animal, $this> */
     public function animals(): HasMany
     {
         return $this->hasMany(Animal::class, 'current_pen_id');
     }
 
+    /** @return HasMany<AnimalPenMovement, $this> */
     public function incomingMovements(): HasMany
     {
         return $this->hasMany(AnimalPenMovement::class, 'to_pen_id');

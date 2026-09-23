@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Validator as ValidationValidator;
 
 class RsaKey extends Model
 {
@@ -46,17 +47,22 @@ class RsaKey extends Model
         'updated_at' => 'datetime',
     ];
 
+    /** @return HasMany<CertificateSignature, $this> */
     public function signatures(): HasMany
     {
         return $this->hasMany(CertificateSignature::class, 'rsa_key_id');
     }
 
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public static function validateKey(array $data)
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public static function validateKey(array $data): ValidationValidator
     {
         return Validator::make($data, [
             'key_identifier' => 'required|string|max:255|unique:cert_rsa_keys,key_identifier',

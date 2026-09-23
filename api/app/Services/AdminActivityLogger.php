@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AdminActivityLog;
+use App\Support\TypeValue;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -31,25 +32,9 @@ class AdminActivityLogger
         'auth' => 'akun admin',
     ];
 
-    private const ACTION_LABELS = [
-        'login' => 'Login admin',
-        'login_failed' => 'Gagal Masuk',
-        'logout' => 'Logout admin',
-        'create' => 'Menambahkan data',
-        'update' => 'Memperbarui data',
-        'delete' => 'Menghapus atau menonaktifkan data',
-        'sign' => 'Menandatangani sertifikat',
-        'revoke' => 'Mencabut sertifikat',
-        'unrevoke' => 'Membatalkan pencabutan sertifikat',
-        'generate' => 'Membuat kunci RSA',
-        'activate' => 'Mengaktifkan data',
-        'deactivate' => 'Menonaktifkan data',
-        'compromise' => 'Menonaktifkan RSA Key',
-        'mating' => 'Mencatat tanggal kawin',
-        'exit' => 'Mengeluarkan dari periode',
-        'unknown' => 'Melakukan aktivitas admin',
-    ];
-
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
     public function log(
         Request $request,
         ?int $statusCode = null,
@@ -63,7 +48,7 @@ class AdminActivityLogger
         $module ??= $this->resolveModule($request);
         $subject = $this->resolveSubject($request, $response, $module);
         $logMetadata = $metadata ?: $this->metadata($request);
-        $detailData = $this->responseData($response) ?? $request->all();
+        $detailData = $this->responseData($response) ?? TypeValue::stringKeyArray($request->all());
 
         if ($subject['label'] !== null) {
             $logMetadata['subject_label'] = $subject['label'];
@@ -133,9 +118,12 @@ class AdminActivityLogger
         $segments = $request->segments();
         $module = $segments[2] ?? 'unknown';
 
-        return (string) $module;
+        return is_string($module) ? $module : 'unknown';
     }
 
+    /**
+     * @return array{type: class-string<Model>|null, id: mixed, label: string|null}
+     */
     private function resolveSubject(Request $request, ?Response $response, string $module): array
     {
         foreach ($request->route()?->parameters() ?? [] as $parameter) {
@@ -143,7 +131,7 @@ class AdminActivityLogger
                 return [
                     'type' => $parameter::class,
                     'id' => $parameter->getKey(),
-                    'label' => $this->subjectLabel($module, $parameter->toArray()),
+                    'label' => $this->subjectLabel($module, TypeValue::stringKeyArray($parameter->toArray())),
                 ];
             }
         }
@@ -152,7 +140,7 @@ class AdminActivityLogger
         if (is_array($responseData)) {
             return [
                 'type' => null,
-                'id' => isset($responseData['id']) ? (int) $responseData['id'] : null,
+                'id' => isset($responseData['id']) ? TypeValue::int($responseData['id']) : null,
                 'label' => $this->subjectLabel($module, $responseData),
             ];
         }
@@ -160,7 +148,7 @@ class AdminActivityLogger
         return [
             'type' => null,
             'id' => null,
-            'label' => $this->subjectLabel($module, $request->all()),
+            'label' => $this->subjectLabel($module, TypeValue::stringKeyArray($request->all())),
         ];
     }
 
@@ -235,64 +223,77 @@ class AdminActivityLogger
         };
     }
 
+    /**
+     * @param  array<array-key, mixed>  $data
+     */
     private function subjectLabel(string $module, array $data): ?string
     {
         $label = match ($module) {
-            'users' => $data['email'] ?? $data['name'] ?? null,
-            'animals' => $data['tag_number'] ?? null,
-            'colony-pens' => $data['pen_code'] ?? null,
-            'breeding-periods' => $data['period_code'] ?? null,
+            'users' => data_get($data, 'email') ?? data_get($data, 'name'),
+            'animals' => data_get($data, 'tag_number'),
+            'colony-pens' => data_get($data, 'pen_code'),
+            'breeding-periods' => data_get($data, 'period_code'),
             'breeding-females' => $this->breedingFemaleLabel($data),
-            'pregnancy-checks' => $this->pregnancyCheckLabel($data),
-            'birth-events' => $this->birthEventLabel($data),
-            'offspring-births' => $this->relatedAnimalLabel($data, 'offspring_animal'),
-            'postnatal-care-records' => $this->relatedAnimalLabel($data, 'target_animal'),
-            'weight-records', 'health-treatments', 'vaccinations' => $this->relatedAnimalLabel($data, 'animal'),
-            'certificates' => $data['certificate_number'] ?? null,
-            'rsa-keys' => $data['key_identifier'] ?? null,
-            'breeds' => $data['breed_name'] ?? null,
-            'certificate-types' => $data['type_name'] ?? null,
+            'pregnancy-checks' => $this->pregnancyCheckLabel(TypeValue::stringKeyArray($data)),
+            'birth-events' => $this->birthEventLabel(TypeValue::stringKeyArray($data)),
+            'offspring-births' => $this->relatedAnimalLabel(TypeValue::stringKeyArray($data), 'offspring_animal'),
+            'postnatal-care-records' => $this->relatedAnimalLabel(TypeValue::stringKeyArray($data), 'target_animal'),
+            'weight-records', 'health-treatments', 'vaccinations' => $this->relatedAnimalLabel(TypeValue::stringKeyArray($data), 'animal'),
+            'certificates' => data_get($data, 'certificate_number'),
+            'rsa-keys' => data_get($data, 'key_identifier'),
+            'breeds' => data_get($data, 'breed_name'),
+            'certificate-types' => data_get($data, 'type_name'),
             default => null,
         };
 
-        if ($label !== null && $label !== '') {
-            return (string) $label;
+        $label = $this->stringLabel($label);
+        if ($label !== null) {
+            return $label;
         }
 
-        return isset($data['id']) ? '#'.$data['id'] : null;
+        $id = $this->stringLabel(data_get($data, 'id'));
+
+        return $id !== null ? '#'.$id : null;
     }
 
+    /**
+     * @param  array<array-key, mixed>  $data
+     */
     private function breedingFemaleLabel(array $data): ?string
     {
-        $tag = $data['female_animal']['tag_number'] ?? null;
-        $period = $data['breeding_period']['period_code'] ?? null;
+        $tag = $this->stringLabel(data_get($data, 'female_animal.tag_number'));
+        $period = $this->stringLabel(data_get($data, 'breeding_period.period_code'));
 
         if ($tag && $period) {
             return "{$tag} pada periode {$period}";
         }
 
-        return $tag ?? $period ?? null;
+        return $tag ?? $period;
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     private function pregnancyCheckLabel(array $data): ?string
     {
-        $tag = $data['female_animal']['tag_number']
-            ?? $data['breeding_female']['female_animal']['tag_number']
-            ?? null;
-        $period = $data['breeding_period']['period_code']
-            ?? $data['breeding_female']['breeding_period']['period_code']
-            ?? null;
-        $date = isset($data['check_date']) ? substr((string) $data['check_date'], 0, 10) : null;
+        $tag = $this->stringLabel(data_get($data, 'female_animal.tag_number'))
+            ?? $this->stringLabel(data_get($data, 'breeding_female.female_animal.tag_number'));
+        $period = $this->stringLabel(data_get($data, 'breeding_period.period_code'))
+            ?? $this->stringLabel(data_get($data, 'breeding_female.breeding_period.period_code'));
+        $date = $this->dateValue(data_get($data, 'check_date'));
 
         $parts = array_filter([$tag, $period ? "periode {$period}" : null, $date ? "tanggal {$date}" : null]);
 
         return $parts !== [] ? implode(' ', $parts) : null;
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     private function birthEventLabel(array $data): ?string
     {
-        $dam = $data['dam']['tag_number'] ?? null;
-        $date = isset($data['birth_date']) ? substr((string) $data['birth_date'], 0, 10) : null;
+        $dam = $this->stringLabel(data_get($data, 'dam.tag_number'));
+        $date = $this->dateValue(data_get($data, 'birth_date'));
 
         if ($dam && $date) {
             return "induk {$dam} tanggal {$date}";
@@ -301,15 +302,20 @@ class AdminActivityLogger
         return $dam ?? $date ?? null;
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     private function relatedAnimalLabel(array $data, string $relation): ?string
     {
-        return $data[$relation]['tag_number']
-            ?? $data['animal']['tag_number']
-            ?? $data['target_animal']['tag_number']
-            ?? $data['offspring_animal']['tag_number']
-            ?? null;
+        return $this->stringLabel(data_get($data, "{$relation}.tag_number"))
+            ?? $this->stringLabel(data_get($data, 'animal.tag_number'))
+            ?? $this->stringLabel(data_get($data, 'target_animal.tag_number'))
+            ?? $this->stringLabel(data_get($data, 'offspring_animal.tag_number'));
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     private function detailPhrase(string $module, array $data): string
     {
         $details = match ($module) {
@@ -323,7 +329,7 @@ class AdminActivityLogger
                 'tag' => 'tag_number',
                 'ras' => 'breed.breed_name',
                 'jenis kelamin' => fn (array $row) => $this->sexLabel($row['sex'] ?? null),
-                'status' => fn (array $row) => $this->animalStatusLabel($row),
+                'status' => fn (array $row) => $this->animalStatusLabel(TypeValue::stringKeyArray($row)),
             ]),
             'colony-pens' => $this->details($data, [
                 'kode koloni' => 'colony_code',
@@ -343,7 +349,7 @@ class AdminActivityLogger
                 'masuk' => fn (array $row) => $this->dateValue($row['entry_date'] ?? null),
                 'kawin' => fn (array $row) => $this->dateValue($row['mating_date'] ?? null),
                 'perkiraan lahir' => fn (array $row) => $this->dateValue($row['expected_birth_date'] ?? null),
-                'keluar' => fn (array $row) => $this->exitDetail($row),
+                'keluar' => fn (array $row) => $this->exitDetail(TypeValue::stringKeyArray($row)),
             ]),
             'pregnancy-checks' => $this->details($data, [
                 'periode' => 'breeding_period.period_code',
@@ -394,7 +400,7 @@ class AdminActivityLogger
                 'key identifier' => 'key_identifier',
                 'algoritma' => 'algorithm',
                 'panjang kunci' => 'key_length',
-                'status' => fn (array $row) => $this->rsaKeyStatusLabel($row),
+                'status' => fn (array $row) => $this->rsaKeyStatusLabel(TypeValue::stringKeyArray($row)),
                 'alasan status' => 'status_reason',
             ]),
             default => '',
@@ -405,7 +411,7 @@ class AdminActivityLogger
 
     /**
      * @param  array<string, mixed>  $data
-     * @param  array<string, string|callable>  $fields
+     * @param  array<string, string|callable(array<string, mixed>): mixed>  $fields
      */
     private function details(array $data, array $fields): string
     {
@@ -420,11 +426,12 @@ class AdminActivityLogger
                 continue;
             }
 
-            if (is_bool($value)) {
-                $value = $value ? 'Ya' : 'Tidak';
+            $detail = $this->detailValue($value);
+            if ($detail === null) {
+                continue;
             }
 
-            $parts[] = "{$label}: {$value}";
+            $parts[] = "{$label}: {$detail}";
         }
 
         return implode(', ', array_slice($parts, 0, 5));
@@ -453,6 +460,35 @@ class AdminActivityLogger
         return filter_var($value, FILTER_VALIDATE_BOOL) ? 'Aktif' : 'Nonaktif';
     }
 
+    private function stringLabel(mixed $value): ?string
+    {
+        if (is_string($value) && $value !== '') {
+            return $value;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+
+        return null;
+    }
+
+    private function detailValue(mixed $value): ?string
+    {
+        if ($value === null || $value === '' || $value === '-') {
+            return null;
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'Ya' : 'Tidak';
+        }
+
+        return $this->stringLabel($value);
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
     private function rsaKeyStatusLabel(array $row): ?string
     {
         return match ($row['key_status'] ?? null) {
@@ -512,6 +548,9 @@ class AdminActivityLogger
         };
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     private function animalStatusLabel(array $data): ?string
     {
         $exitStatus = $data['exit_status'] ?? null;
@@ -537,18 +576,24 @@ class AdminActivityLogger
         return filter_var($value, FILTER_VALIDATE_BOOL) ? 'Bunting' : 'Tidak Bunting';
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     private function exitDetail(array $data): ?string
     {
         $date = $this->dateValue($data['exit_date'] ?? null);
-        $reason = $data['exit_reason'] ?? null;
+        $reason = $this->stringLabel($data['exit_reason'] ?? null);
 
         if ($date && $reason) {
             return "{$date} - {$reason}";
         }
 
-        return $date ?: (is_string($reason) && $reason !== '' ? $reason : null);
+        return $date ?: $reason;
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
     private function responseData(?Response $response): ?array
     {
         if ($response === null || $response->getStatusCode() >= 400) {
@@ -565,9 +610,12 @@ class AdminActivityLogger
             return null;
         }
 
-        return is_array($json['data'] ?? null) ? $json['data'] : $json;
+        return TypeValue::stringKeyArray(is_array($json['data'] ?? null) ? $json['data'] : $json);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function metadata(Request $request): array
     {
         $payload = collect($request->except(['password', 'password_confirmation', 'token']))

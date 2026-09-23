@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\V1;
 
+use App\Models\Animal;
 use Illuminate\Validation\Rule;
 
 class AnimalUpdateRequest extends AnimalStoreRequest
@@ -11,7 +12,8 @@ class AnimalUpdateRequest extends AnimalStoreRequest
      */
     public function rules(): array
     {
-        $animalId = $this->route('animal')?->id;
+        $animal = $this->route('animal');
+        $animalId = $animal instanceof Animal ? $animal->id : null;
 
         return [
             'tag_number' => ['sometimes', 'string', 'max:100', Rule::unique('animals', 'tag_number')->ignore($animalId)],
@@ -19,9 +21,9 @@ class AnimalUpdateRequest extends AnimalStoreRequest
             'breed_id' => ['sometimes', 'integer', 'exists:animal_breeds,id'],
             'sex' => ['sometimes', 'in:male,female'],
             'generation' => ['sometimes', Rule::in(self::GENERATION_OPTIONS)],
-            'birth_date' => ['nullable', 'date'],
+            'birth_date' => ['nullable', 'date', 'before_or_equal:today'],
             'birth_place' => ['nullable', 'string', 'max:255'],
-            'current_pen_id' => ['nullable', 'integer', 'exists:animal_pens,id'],
+            'current_pen_id' => ['prohibited'],
             'reproductive_status' => ['nullable', Rule::in(self::REPRODUCTIVE_STATUS_OPTIONS)],
             'status_date' => ['nullable', 'date'],
             'life_status' => ['sometimes', 'in:alive,dead'],

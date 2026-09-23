@@ -22,6 +22,7 @@ class CertificateRevocation extends Model
         'updated_at' => 'datetime',
     ];
 
+    /** @return BelongsTo<Certificate, $this> */
     public function certificate(): BelongsTo
     {
         return $this->belongsTo(Certificate::class, 'certificate_id');

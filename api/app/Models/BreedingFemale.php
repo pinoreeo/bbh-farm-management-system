@@ -6,6 +6,10 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property-read BreedingPeriod|null $breedingPeriod
+ * @property-read Animal|null $femaleAnimal
+ */
 class BreedingFemale extends Model
 {
     protected $table = 'breed_females';
@@ -34,16 +38,22 @@ class BreedingFemale extends Model
         'updated_at' => 'datetime',
     ];
 
+    /**
+     * @param  Builder<BreedingFemale>  $query
+     * @return Builder<BreedingFemale>
+     */
     public function scopeActive(Builder $query): Builder
     {
         return $query->whereNull('exit_date');
     }
 
+    /** @return BelongsTo<BreedingPeriod, $this> */
     public function breedingPeriod(): BelongsTo
     {
         return $this->belongsTo(BreedingPeriod::class, 'breeding_period_id');
     }
 
+    /** @return BelongsTo<Animal, $this> */
     public function femaleAnimal(): BelongsTo
     {
         return $this->belongsTo(Animal::class, 'female_animal_id');

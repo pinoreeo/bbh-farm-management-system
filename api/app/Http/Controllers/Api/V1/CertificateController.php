@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\Animal;
 use App\Models\Certificate;
 use App\Models\CertificateRevocation;
 use App\Services\CertificateIssuanceService;
 use App\Services\CertificatePdfIntegrityService;
 use App\Services\CertificatePrintService;
 use App\Services\CertificateSigningService;
+use App\Support\TypeValue;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,6 +27,8 @@ class CertificateController extends Controller
             'animal.breed',
             'certificateType',
             'birthEvent',
+            'replacedCertificate',
+            'replacementCertificate',
             'signature.rsaKey',
             'revocation',
         ]);
@@ -59,6 +63,7 @@ class CertificateController extends Controller
         $data = $this->validated($request, [
             'animal_id' => ['required', 'integer', 'exists:animals,id'],
             'certificate_type_id' => ['required', 'integer', 'exists:cert_types,id'],
+            'replaces_certificate_id' => ['prohibited'],
             'issue_place' => ['nullable', 'string', 'max:255'],
             'auto_sign' => ['nullable', 'boolean'],
             'death_date' => ['nullable', 'date'],
@@ -69,7 +74,7 @@ class CertificateController extends Controller
         $autoSign = array_key_exists('auto_sign', $data) ? (bool) $data['auto_sign'] : true;
         unset($data['auto_sign']);
 
-        return $this->serviceResponse($certificates->issue($data, $autoSign));
+        return $this->serviceResponse(TypeValue::stringKeyArray($certificates->issue($data, $autoSign)));
     }
 
     public function show(Certificate $certificate): JsonResponse
@@ -79,6 +84,8 @@ class CertificateController extends Controller
                 'animal.breed',
                 'certificateType',
                 'birthEvent',
+                'replacedCertificate',
+                'replacementCertificate',
                 'signature.rsaKey',
                 'revocation',
                 'verificationLogs',
@@ -89,7 +96,7 @@ class CertificateController extends Controller
     public function update(Certificate $certificate): JsonResponse
     {
         return response()->json([
-            'message' => 'Peringatan: Sertifikat yang sudah diterbitkan tidak dapat diedit. Cabut sertifikat lama dan terbitkan sertifikat baru jika data perlu diperbaiki.',
+            'message' => 'Peringatan: Sertifikat yang sudah diterbitkan tidak dapat diubah. Cabut sertifikat lama sebelum menerbitkan penggantinya.',
         ], 422);
     }
 
@@ -100,25 +107,28 @@ class CertificateController extends Controller
             'revoked_at' => ['nullable', 'date'],
         ]);
 
-        if (($certificate->status ?? 'active') === 'revoked') {
-            return response()->json(['message' => 'Peringatan: Sertifikat ini sudah dicabut.'], 422);
-        }
-
-        if (($certificate->status ?? 'active') === 'expired') {
-            return response()->json(['message' => 'Peringatan: Masa berlaku sertifikat telah habis (Kedaluwarsa).'], 422);
-        }
-
-        $revokedAt = isset($data['revoked_at']) ? Carbon::parse($data['revoked_at']) : now();
+        $revokedAt = isset($data['revoked_at']) ? Carbon::parse($this->stringValue($data['revoked_at'])) : now();
 
         if ($revokedAt->isFuture()) {
             return response()->json(['message' => 'Peringatan: Tanggal pencabutan sertifikat tidak boleh melebihi waktu saat ini.'], 422);
         }
 
-        if ($certificate->issue_date && $revokedAt->lt($certificate->issue_date->copy()->startOfDay())) {
-            return response()->json(['message' => 'Peringatan: Tanggal pencabutan sertifikat tidak boleh lebih awal dari tanggal terbit.'], 422);
-        }
+        return DB::transaction(function () use ($certificate, $data, $revokedAt): JsonResponse {
+            Animal::query()->whereKey($certificate->animal_id)->lockForUpdate()->firstOrFail();
+            $certificate = Certificate::query()->whereKey($certificate->id)->lockForUpdate()->firstOrFail();
 
-        return DB::transaction(function () use ($certificate, $data, $revokedAt) {
+            if (($certificate->status ?? 'active') === 'revoked') {
+                return response()->json(['message' => 'Peringatan: Sertifikat ini sudah dicabut.'], 422);
+            }
+
+            if (($certificate->status ?? 'active') === 'expired') {
+                return response()->json(['message' => 'Peringatan: Masa berlaku sertifikat telah habis (Kedaluwarsa).'], 422);
+            }
+
+            if ($certificate->issue_date && $revokedAt->lt($certificate->issue_date->copy()->startOfDay())) {
+                return response()->json(['message' => 'Peringatan: Tanggal pencabutan sertifikat tidak boleh lebih awal dari tanggal terbit.'], 422);
+            }
+
             CertificateRevocation::query()->updateOrCreate(
                 ['certificate_id' => $certificate->id],
                 [
@@ -134,16 +144,31 @@ class CertificateController extends Controller
                 'message' => 'Sukses: Sertifikat berhasil dicabut.',
                 'data' => $certificate->load(['revocation']),
             ]);
-        });
+        }, 3);
     }
 
     public function unrevoke(Certificate $certificate): JsonResponse
     {
-        if ($certificate->status !== 'revoked') {
-            return response()->json(['message' => 'Peringatan: Sertifikat ini belum dalam status dicabut.'], 422);
-        }
-
         return DB::transaction(function () use ($certificate) {
+            $animal = Animal::query()->whereKey($certificate->animal_id)->lockForUpdate()->firstOrFail();
+            $certificate = Certificate::query()->with('certificateType')->whereKey($certificate->id)->lockForUpdate()->firstOrFail();
+
+            if ($certificate->status !== 'revoked') {
+                return response()->json(['message' => 'Peringatan: Sertifikat ini belum dalam status dicabut.'], 422);
+            }
+            if ($certificate->replacementCertificate()->exists()) {
+                return response()->json([
+                    'message' => 'Peringatan: Sertifikat ini tidak dapat diaktifkan kembali karena sudah memiliki sertifikat pengganti.',
+                ], 422);
+            }
+            if ($certificate->certificateType?->type_code === 'KEMATIAN'
+                && ($animal->life_status !== 'dead' || ! $animal->status_date
+                    || $certificate->death_date?->toDateString() !== $animal->status_date->toDateString())) {
+                return response()->json([
+                    'message' => 'Peringatan: Akta kematian tidak dapat diaktifkan kembali karena status atau tanggal kematian pada data kambing telah berubah.',
+                ], 422);
+            }
+
             CertificateRevocation::query()
                 ->where('certificate_id', $certificate->id)
                 ->delete();
@@ -159,7 +184,7 @@ class CertificateController extends Controller
                 'message' => $status === 'active'
                     ? 'Sukses: Sertifikat berhasil diaktifkan kembali.'
                     : 'Sukses: Pencabutan sertifikat dibatalkan, tetapi sertifikat sudah kedaluwarsa.',
-                'data' => $certificate->fresh()->load(['revocation']),
+                'data' => $certificate->refresh()->load(['revocation']),
             ]);
         });
     }
@@ -176,8 +201,13 @@ class CertificateController extends Controller
         }
 
         try {
-            $sig = $signingService->sign($certificate, true);
-            $pdfIntegrity->clearOfficialPdfIntegrity($certificate);
+            $sig = DB::transaction(function () use ($certificate, $signingService, $pdfIntegrity) {
+                $lockedCertificate = Certificate::query()->whereKey($certificate->id)->lockForUpdate()->firstOrFail();
+                $signature = $signingService->sign($lockedCertificate, true);
+                $pdfIntegrity->clearOfficialPdfIntegrity($lockedCertificate);
+
+                return $signature;
+            }, 3);
 
             return response()->json([
                 'message' => 'Sukses: Sertifikat berhasil ditandatangani.',
@@ -187,7 +217,7 @@ class CertificateController extends Controller
             report($e);
 
             return response()->json([
-                'message' => 'Gagal: Sertifikat gagal ditandatangani. Pastikan RSA Key aktif telah dikonfigurasi dengan benar.',
+                'message' => 'Gagal: Sertifikat belum berhasil ditandatangani. Silakan coba lagi.',
             ], 422);
         }
     }
@@ -212,15 +242,18 @@ class CertificateController extends Controller
         return $printer->render($certificate);
     }
 
+    /**
+     * @param  array<string, mixed>  $result
+     */
     private function serviceResponse(array $result): JsonResponse
     {
         if (($result['ok'] ?? false) !== true) {
-            return response()->json(['message' => $result['message']], $result['status'] ?? 422);
+            return response()->json(['message' => $this->stringValue($result['message'] ?? '')], $this->intValue($result['status'] ?? 422));
         }
 
         return response()->json([
-            'message' => $result['message'],
+            'message' => $this->stringValue($result['message'] ?? ''),
             'data' => $result['data'],
-        ], $result['status'] ?? 200);
+        ], $this->intValue($result['status'] ?? 200));
     }
 }

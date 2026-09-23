@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Support\TypeValue;
 use Illuminate\Http\Request;
+use Illuminate\Mail\Message;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -24,8 +26,8 @@ class AuthService
      */
     public function login(Request $request, array $data): array
     {
-        $email = (string) $data['email'];
-        $password = (string) $data['password'];
+        $email = TypeValue::string($data['email'] ?? '');
+        $password = TypeValue::string($data['password'] ?? '');
         $throttleKey = $this->loginThrottleKey($email, $request);
 
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
@@ -42,7 +44,7 @@ class AuthService
             RateLimiter::hit($throttleKey, 300);
             $this->logFailedLogin($request, $email);
 
-            throw ValidationException::withMessages(['email' => ['Gagal Masuk: Email atau kata sandi tidak sesuai.']]);
+            throw ValidationException::withMessages(['email' => ['Gagal: Email atau password tidak sesuai.']]);
         }
 
         RateLimiter::clear($throttleKey);
@@ -51,7 +53,7 @@ class AuthService
             $user->tokens()->delete();
         }
 
-        $tokenName = (string) ($data['device_name'] ?? 'api-token');
+        $tokenName = TypeValue::nullableString($data['device_name'] ?? null) ?? 'api-token';
         $token = $user->createToken($tokenName)->plainTextToken;
         $user->forceFill(['last_login_at' => now()])->save();
 
@@ -62,7 +64,7 @@ class AuthService
         ]);
 
         return [
-            'message' => 'Sukses: Anda berhasil masuk ke dalam sistem.',
+            'message' => 'Sukses: Anda berhasil login.',
             'token_type' => 'Bearer',
             'access_token' => $token,
             'user' => $this->userPayload($user),
@@ -75,7 +77,7 @@ class AuthService
      */
     public function forgotPassword(array $data): array
     {
-        $email = (string) $data['email'];
+        $email = TypeValue::string($data['email'] ?? '');
         $user = User::query()
             ->where('email', $email)
             ->whereIn('role', self::LOGIN_ROLES)
@@ -97,14 +99,14 @@ class AuthService
             );
 
             Mail::raw(
-                "Gunakan tautan berikut untuk mengatur ulang kata sandi admin BBH Farm:\n\n{$resetUrl}\n\nTautan berlaku selama 60 menit.",
-                fn ($message) => $message
+                "Gunakan tautan berikut untuk reset password akun BBH Farm:\n\n{$resetUrl}\n\nTautan berlaku selama 60 menit.",
+                fn (Message $message): Message => $message
                     ->to($email)
                     ->subject('Reset Kata Sandi Admin BBH Farm')
             );
         }
 
-        return ['message' => 'Info: Jika email terdaftar di sistem, tautan reset kata sandi akan dikirim.'];
+        return ['message' => 'Info: Jika email terdaftar, tautan reset password akan dikirim ke email tersebut.'];
     }
 
     /**
@@ -113,35 +115,27 @@ class AuthService
      */
     public function resetPassword(array $data): array
     {
-        $email = (string) $data['email'];
-        $row = DB::table('password_reset_tokens')->where('email', $email)->first();
+        return DB::transaction(function () use ($data) {
+            $email = TypeValue::string($data['email'] ?? '');
+            $user = User::query()->where('email', $email)
+                ->whereIn('role', self::LOGIN_ROLES)->where('is_active', true)
+                ->lockForUpdate()->first();
+            $row = DB::table('password_reset_tokens')->where('email', $email)->lockForUpdate()->first();
 
-        if (
-            ! $row ||
-            ! Hash::check((string) $data['token'], (string) $row->token) ||
-            Carbon::parse($row->created_at)->lt(now()->subMinutes(60))
-        ) {
-            $this->throwExpiredResetLink();
-        }
+            if (! $user || ! $row
+                || ! Hash::check(TypeValue::string($data['token'] ?? ''), TypeValue::string(data_get($row, 'token')))
+                || Carbon::parse(TypeValue::string(data_get($row, 'created_at')))->lt(now()->subMinutes(60))) {
+                $this->throwExpiredResetLink();
+            }
 
-        $user = User::query()
-            ->where('email', $email)
-            ->whereIn('role', self::LOGIN_ROLES)
-            ->where('is_active', true)
-            ->first();
+            $user->forceFill([
+                'password' => Hash::make(TypeValue::string($data['password'] ?? '')),
+            ])->save();
+            $user->tokens()->delete();
+            DB::table('password_reset_tokens')->where('email', $email)->delete();
 
-        if (! $user) {
-            $this->throwExpiredResetLink();
-        }
-
-        $user->forceFill([
-            'password' => Hash::make((string) $data['password']),
-        ])->save();
-
-        $user->tokens()->delete();
-        DB::table('password_reset_tokens')->where('email', $email)->delete();
-
-        return ['message' => 'Sukses: Kata sandi berhasil diperbarui. Silakan masuk dengan kata sandi baru.'];
+            return ['message' => 'Sukses: Password berhasil diperbarui. Silakan login dengan password baru.'];
+        }, 3);
     }
 
     /**
@@ -150,19 +144,19 @@ class AuthService
      */
     public function changePassword(User $user, array $data): array
     {
-        if (! Hash::check((string) $data['current_password'], $user->password)) {
+        if (! Hash::check(TypeValue::string($data['current_password'] ?? ''), $user->password)) {
             throw ValidationException::withMessages([
-                'current_password' => ['Gagal: Gagal memperbarui kata sandi. Periksa kembali kata sandi saat ini.'],
+                'current_password' => ['Peringatan: Password saat ini tidak sesuai.'],
             ]);
         }
 
         $user->forceFill([
-            'password' => Hash::make((string) $data['password']),
+            'password' => Hash::make(TypeValue::string($data['password'] ?? '')),
         ])->save();
 
         $user->tokens()->where('id', '!=', $user->currentAccessToken()?->id)->delete();
 
-        return ['message' => 'Sukses: Kata sandi akun berhasil diperbarui.'];
+        return ['message' => 'Sukses: Password berhasil diperbarui.'];
     }
 
     public function logout(Request $request): void
@@ -187,6 +181,7 @@ class AuthService
             'first_name' => $user->first_name,
             'last_name' => $user->last_name,
             'email' => $user->email,
+            'phone' => $user->phone,
             'role' => $user->role,
             'is_active' => $user->is_active,
             'last_login_at' => $user->last_login_at,
@@ -217,13 +212,14 @@ class AuthService
     private function throwExpiredResetLink(): never
     {
         throw ValidationException::withMessages([
-            'email' => ['Peringatan: Tautan reset kata sandi tidak valid atau telah kedaluwarsa.'],
+            'email' => ['Peringatan: Tautan reset password tidak valid atau sudah kedaluwarsa. Ajukan reset password kembali.'],
         ]);
     }
 
     private function resetUrl(string $token): string
     {
-        $webUrl = rtrim((string) (config('bbh.public_web_url') ?: config('app.url')), '/');
+        $webUrlConfig = config('bbh.public_web_url') ?: config('app.url');
+        $webUrl = rtrim(is_string($webUrlConfig) ? $webUrlConfig : '', '/');
 
         return $webUrl.'/reset-kata-sandi/'.rawurlencode($token);
     }

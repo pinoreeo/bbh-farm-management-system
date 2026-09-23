@@ -26,11 +26,16 @@ class CertificateType extends Model
         'updated_at' => 'datetime',
     ];
 
+    /**
+     * @param  Builder<CertificateType>  $query
+     * @return Builder<CertificateType>
+     */
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
     }
 
+    /** @return HasMany<Certificate, $this> */
     public function certificates(): HasMany
     {
         return $this->hasMany(Certificate::class, 'certificate_type_id');

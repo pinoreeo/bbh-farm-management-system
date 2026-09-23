@@ -15,10 +15,14 @@ use App\Models\PregnancyCheck;
 use App\Models\Vaccination;
 use App\Models\WeightRecord;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 
 class ReportExportDataService
 {
+    /**
+     * @return array{0: string, 1: array<int, string>, 2: iterable<int, array<int, bool|float|int|string|null>>}
+     */
     public function data(string $report, Request $request): array
     {
         return match ($report) {
@@ -35,7 +39,7 @@ class ReportExportDataService
                     $this->animalStatus($item->exit_status),
                     $item->status_date?->toDateString(),
                     $item->is_impor ? 'Impor' : 'Lokal',
-                ])->all(),
+                ]),
             ],
             'deaths' => [
                 'Data Kematian',
@@ -51,7 +55,7 @@ class ReportExportDataService
                         $item->status_date?->toDateString(),
                         $this->lifeStatus($item->life_status),
                         $item->notes,
-                    ])->all(),
+                    ]),
             ],
             'pens' => [
                 'Data Kandang Koloni',
@@ -65,7 +69,7 @@ class ReportExportDataService
                     $item->capacity,
                     $item->animals_count,
                     $item->is_active ? 'Aktif' : 'Nonaktif',
-                ])->all(),
+                ]),
             ],
             'births' => [
                 'Data Kelahiran',
@@ -79,7 +83,7 @@ class ReportExportDataService
                     $item->birth_process,
                     $item->birth_place,
                     $item->notes,
-                ])->all(),
+                ]),
             ],
             'offsprings' => [
                 'Data Anak',
@@ -93,7 +97,7 @@ class ReportExportDataService
                     $item->offspring_grade,
                     $this->lifeStatus($item->birth_status),
                     $item->notes,
-                ])->all(),
+                ]),
             ],
             'weights' => [
                 'Data Bobot',
@@ -103,7 +107,7 @@ class ReportExportDataService
                     $item->record_date?->toDateString(),
                     $item->weight_kg,
                     $item->notes,
-                ])->all(),
+                ]),
             ],
             'health' => [
                 'Data Kesehatan',
@@ -121,7 +125,7 @@ class ReportExportDataService
                     $item->handled_by,
                     $item->next_control_date?->toDateString(),
                     $item->notes,
-                ])->all(),
+                ]),
             ],
             'vaccinations' => [
                 'Data Vaksinasi',
@@ -134,7 +138,7 @@ class ReportExportDataService
                     $item->dosage,
                     $item->administration_route,
                     $item->notes,
-                ])->all(),
+                ]),
             ],
             'breeding' => [
                 'Data Perkawinan',
@@ -146,7 +150,7 @@ class ReportExportDataService
                     $item->end_date?->toDateString(),
                     $item->maleAnimal?->tag_number,
                     $item->status,
-                ])->all(),
+                ]),
             ],
             'breeding-females' => [
                 'Data Betina Kawin',
@@ -161,7 +165,7 @@ class ReportExportDataService
                     $item->exit_date?->toDateString(),
                     $item->exit_reason,
                     $item->exit_notes,
-                ])->all(),
+                ]),
             ],
             'pregnancies' => [
                 'Data Kebuntingan',
@@ -177,7 +181,7 @@ class ReportExportDataService
                     $item->estimated_gestation_days,
                     $item->outcome_status,
                     $item->notes,
-                ])->all(),
+                ]),
             ],
             'pen-movements' => [
                 'Riwayat Pindah Koloni',
@@ -189,7 +193,7 @@ class ReportExportDataService
                     $item->movement_date?->toDateString(),
                     $item->reason,
                     $item->notes,
-                ])->all(),
+                ]),
             ],
             'activity-logs' => [
                 'Log Aktivitas',
@@ -207,12 +211,18 @@ class ReportExportDataService
                         $item->description,
                         $item->status_code,
                         $item->ip_address,
-                    ])->all(),
+                    ]),
             ],
             default => abort(404),
         };
     }
 
+    /**
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $query
+     * @return Builder<TModel>
+     */
     private function dateRange(Builder $query, Request $request, string $column): Builder
     {
         if ($request->filled('year')) {

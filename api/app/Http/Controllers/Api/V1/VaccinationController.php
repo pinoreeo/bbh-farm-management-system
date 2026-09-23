@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Animal;
 use App\Models\Vaccination;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class VaccinationController extends Controller
 {
@@ -46,38 +48,54 @@ class VaccinationController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
-        $animal = Animal::find($data['animal_id']);
-        if (! $animal || $animal->life_status !== 'alive') {
+        $animalId = $this->intValue($data['animal_id']);
+        $categoryName = $this->stringValue($data['category_name']);
+        $vaccinationDate = $this->stringValue($data['vaccination_date']);
+        $productName = $this->stringValue($data['product_name']);
+
+        return DB::transaction(function () use ($data, $animalId, $categoryName, $vaccinationDate, $productName): JsonResponse {
+            $animal = Animal::query()->whereKey($animalId)->lockForUpdate()->first();
+            if (! $animal || ($animal->life_status !== 'alive'
+                && (! $animal->status_date || $vaccinationDate > $animal->status_date->toDateString()))) {
+                return response()->json([
+                    'message' => 'Peringatan: Tanggal vaksin tidak boleh setelah tanggal kematian kambing.',
+                ], 422);
+            }
+
+            if ($animal->birth_date && $vaccinationDate < $animal->birth_date->toDateString()) {
+                return response()->json([
+                    'message' => 'Peringatan: Tanggal vaksin tidak boleh lebih awal dari tanggal lahir kambing.',
+                ], 422);
+            }
+
+            $exists = Vaccination::query()
+                ->where('animal_id', $animalId)
+                ->where('category_name', $categoryName)
+                ->whereDate('vaccination_date', $vaccinationDate)
+                ->where('product_name', $productName)
+                ->exists();
+
+            if ($exists) {
+                return response()->json([
+                    'message' => 'Peringatan: Data vaksinasi untuk kambing, jenis vaksin, tanggal, dan produk tersebut sudah ada.',
+                ], 422);
+            }
+
+            try {
+                $row = Vaccination::create($data);
+            } catch (QueryException $e) {
+                if (! $this->isDuplicateKey($e)) {
+                    throw $e;
+                }
+
+                return response()->json(['message' => 'Peringatan: Data vaksinasi untuk kambing, jenis vaksin, tanggal, dan produk tersebut sudah ada.'], 422);
+            }
+
             return response()->json([
-                'message' => 'Peringatan: Data vaksinasi hanya dapat dibuat untuk kambing yang masih hidup.',
-            ], 422);
-        }
-
-        if ($animal->birth_date && $data['vaccination_date'] < $animal->birth_date->toDateString()) {
-            return response()->json([
-                'message' => 'Peringatan: Tanggal vaksin tidak boleh lebih awal dari tanggal lahir kambing.',
-            ], 422);
-        }
-
-        $exists = Vaccination::query()
-            ->where('animal_id', $data['animal_id'])
-            ->where('category_name', $data['category_name'])
-            ->whereDate('vaccination_date', $data['vaccination_date'])
-            ->where('product_name', $data['product_name'])
-            ->exists();
-
-        if ($exists) {
-            return response()->json([
-                'message' => 'Peringatan: Data vaksinasi untuk kambing, jenis vaksin, tanggal, dan produk tersebut sudah ada.',
-            ], 422);
-        }
-
-        $row = Vaccination::create($data);
-
-        return response()->json([
-            'message' => 'Sukses: Data vaksinasi berhasil disimpan.',
-            'data' => $row->load(['animal']),
-        ], 201);
+                'message' => 'Sukses: Data vaksinasi berhasil disimpan.',
+                'data' => $row->load(['animal']),
+            ], 201);
+        }, 3);
     }
 
     public function show(Vaccination $vaccination): JsonResponse
@@ -96,42 +114,59 @@ class VaccinationController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
-        $animal = $vaccination->animal;
-        if (! $animal || $animal->life_status !== 'alive') {
+        return DB::transaction(function () use ($data, $vaccination): JsonResponse {
+            $animal = Animal::query()->whereKey($vaccination->animal_id)->lockForUpdate()->first();
+            $vaccination = Vaccination::query()->whereKey($vaccination->id)->lockForUpdate()->firstOrFail();
+            $newVaccinationDate = $this->stringValue($data['vaccination_date'] ?? $vaccination->vaccination_date?->toDateString());
+            if (! $animal || ($animal->life_status !== 'alive'
+                && (! $animal->status_date || $newVaccinationDate > $animal->status_date->toDateString()))) {
+                return response()->json([
+                    'message' => 'Peringatan: Data vaksinasi hanya dapat diperbaiki untuk tanggal sebelum atau saat kambing mati.',
+                ], 422);
+            }
+
+            $newCategoryName = $this->stringValue($data['category_name'] ?? $vaccination->category_name);
+            $newProductName = $this->stringValue($data['product_name'] ?? $vaccination->product_name);
+
+            if ($animal->birth_date && $newVaccinationDate < $animal->birth_date->toDateString()) {
+                return response()->json([
+                    'message' => 'Peringatan: Tanggal vaksin tidak boleh lebih awal dari tanggal lahir kambing.',
+                ], 422);
+            }
+
+            $exists = Vaccination::query()
+                ->where('id', '!=', $vaccination->id)
+                ->where('animal_id', $vaccination->animal_id)
+                ->where('category_name', $newCategoryName)
+                ->whereDate('vaccination_date', $newVaccinationDate)
+                ->where('product_name', $newProductName)
+                ->exists();
+
+            if ($exists) {
+                return response()->json([
+                    'message' => 'Peringatan: Data vaksinasi lain untuk kambing, jenis vaksin, tanggal, dan produk tersebut sudah ada.',
+                ], 422);
+            }
+
+            try {
+                $vaccination->fill($data)->save();
+            } catch (QueryException $e) {
+                if (! $this->isDuplicateKey($e)) {
+                    throw $e;
+                }
+
+                return response()->json(['message' => 'Peringatan: Data vaksinasi lain untuk kambing, jenis vaksin, tanggal, dan produk tersebut sudah ada.'], 422);
+            }
+
             return response()->json([
-                'message' => 'Peringatan: Data vaksinasi hanya dapat dibuat untuk kambing yang masih hidup.',
-            ], 422);
-        }
+                'message' => 'Sukses: Data vaksinasi berhasil diperbarui.',
+                'data' => $vaccination->load(['animal']),
+            ]);
+        }, 3);
+    }
 
-        $newCategoryName = $data['category_name'] ?? $vaccination->category_name;
-        $newVaccinationDate = $data['vaccination_date'] ?? $vaccination->vaccination_date?->toDateString();
-        $newProductName = $data['product_name'] ?? $vaccination->product_name;
-
-        if ($animal->birth_date && $newVaccinationDate < $animal->birth_date->toDateString()) {
-            return response()->json([
-                'message' => 'Peringatan: Tanggal vaksin tidak boleh lebih awal dari tanggal lahir kambing.',
-            ], 422);
-        }
-
-        $exists = Vaccination::query()
-            ->where('id', '!=', $vaccination->id)
-            ->where('animal_id', $vaccination->animal_id)
-            ->where('category_name', $newCategoryName)
-            ->whereDate('vaccination_date', $newVaccinationDate)
-            ->where('product_name', $newProductName)
-            ->exists();
-
-        if ($exists) {
-            return response()->json([
-                'message' => 'Peringatan: Data vaksinasi lain untuk kambing, jenis vaksin, tanggal, dan produk tersebut sudah ada.',
-            ], 422);
-        }
-
-        $vaccination->fill($data)->save();
-
-        return response()->json([
-            'message' => 'Sukses: Data vaksinasi berhasil diperbarui.',
-            'data' => $vaccination->load(['animal']),
-        ]);
+    private function isDuplicateKey(QueryException $exception): bool
+    {
+        return in_array((string) $exception->getCode(), ['23000', '23505', '19'], true);
     }
 }

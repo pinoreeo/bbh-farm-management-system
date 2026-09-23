@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AdminActivityLogController;
+use App\Http\Controllers\Api\V1\AdminInvitationController;
+use App\Http\Controllers\Api\V1\AdminAccountActivationController;
 use App\Http\Controllers\Api\V1\AnimalController;
 use App\Http\Controllers\Api\V1\AnimalPenMovementController;
 use App\Http\Controllers\Api\V1\AuthController;
@@ -43,12 +45,17 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('auth/me', [AuthController::class, 'me']);
+        Route::put('auth/profile', [AuthController::class, 'updateProfile']);
         Route::put('auth/password', [AuthController::class, 'changePassword']);
         Route::post('auth/logout', [AuthController::class, 'logout']);
     });
 
     // Public Verification
     Route::prefix('public')->group(function () {
+        Route::post('admin-invitations/accept', [AdminInvitationController::class, 'accept'])
+            ->middleware('throttle:5,1');
+        Route::post('admin-account/activate', [AdminAccountActivationController::class, 'activate'])
+            ->middleware('throttle:5,1');
         Route::post('certificates/verify', [CertificateVerificationController::class, 'verify'])
             ->middleware('throttle:30,1');
         Route::post('certificates/verify-pdf', [CertificateVerificationController::class, 'verifyPdf'])
@@ -62,8 +69,12 @@ Route::prefix('v1')->group(function () {
     // Admin
     Route::middleware(['auth:sanctum', IsAdmin::class, 'adminActivity'])->group(function () {
 
-        Route::get('farm', [FarmProfileController::class, 'show']);
-        Route::put('farm', [FarmProfileController::class, 'update']);
+        Route::get('farm', [FarmProfileController::class, 'show'])->middleware(IsSuperAdmin::class);
+        Route::put('farm', [FarmProfileController::class, 'update'])->middleware(IsSuperAdmin::class);
+        Route::post('users/complete-registration', [UserManagementController::class, 'completeRegistration'])
+            ->middleware(IsSuperAdmin::class);
+        Route::post('users/{user}/send-password-reset', [UserManagementController::class, 'sendPasswordResetLink'])
+            ->middleware([IsSuperAdmin::class, 'throttle:3,1']);
         Route::apiResource('users', UserManagementController::class)
             ->except(['destroy'])
             ->middleware(IsSuperAdmin::class);

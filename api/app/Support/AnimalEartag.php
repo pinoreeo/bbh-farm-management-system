@@ -3,15 +3,17 @@
 namespace App\Support;
 
 use App\Models\Animal;
+use Illuminate\Database\QueryException;
 
 class AnimalEartag
 {
-    public function next(?string $birthDate = null, ?string $jantanPemacek = null): string
+    public function next(?string $birthDate = null, ?string $jantanPemacek = null, int $offset = 0): string
     {
-        $year = $birthDate !== null && $birthDate !== ''
-            ? date('y', strtotime($birthDate))
+        $timestamp = $birthDate !== null && $birthDate !== '' ? strtotime($birthDate) : false;
+        $year = $timestamp !== false
+            ? date('y', $timestamp)
             : now()->format('y');
-        $next = $this->nextSequence($year);
+        $next = $this->nextSequence($year) + $offset;
 
         do {
             $tag = $this->format($year, $next, $jantanPemacek);
@@ -19,6 +21,12 @@ class AnimalEartag
         } while (Animal::query()->where('tag_number', $tag)->exists());
 
         return $tag;
+    }
+
+    public function isDuplicateTag(QueryException $exception): bool
+    {
+        return str_contains($exception->getMessage(), 'uq_animals_tag')
+            || str_contains($exception->getMessage(), 'animals.tag_number');
     }
 
     private function nextSequence(string $year): int
@@ -33,7 +41,8 @@ class AnimalEartag
             ->where('tag_number', 'like', $year.'-%')
             ->orWhere('tag_number', 'like', 'BBH-'.$year.'-%')
             ->pluck('tag_number')
-            ->each(function (string $tag) use (&$max, $patterns): void {
+            ->filter(fn (mixed $tag): bool => is_string($tag))
+            ->each(function (mixed $tag) use (&$max, $patterns): void {
                 foreach ($patterns as $pattern) {
                     if (preg_match($pattern, $tag, $matches)) {
                         $max = max($max, (int) $matches[1]);

@@ -5,27 +5,29 @@ namespace App\Services;
 use App\Models\Certificate;
 use App\Models\CertificateSignature;
 use App\Models\RsaKey;
+use App\Models\User;
+use App\Support\TypeValue;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use OpenSSLAsymmetricKey;
 
 class CertificateSigningService
 {
     public function sign(Certificate $certificate, bool $replaceActive = false): CertificateSignature
     {
-        if ($certificate->status !== 'active') {
-            throw new \RuntimeException('Only active certificates can be signed.');
-        }
-
-        $recomputedHash = hash('sha256', (string) $certificate->payload_snapshot);
-        if ($recomputedHash !== (string) $certificate->hash_sha256) {
-            throw new \RuntimeException('Payload hash mismatch. Refuse to sign.');
-        }
-
         return DB::transaction(function () use ($certificate, $replaceActive) {
-            Certificate::query()
+            $certificate = Certificate::query()
                 ->whereKey($certificate->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            if ($certificate->status !== 'active') {
+                throw new \RuntimeException('Only active certificates can be signed.');
+            }
+
+            if (hash('sha256', (string) $certificate->payload_snapshot) !== (string) $certificate->hash_sha256) {
+                throw new \RuntimeException('Payload hash mismatch. Refuse to sign.');
+            }
 
             if (! $replaceActive) {
                 $existingSignature = CertificateSignature::query()
@@ -64,6 +66,9 @@ class CertificateSigningService
         });
     }
 
+    /**
+     * @return array{rsa_key: RsaKey, signed_by_user_id: int, signature_base64: string}
+     */
     public function signHash(string $hash): array
     {
         $hash = trim($hash);
@@ -72,7 +77,7 @@ class CertificateSigningService
         }
 
         $user = auth()->user();
-        if (! $user) {
+        if (! $user instanceof User) {
             throw new \RuntimeException('Authenticated user is required to sign.');
         }
 
@@ -90,7 +95,7 @@ class CertificateSigningService
         return [
             'rsa_key' => $rsaKey,
             'signed_by_user_id' => (int) $user->id,
-            'signature_base64' => base64_encode($signatureBin),
+            'signature_base64' => base64_encode(TypeValue::string($signatureBin)),
         ];
     }
 
@@ -111,6 +116,9 @@ class CertificateSigningService
         return $result === 1;
     }
 
+    /**
+     * @return array{0: RsaKey, 1: OpenSSLAsymmetricKey}
+     */
     private function activePrivateKey(int $userId): array
     {
         $rsaKey = RsaKey::query()
@@ -148,7 +156,7 @@ class CertificateSigningService
         $privateKeyPem = $this->decryptPrivateKeyIfNeeded($privateKeyPem);
 
         $passphrase = config('bbh_signing.private_key_passphrase');
-        $pkey = openssl_pkey_get_private($privateKeyPem, $passphrase ?? '');
+        $pkey = openssl_pkey_get_private($privateKeyPem, is_string($passphrase) ? $passphrase : '');
 
         if ($pkey === false) {
             throw new \RuntimeException('Invalid private key or passphrase.');
@@ -159,7 +167,7 @@ class CertificateSigningService
             throw new \RuntimeException('Unable to read public key from configured private key.');
         }
 
-        if ($this->normalizePem($privateKeyDetails['key']) !== $this->normalizePem($rsaKey->public_key_pem)) {
+        if ($this->normalizePem(TypeValue::string($privateKeyDetails['key'])) !== $this->normalizePem($rsaKey->public_key_pem)) {
             throw new \RuntimeException('Active RSA public key does not match the configured private key.');
         }
 

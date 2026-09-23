@@ -1,7 +1,11 @@
 parameters:
     level: max
+    treatPhpDocTypesAsCertain: false
     paths:
         - app
         - database/seeders
+    ignoreErrors:
+        -
+            identifier: nullsafe.neverNull
 includes:
     - vendor/larastan/larastan/extension.neon

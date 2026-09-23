@@ -22,7 +22,7 @@ class BirthEventController extends Controller
         $data = $this->validated($request, [
             'dam_id' => ['required', 'integer', 'exists:animals,id'],
             'sire_id' => ['nullable', 'integer', 'exists:animals,id'],
-            'birth_date' => ['required', 'date'],
+            'birth_date' => ['required', 'date', 'before_or_equal:today'],
             'birth_time' => ['nullable', 'date_format:H:i:s'],
             'offspring_count' => ['required', 'integer', 'min:1'],
             'birth_process' => ['required', 'string', 'max:100'],
@@ -44,7 +44,7 @@ class BirthEventController extends Controller
         $data = $this->validated($request, [
             'dam_id' => ['sometimes', 'integer', 'exists:animals,id'],
             'sire_id' => ['nullable', 'integer', 'exists:animals,id'],
-            'birth_date' => ['sometimes', 'date'],
+            'birth_date' => ['sometimes', 'date', 'before_or_equal:today'],
             'birth_time' => ['nullable', 'date_format:H:i:s'],
             'offspring_count' => ['sometimes', 'integer', 'min:1'],
             'birth_process' => ['sometimes', 'string', 'max:100'],
@@ -61,12 +61,13 @@ class BirthEventController extends Controller
      */
     private function serviceResponse(array $result): JsonResponse
     {
-        $payload = ['message' => $result['message']];
+        $ok = ($result['ok'] ?? false) === true;
+        $payload = ['message' => $this->stringValue($result['message'] ?? '')];
 
         if (array_key_exists('data', $result)) {
             $payload['data'] = $result['data'];
         }
 
-        return response()->json($payload, $result['status'] ?? ($result['ok'] ? 200 : 422));
+        return response()->json($payload, $this->intValue($result['status'] ?? ($ok ? 200 : 422)));
     }
 }

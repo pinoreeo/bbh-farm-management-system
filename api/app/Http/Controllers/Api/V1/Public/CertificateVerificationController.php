@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Certificate;
 use App\Services\CertificatePdfIntegrityService;
 use App\Services\CertificateVerificationService;
+use App\Support\TypeValue;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -111,12 +113,21 @@ class CertificateVerificationController extends Controller
         ]);
 
         $startedAt = microtime(true);
-        $originalName = $data['pdf']->getClientOriginalName();
+        $uploadedFile = $request->file('pdf');
+        if (! $uploadedFile instanceof UploadedFile) {
+            return response()->json([
+                'message' => 'Gagal: Dokumen PDF yang diunggah tidak dapat dibaca oleh sistem.',
+                'is_valid' => false,
+            ], 422);
+        }
+
+        $certificateNumber = TypeValue::nullableString($data['certificate_number'] ?? null);
+        $originalName = $uploadedFile->getClientOriginalName();
 
         Log::info("PDF 1/1 diterima: {$originalName}");
 
-        $uploadedPath = $data['pdf']->getRealPath();
-        if (! $uploadedPath) {
+        $uploadedPath = $uploadedFile->getRealPath();
+        if (! is_string($uploadedPath) || $uploadedPath === '') {
             Log::warning('PDF 1/1 gagal dibaca dari temporary upload path.');
 
             return response()->json([
@@ -133,7 +144,7 @@ class CertificateVerificationController extends Controller
             $invalidUploadedHash = is_file($uploadedPath) ? hash_file('sha256', $uploadedPath) : null;
 
             return response()->json([
-                'certificate_number' => $data['certificate_number'] ?? null,
+                'certificate_number' => $certificateNumber,
                 'uploaded_pdf_hash_sha256' => is_string($invalidUploadedHash) ? $invalidUploadedHash : null,
                 'official_pdf_hash_sha256' => null,
                 'pdf_file_type_valid' => false,
@@ -166,11 +177,11 @@ class CertificateVerificationController extends Controller
             ->where('official_pdf_hash_sha256', $uploadedHash)
             ->first();
 
-        if (! empty($data['certificate_number'])) {
-            Log::info('PDF 1/1 mencari sertifikat resmi: '.$data['certificate_number']);
+        if ($certificateNumber !== null && $certificateNumber !== '') {
+            Log::info('PDF 1/1 mencari sertifikat resmi: '.$certificateNumber);
             $cert = Certificate::query()
                 ->with(self::PDF_VERIFICATION_RELATIONS)
-                ->where('certificate_number', $data['certificate_number'])
+                ->where('certificate_number', $certificateNumber)
                 ->first();
         } else {
             Log::info('PDF 1/1 mencari sertifikat resmi berdasarkan hash PDF...');
@@ -181,10 +192,10 @@ class CertificateVerificationController extends Controller
             $durationMs = number_format((microtime(true) - $startedAt) * 1000, 1);
             Log::info("PDF 1/1 hasil akhir: TIDAK VALID, sertifikat tidak ditemukan, {$durationMs}ms");
 
-            $certificateNumberSupplied = ! empty($data['certificate_number']);
+            $certificateNumberSupplied = $certificateNumber !== null && $certificateNumber !== '';
 
             return response()->json([
-                'certificate_number' => $data['certificate_number'] ?? null,
+                'certificate_number' => $certificateNumber,
                 'uploaded_pdf_hash_sha256' => $uploadedHash,
                 'official_pdf_hash_sha256' => null,
                 'pdf_file_type_valid' => true,
@@ -217,26 +228,26 @@ class CertificateVerificationController extends Controller
 
         $reason = null;
         $pdfMismatchType = null;
-        if (! $pdfHashMatches && ! empty($data['certificate_number']) && $matchedByHash && $matchedByHash->id !== $cert->id) {
+        if (! $pdfHashMatches && $certificateNumber !== null && $certificateNumber !== '' && $matchedByHash && $matchedByHash->id !== $cert->id) {
             $reason = 'Dokumen PDF yang diunggah tercatat sebagai sertifikat resmi Bumiku Bumimu Hijau Farm, tetapi tidak sesuai dengan nomor sertifikat yang dimasukkan.';
             $pdfMismatchType = 'wrong_certificate_number';
         } elseif (! $cert->official_pdf_hash_sha256 || ! $cert->official_pdf_signature_base64 || ! $cert->officialPdfRsaKey) {
             $reason = 'Data pembanding keaslian PDF resmi belum tersedia pada sistem. Silakan unduh ulang sertifikat resmi dari sistem, lalu lakukan verifikasi kembali.';
             $pdfMismatchType = 'missing_official_integrity';
         } elseif (! $pdfHashMatches) {
-            $reason = ! empty($data['certificate_number'])
+            $reason = $certificateNumber !== null && $certificateNumber !== ''
                 ? 'Dokumen PDF tidak dapat disahkan karena tidak sesuai dengan arsip resmi untuk nomor sertifikat tersebut.'
                 : 'Dokumen PDF tidak sesuai dengan arsip resmi sertifikat yang diterbitkan sistem.';
             $pdfMismatchType = 'tampered_or_unregistered';
         } elseif (! $pdfSignatureValid) {
             $reason = 'Tanda tangan digital pada dokumen PDF tidak valid sehingga keaslian dokumen tidak dapat disahkan.';
             $pdfMismatchType = 'invalid_pdf_signature';
-        } elseif (! $certificateVerification['is_valid']) {
+        } elseif (! (bool) ($certificateVerification['is_valid'] ?? false)) {
             $reason = 'Status atau data sertifikat tidak memenuhi ketentuan validasi.';
             $pdfMismatchType = 'certificate_status_invalid';
         }
 
-        $isValid = $pdfIntegrityValid && (bool) $certificateVerification['is_valid'];
+        $isValid = $pdfIntegrityValid && (bool) ($certificateVerification['is_valid'] ?? false);
         $durationMs = number_format((microtime(true) - $startedAt) * 1000, 1);
         Log::info('PDF 1/1 hasil akhir: '.($isValid ? 'VALID' : 'TIDAK VALID').($reason ? ' - '.$reason : '').", {$durationMs}ms");
 
@@ -249,7 +260,7 @@ class CertificateVerificationController extends Controller
             'pdf_hash_matches' => $pdfHashMatches,
             'pdf_signature_valid' => $pdfSignatureValid,
             'is_pdf_integrity_valid' => $pdfIntegrityValid,
-            'is_certificate_data_valid' => (bool) $certificateVerification['is_valid'],
+            'is_certificate_data_valid' => (bool) ($certificateVerification['is_valid'] ?? false),
             'is_valid' => $isValid,
             'pdf_mismatch_type' => $pdfMismatchType,
             'matched_certificate_number' => $pdfMismatchType === 'wrong_certificate_number' ? $matchedByHash?->certificate_number : null,

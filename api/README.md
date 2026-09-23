@@ -113,6 +113,12 @@ Start the local development server. Use port `8000` so the web application can p
 php artisan serve --port=8000
 ```
 
+Admin invitations are sent through the database queue after the user record is committed. Run a queue worker alongside the API server:
+
+```bash
+php artisan queue:work --tries=3
+```
+
 The API will be available at:
 
 ```text
@@ -278,6 +284,20 @@ Run Laravel Pint:
 vendor/bin/pint
 ```
 
+For real MySQL concurrency checks, create a separate, empty database named `bbh_farm_concurrency_test`, then run:
+
+```powershell
+$env:DB_DATABASE = 'bbh_farm_concurrency_test'
+php artisan migrate --force
+php tests/Integration/mysql_concurrency_probe.php
+```
+
+The probe refuses to run against any other database. It leaves test records in this dedicated database and checks concurrent RSA key deactivation, automatic eartag assignment, and duplicate postnatal care entry.
+
 ## Contributing
 
 This project is maintained by the repository owner. Suggestions and issue reports are welcome through GitHub Issues.
+
+## Pre-migration duplicate check
+
+Before applying `2026_09_23_000004_prevent_duplicate_care_records` to an existing database, run `php artisan bbh:check-care-duplicates`. Review and correct any reported duplicates before migrating. The command is read-only and never deletes records.

@@ -24,7 +24,7 @@ class CertificateTypeSeeder extends Seeder
     }
 
     /**
-     * @return array<int, array<string, string>>
+     * @return array<int, array<string, bool|string>>
      */
     private function certificateTypes(): array
     {

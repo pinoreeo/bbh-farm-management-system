@@ -9,9 +9,9 @@ class SimpleXlsxWriter
 {
     /**
      * @param  array<int, string>  $headers
-     * @param  array<int, array<int, scalar|null>>  $rows
+     * @param  iterable<int, array<int, scalar|null>>  $rows
      */
-    public function write(string $title, array $headers, array $rows): string
+    public function write(string $title, array $headers, iterable $rows): string
     {
         if (! class_exists(ZipArchive::class)) {
             throw new RuntimeException('Ekstensi ZipArchive belum tersedia di server.');
@@ -23,43 +23,81 @@ class SimpleXlsxWriter
         }
 
         $xlsxPath = $path.'.xlsx';
-        @rename($path, $xlsxPath);
-
-        $zip = new ZipArchive;
-        if ($zip->open($xlsxPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+        if (! @rename($path, $xlsxPath)) {
+            @unlink($path);
             throw new RuntimeException('Gagal: File XLSX gagal dibuat.');
         }
 
-        $zip->addFromString('[Content_Types].xml', $this->contentTypes());
-        $zip->addFromString('_rels/.rels', $this->rootRels());
-        $zip->addFromString('xl/workbook.xml', $this->workbook($title));
-        $zip->addFromString('xl/_rels/workbook.xml.rels', $this->workbookRels());
-        $zip->addFromString('xl/styles.xml', $this->styles());
-        $zip->addFromString('xl/worksheets/sheet1.xml', $this->sheetXml($headers, $rows));
-        $zip->close();
+        $sheetPath = tempnam(sys_get_temp_dir(), 'bbh-sheet-');
+        if ($sheetPath === false) {
+            @unlink($xlsxPath);
+            throw new RuntimeException('Gagal: File sementara XLSX gagal dibuat.');
+        }
 
-        return $xlsxPath;
+        try {
+            $this->writeSheetXml($sheetPath, $headers, $rows);
+            $zip = new ZipArchive;
+            if ($zip->open($xlsxPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+                throw new RuntimeException('Gagal: File XLSX gagal dibuat.');
+            }
+
+            $zip->addFromString('[Content_Types].xml', $this->contentTypes());
+            $zip->addFromString('_rels/.rels', $this->rootRels());
+            $zip->addFromString('xl/workbook.xml', $this->workbook($title));
+            $zip->addFromString('xl/_rels/workbook.xml.rels', $this->workbookRels());
+            $zip->addFromString('xl/styles.xml', $this->styles());
+            $sheetAdded = $zip->addFile($sheetPath, 'xl/worksheets/sheet1.xml');
+            $closed = $zip->close();
+            if (! $sheetAdded || ! $closed) {
+                throw new RuntimeException('Gagal: Isi file XLSX gagal disimpan.');
+            }
+
+            return $xlsxPath;
+        } catch (\Throwable $exception) {
+            @unlink($xlsxPath);
+            throw $exception;
+        } finally {
+            @unlink($sheetPath);
+        }
     }
 
     /**
      * @param  array<int, string>  $headers
-     * @param  array<int, array<int, scalar|null>>  $rows
+     * @param  iterable<int, array<int, scalar|null>>  $rows
      */
-    private function sheetXml(array $headers, array $rows): string
+    private function writeSheetXml(string $path, array $headers, iterable $rows): void
     {
-        $sheetRows = [];
-        $sheetRows[] = $this->rowXml(1, $headers, true);
-
-        foreach (array_values($rows) as $index => $row) {
-            $sheetRows[] = $this->rowXml($index + 2, $row, false);
+        $stream = fopen($path, 'wb');
+        if ($stream === false) {
+            throw new RuntimeException('Gagal: File sementara XLSX tidak dapat dibuka.');
         }
 
-        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-            .'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-            .'<sheetViews><sheetView workbookViewId="0"/></sheetViews>'
-            .'<sheetFormatPr defaultRowHeight="18"/>'
-            .'<sheetData>'.implode('', $sheetRows).'</sheetData>'
-            .'</worksheet>';
+        try {
+            $this->writeXml($stream, '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                .'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+                .'<sheetViews><sheetView workbookViewId="0"/></sheetViews>'
+                .'<sheetFormatPr defaultRowHeight="18"/><sheetData>');
+            $this->writeXml($stream, $this->rowXml(1, $headers, true));
+            $rowNumber = 2;
+            foreach ($rows as $row) {
+                $this->writeXml($stream, $this->rowXml($rowNumber++, $row, false));
+            }
+            $this->writeXml($stream, '</sheetData></worksheet>');
+        } finally {
+            fclose($stream);
+        }
+    }
+
+    /** @param resource $stream */
+    private function writeXml($stream, string $xml): void
+    {
+        while ($xml !== '') {
+            $written = fwrite($stream, $xml);
+            if ($written === false || $written === 0) {
+                throw new RuntimeException('Gagal: Isi file XLSX tidak lengkap.');
+            }
+            $xml = substr($xml, $written);
+        }
     }
 
     /**

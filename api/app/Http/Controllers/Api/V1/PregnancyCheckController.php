@@ -23,9 +23,9 @@ class PregnancyCheckController extends Controller
             'breeding_female_id' => ['nullable', 'integer', 'exists:breed_females,id'],
             'breeding_period_id' => ['required_without:breeding_female_id', 'integer', 'exists:breed_periods,id'],
             'female_animal_id' => ['required_without:breeding_female_id', 'integer', 'exists:animals,id'],
-            'check_date' => ['required', 'date'],
+            'check_date' => ['required', 'date', 'before_or_equal:today'],
             'is_pregnant' => ['required', 'boolean'],
-            'outcome_status' => ['nullable', 'in:born'],
+            'outcome_status' => ['prohibited'],
             'method' => ['nullable', 'string', 'max:100'],
             'estimated_gestation_days' => ['nullable', 'integer', 'min:0'],
             'notes' => ['nullable', 'string'],
@@ -45,9 +45,9 @@ class PregnancyCheckController extends Controller
             'breeding_female_id' => ['sometimes', 'integer', 'exists:breed_females,id'],
             'breeding_period_id' => ['sometimes', 'integer', 'exists:breed_periods,id'],
             'female_animal_id' => ['sometimes', 'integer', 'exists:animals,id'],
-            'check_date' => ['sometimes', 'date'],
+            'check_date' => ['sometimes', 'date', 'before_or_equal:today'],
             'is_pregnant' => ['sometimes', 'boolean'],
-            'outcome_status' => ['nullable', 'in:born'],
+            'outcome_status' => ['prohibited'],
             'method' => ['nullable', 'string', 'max:100'],
             'estimated_gestation_days' => ['nullable', 'integer', 'min:0'],
             'notes' => ['nullable', 'string'],
@@ -61,12 +61,13 @@ class PregnancyCheckController extends Controller
      */
     private function serviceResponse(array $result): JsonResponse
     {
-        $payload = ['message' => $result['message']];
+        $ok = ($result['ok'] ?? false) === true;
+        $payload = ['message' => $this->stringValue($result['message'] ?? '')];
 
         if (array_key_exists('data', $result)) {
             $payload['data'] = $result['data'];
         }
 
-        return response()->json($payload, $result['status'] ?? ($result['ok'] ? 200 : 422));
+        return response()->json($payload, $this->intValue($result['status'] ?? ($ok ? 200 : 422)));
     }
 }

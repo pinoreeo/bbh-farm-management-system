@@ -8,7 +8,9 @@ use App\Models\OffspringBirth;
 use App\Models\WeightRecord;
 use App\Support\AnimalEartag;
 use App\Support\PureBreedSireMarker;
+use App\Support\TypeValue;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -17,18 +19,22 @@ class OffspringBirthService
     public function __construct(
         private readonly PureBreedSireMarker $sireMarker,
         private readonly AnimalEartag $eartag,
+        private readonly AnimalService $animals,
     ) {}
 
+    /**
+     * @return LengthAwarePaginator<int, OffspringBirth>
+     */
     public function paginate(Request $request, int $perPage): LengthAwarePaginator
     {
         $query = OffspringBirth::query()->with(['birthEvent', 'offspringAnimal']);
 
         if ($request->filled('birth_event_id')) {
-            $query->where('birth_event_id', (int) $request->query('birth_event_id'));
+            $query->where('birth_event_id', TypeValue::int($request->query('birth_event_id')));
         }
 
         if ($request->filled('offspring_animal_id')) {
-            $query->where('offspring_animal_id', (int) $request->query('offspring_animal_id'));
+            $query->where('offspring_animal_id', TypeValue::int($request->query('offspring_animal_id')));
         }
 
         return $query->orderByDesc('id')->paginate($perPage);
@@ -40,22 +46,35 @@ class OffspringBirthService
      */
     public function store(array $data): array
     {
-        $birthEvent = BirthEvent::query()->find($data['birth_event_id']);
+        return DB::transaction(fn () => $this->storeLocked($data), 3);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function storeLocked(array $data): array
+    {
+        $birthEventId = TypeValue::int($data['birth_event_id'] ?? null);
+        $birthEvent = BirthEvent::query()->whereKey($birthEventId)->lockForUpdate()->first();
         if (! $birthEvent) {
             return $this->error('Peringatan: Data kelahiran yang dipilih tidak ditemukan. Muat ulang halaman lalu pilih data kelahiran yang tersedia.');
         }
 
         if ($this->birthEventIsFull($birthEvent)) {
-            return $this->error('Peringatan: Jumlah cempe yang dicatat sudah sesuai dengan jumlah anak pada data kelahiran.');
+            return $this->error('Peringatan: Jumlah cempe tidak boleh melebihi jumlah anak pada catatan kelahiran.');
         }
 
-        $animal = isset($data['offspring_animal_id']) ? Animal::query()->find($data['offspring_animal_id']) : null;
+        $offspringAnimalId = isset($data['offspring_animal_id'])
+            ? TypeValue::int($data['offspring_animal_id'])
+            : null;
+        $animal = $offspringAnimalId ? Animal::query()->whereKey($offspringAnimalId)->first() : null;
         $validation = $this->validateExistingAnimal($data, $animal, $birthEvent);
         if (! $validation['ok']) {
             return $validation;
         }
 
-        $birthStatus = $data['birth_status'] ?? 'alive';
+        $birthStatus = TypeValue::nullableString($data['birth_status'] ?? null) ?? 'alive';
         $data['birth_status'] = $birthStatus;
 
         $row = DB::transaction(function () use ($data, $animal, $birthEvent, $birthStatus) {
@@ -66,20 +85,20 @@ class OffspringBirthService
                     $birthStatus,
                     $this->sireMarker->markerForSire($birthEvent->sire),
                 );
-                $data['offspring_animal_id'] = $animal->id;
+                $data['offspring_animal_id'] = TypeValue::int($animal->id);
             }
 
-            if ($birthStatus === 'dead' && $animal->life_status !== 'dead') {
-                $animal->forceFill(['life_status' => 'dead'])->save();
-            }
+            $this->animals->syncBirthLifeStatus(
+                $animal, $birthStatus, $birthEvent->birth_date?->toDateString() ?? now()->toDateString(), false,
+            );
 
             $offspringBirth = OffspringBirth::query()->create($data);
             $this->sireMarker->syncOffspring($animal, $birthEvent);
 
             $this->syncBirthWeight(
-                (int) $data['offspring_animal_id'],
+                TypeValue::int($data['offspring_animal_id'] ?? null),
                 $birthEvent->birth_date?->toDateString() ?? now()->toDateString(),
-                $data['birth_weight_kg'],
+                TypeValue::number($data['birth_weight_kg'] ?? null),
             );
 
             return $offspringBirth;
@@ -95,17 +114,24 @@ class OffspringBirthService
     public function update(OffspringBirth $offspringBirth, array $data): array
     {
         DB::transaction(function () use ($data, $offspringBirth) {
+            $wasDeadAtBirth = $offspringBirth->birth_status === 'dead';
             $offspringBirth->fill($data)->save();
 
-            if (($data['birth_status'] ?? null) === 'dead' && $offspringBirth->offspringAnimal?->life_status !== 'dead') {
-                $offspringBirth->offspringAnimal->forceFill(['life_status' => 'dead'])->save();
+            $offspringAnimal = $offspringBirth->offspringAnimal;
+            if (array_key_exists('birth_status', $data) && $offspringAnimal) {
+                $this->animals->syncBirthLifeStatus(
+                    $offspringAnimal,
+                    TypeValue::string($data['birth_status']),
+                    $offspringBirth->birthEvent?->birth_date?->toDateString() ?? now()->toDateString(),
+                    $wasDeadAtBirth,
+                );
             }
 
             if (array_key_exists('birth_weight_kg', $data)) {
                 $this->syncBirthWeight(
-                    (int) $offspringBirth->offspring_animal_id,
+                    TypeValue::int($offspringBirth->offspring_animal_id),
                     $offspringBirth->birthEvent?->birth_date?->toDateString() ?? now()->toDateString(),
-                    $data['birth_weight_kg'],
+                    TypeValue::number($data['birth_weight_kg'] ?? null),
                 );
             }
         });
@@ -132,13 +158,16 @@ class OffspringBirthService
             return ['ok' => true];
         }
 
-        if (OffspringBirth::query()->where('offspring_animal_id', $data['offspring_animal_id'])->exists()) {
+        $offspringAnimalId = TypeValue::int($data['offspring_animal_id'] ?? null);
+        $birthEventId = TypeValue::int($data['birth_event_id'] ?? null);
+
+        if (OffspringBirth::query()->where('offspring_animal_id', $offspringAnimalId)->exists()) {
             return $this->error("Peringatan: Kambing dengan tag {$animal->tag_number} sudah tercatat pada data kelahiran lain.");
         }
 
         if (OffspringBirth::query()
-            ->where('birth_event_id', $data['birth_event_id'])
-            ->where('offspring_animal_id', $data['offspring_animal_id'])
+            ->where('birth_event_id', $birthEventId)
+            ->where('offspring_animal_id', $offspringAnimalId)
             ->exists()) {
             return $this->error("Peringatan: Kambing dengan tag {$animal->tag_number} sudah tercatat sebagai anak pada data kelahiran ini.");
         }
@@ -183,20 +212,33 @@ class OffspringBirthService
         string $birthStatus,
         ?string $jantanPemacek,
     ): Animal {
-        return Animal::query()->create([
-            'tag_number' => $data['tag_number'] ?? $this->eartag->next($birthEvent->birth_date?->toDateString(), $jantanPemacek),
-            'breed_id' => $data['breed_id'],
-            'sex' => $data['sex'],
-            'male_role' => $jantanPemacek,
-            'generation' => $data['generation'],
-            'birth_date' => $birthEvent->birth_date?->toDateString(),
-            'birth_place' => $birthEvent->birth_place,
-            'life_status' => $birthStatus === 'dead' ? 'dead' : 'alive',
-            'notes' => $data['notes'] ?? null,
-            'is_impor' => false,
-            'origin_type' => 'internal_birth',
-            'origin_detail' => 'Tercatat melalui data kelahiran internal.',
-        ]);
+        $manualTag = TypeValue::nullableString($data['tag_number'] ?? null);
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $tag = $manualTag ?? $this->eartag->next($birthEvent->birth_date?->toDateString(), $jantanPemacek, $attempt);
+            try {
+                return DB::transaction(fn (): Animal => Animal::query()->create([
+                    'tag_number' => $tag,
+                    'breed_id' => TypeValue::int($data['breed_id'] ?? null),
+                    'sex' => TypeValue::string($data['sex'] ?? ''),
+                    'male_role' => $jantanPemacek,
+                    'generation' => TypeValue::string($data['generation'] ?? ''),
+                    'birth_date' => $birthEvent->birth_date?->toDateString(),
+                    'birth_place' => $birthEvent->birth_place,
+                    'life_status' => $birthStatus === 'dead' ? 'dead' : 'alive',
+                    'status_date' => $birthStatus === 'dead' ? $birthEvent->birth_date?->toDateString() : null,
+                    'notes' => TypeValue::nullableString($data['notes'] ?? null),
+                    'is_impor' => false,
+                    'origin_type' => 'internal_birth',
+                    'origin_detail' => 'Tercatat melalui data kelahiran internal.',
+                ]));
+            } catch (QueryException $exception) {
+                if ($manualTag !== null || ! $this->eartag->isDuplicateTag($exception) || $attempt === 4) {
+                    throw $exception;
+                }
+            }
+        }
+
+        throw new \RuntimeException('Nomor eartag belum berhasil dibuat. Silakan coba lagi.');
     }
 
     /**

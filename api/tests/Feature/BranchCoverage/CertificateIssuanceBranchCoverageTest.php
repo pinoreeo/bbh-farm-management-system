@@ -97,6 +97,32 @@ class CertificateIssuanceBranchCoverageTest extends ApiTestCase
         ])->assertUnprocessable()
             ->assertJsonPath('message', 'Peringatan: Sertifikat jenis ini sudah pernah diterbitkan untuk hewan tersebut.');
 
+        $birthCertificateId = $birthCertificate->json('data.id');
+        $this->postJson('/api/v1/certificates/'.$birthCertificateId.'/revoke', [
+            'reason' => 'Data perlu diperbaiki',
+        ])->assertOk();
+
+        $replacement = $this->postJson('/api/v1/certificates', [
+            'animal_id' => $workflow['offspring']->id,
+            'certificate_type_id' => $this->certificateType('KELAHIRAN')->id,
+            'auto_sign' => false,
+        ])->assertCreated()
+            ->assertJsonPath('data.replaces_certificate_id', $birthCertificateId)
+            ->assertJsonPath('data.replaced_certificate.id', $birthCertificateId);
+
+        $this->postJson('/api/v1/certificates/'.$birthCertificateId.'/unrevoke')
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Peringatan: Sertifikat ini tidak dapat diaktifkan kembali karena sudah memiliki sertifikat pengganti.');
+
+        $this->postJson('/api/v1/certificates', [
+            'animal_id' => $workflow['offspring']->id,
+            'certificate_type_id' => $this->certificateType('KELAHIRAN')->id,
+            'auto_sign' => false,
+        ])->assertUnprocessable();
+
+        $this->assertSame('revoked', \App\Models\Certificate::query()->findOrFail($birthCertificateId)->status);
+        $this->assertSame('active', \App\Models\Certificate::query()->findOrFail($replacement->json('data.id'))->status);
+
         $this->postJson('/api/v1/certificates', [
             'animal_id' => $this->createAnimal(['life_status' => 'alive'])->id,
             'certificate_type_id' => $this->certificateType('KEMATIAN')->id,

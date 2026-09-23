@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\RsaKey;
 use App\Models\User;
+use App\Support\TypeValue;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -15,6 +16,9 @@ class RsaKeyService
 {
     public const KEY_LENGTH = 2048;
 
+    /**
+     * @return Builder<RsaKey>
+     */
     public function queryFor(Request $request): Builder
     {
         $query = RsaKey::query()->with(['user:id,name,first_name,last_name,email,role']);
@@ -37,7 +41,7 @@ class RsaKeyService
         }
 
         if ($request->filled('search')) {
-            $search = trim($request->query('search'));
+            $search = trim(TypeValue::string($request->query('search')));
             $query->where(function ($query) use ($search, $user) {
                 $query->where('key_identifier', 'like', "%{$search}%")
                     ->orWhere('fingerprint_sha256', 'like', "%{$search}%");
@@ -56,9 +60,13 @@ class RsaKeyService
         return $query->orderByDesc('is_active')->orderByDesc('id');
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<array-key, mixed>
+     */
     public function storePublicKey(array $data, User $user): array
     {
-        $normalizedPem = trim($data['public_key_pem']);
+        $normalizedPem = trim(TypeValue::string($data['public_key_pem']));
         $publicKey = openssl_pkey_get_public($normalizedPem);
 
         if ($publicKey === false) {
@@ -67,7 +75,7 @@ class RsaKeyService
 
         $details = openssl_pkey_get_details($publicKey);
         $canonicalPublicKeyPem = is_array($details) && ! empty($details['key'])
-            ? trim((string) $details['key'])
+            ? trim(TypeValue::string($details['key']))
             : $normalizedPem;
         $fingerprint = $this->fingerprintPublicKey($canonicalPublicKeyPem);
         $isActive = array_key_exists('is_active', $data) ? (bool) $data['is_active'] : false;
@@ -82,10 +90,10 @@ class RsaKeyService
 
         $row = DB::transaction(fn () => RsaKey::query()->create([
             'user_id' => $user->id,
-            'key_identifier' => $data['key_identifier'],
+            'key_identifier' => TypeValue::string($data['key_identifier']),
             'public_key_pem' => $canonicalPublicKeyPem,
             'algorithm' => 'RSA',
-            'key_length' => $data['key_length'],
+            'key_length' => TypeValue::int($data['key_length']),
             'fingerprint_sha256' => $fingerprint,
             'is_active' => 0,
             'key_status' => 'retired',
@@ -96,9 +104,13 @@ class RsaKeyService
         return $this->success('Sukses: RSA Key berhasil disimpan.', $row, 201);
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<array-key, mixed>
+     */
     public function generate(array $data, User $user): array
     {
-        $keyIdentifier = $data['key_identifier']
+        $keyIdentifier = TypeValue::nullableString($data['key_identifier'] ?? null)
             ?? 'BBH-RSA-'.now()->format('YmdHis').'-'.Str::upper(Str::random(6));
 
         $keyResource = openssl_pkey_new([
@@ -119,7 +131,8 @@ class RsaKeyService
             $this->opensslConfigArgs()
         );
 
-        if ($exported !== true || trim($privateKeyPem) === '') {
+        $privateKeyContents = TypeValue::string($privateKeyPem);
+        if ($exported !== true || trim($privateKeyContents) === '') {
             return $this->error('Gagal: Private key RSA gagal diekspor.');
         }
 
@@ -128,50 +141,68 @@ class RsaKeyService
             return $this->error('Gagal: Public key RSA hasil generate gagal dibaca.');
         }
 
-        $publicKeyPem = trim($keyDetails['key']);
+        $publicKeyPem = trim(TypeValue::string($keyDetails['key']));
         if ($this->fingerprintExists($publicKeyPem)) {
             return $this->error('Peringatan: RSA Key dengan fingerprint tersebut sudah terdaftar.');
         }
 
-        $privateKeyPath = $this->privateKeyPath($keyIdentifier);
-        if (is_file($privateKeyPath)) {
-            return $this->error('Peringatan: File private key untuk key identifier tersebut sudah ada.');
-        }
-
-        if (File::put($privateKeyPath, Crypt::encryptString($privateKeyPem), true) === false) {
-            return $this->error('Gagal: File private key RSA gagal disimpan.');
-        }
-
-        @chmod($privateKeyPath, 0600);
         $fingerprint = $this->fingerprintPublicKey($publicKeyPem);
+        $privateKeyPath = $this->privateKeyPath($keyIdentifier);
+        $fileCreated = false;
 
-        $row = DB::transaction(function () use ($keyIdentifier, $publicKeyPem, $privateKeyPath, $fingerprint, $user) {
-            $row = RsaKey::query()->create([
-                'user_id' => $user->id,
-                'key_identifier' => $keyIdentifier,
-                'public_key_pem' => $publicKeyPem,
-                'private_key_path' => $privateKeyPath,
-                'algorithm' => 'RSA',
-                'key_length' => self::KEY_LENGTH,
-                'fingerprint_sha256' => $fingerprint,
-                'is_active' => 1,
-                'key_status' => 'active',
-                'retired_at' => null,
-                'compromised_at' => null,
-                'status_reason' => 'RSA Key aktif hasil generate.',
-            ]);
+        try {
+            $row = DB::transaction(function () use ($keyIdentifier, $publicKeyPem, $privateKeyPath, $fingerprint, $user, $privateKeyContents, &$fileCreated) {
+                User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+                if (RsaKey::query()->where('key_identifier', $keyIdentifier)->exists()) {
+                    return null;
+                }
+                if (! $this->writeNewPrivateKey($privateKeyPath, Crypt::encryptString($privateKeyContents))) {
+                    return null;
+                }
+                $fileCreated = true;
 
-            $this->deactivateOtherKeys((int) $user->id, (int) $row->id);
+                $row = RsaKey::query()->create([
+                    'user_id' => $user->id,
+                    'key_identifier' => $keyIdentifier,
+                    'public_key_pem' => $publicKeyPem,
+                    'private_key_path' => $privateKeyPath,
+                    'algorithm' => 'RSA',
+                    'key_length' => self::KEY_LENGTH,
+                    'fingerprint_sha256' => $fingerprint,
+                    'is_active' => 1,
+                    'key_status' => 'active',
+                    'retired_at' => null,
+                    'compromised_at' => null,
+                    'status_reason' => 'RSA Key aktif hasil generate.',
+                ]);
 
-            return $row->fresh();
-        });
+                $this->deactivateOtherKeys((int) $user->id, (int) $row->id);
+
+                return $row->fresh();
+            });
+        } catch (\Throwable $exception) {
+            if ($fileCreated) {
+                File::delete($privateKeyPath);
+            }
+
+            throw $exception;
+        }
+
+        if ($row === null) {
+            return $this->error('Peringatan: RSA Key dengan identifier tersebut sudah terdaftar.');
+        }
 
         return $this->success('Sukses: RSA Key berhasil dibuat dan diaktifkan.', $row, 201);
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<array-key, mixed>
+     */
     public function update(RsaKey $rsaKey, array $data): array
     {
         return DB::transaction(function () use ($data, $rsaKey) {
+            $rsaKey = $this->lockOwnerAndKey($rsaKey);
             $data['algorithm'] = 'RSA';
 
             if (array_key_exists('is_active', $data)) {
@@ -179,7 +210,7 @@ class RsaKeyService
                 if ($activeResult['ok'] === false) {
                     return $activeResult;
                 }
-                $data = $activeResult['data'];
+                $data = TypeValue::stringKeyArray($activeResult['data'] ?? []);
             }
 
             $rsaKey->fill($data)->save();
@@ -192,9 +223,13 @@ class RsaKeyService
         });
     }
 
+    /**
+     * @return array<array-key, mixed>
+     */
     public function activate(RsaKey $rsaKey): array
     {
         return DB::transaction(function () use ($rsaKey) {
+            $rsaKey = $this->lockOwnerAndKey($rsaKey);
             $guard = $this->canActivate($rsaKey);
             if ($guard !== null) {
                 return $guard;
@@ -214,40 +249,52 @@ class RsaKeyService
         });
     }
 
+    /**
+     * @return array<array-key, mixed>
+     */
     public function deactivate(RsaKey $rsaKey): array
     {
-        if ((int) $rsaKey->is_active === 0) {
-            return $this->error('Peringatan: RSA Key ini sudah nonaktif.');
-        }
+        return DB::transaction(function () use ($rsaKey) {
+            $rsaKey = $this->lockOwnerAndKey($rsaKey);
+            if ((int) $rsaKey->is_active === 0) {
+                return $this->error('Peringatan: RSA Key ini sudah nonaktif.');
+            }
 
-        if ($this->activeOtherCount($rsaKey) === 0) {
-            return $this->error('Peringatan: Minimal harus ada satu RSA Key yang aktif.');
-        }
+            if ($this->activeOtherCount($rsaKey) === 0) {
+                return $this->error('Peringatan: Minimal harus ada satu RSA Key yang aktif.');
+            }
 
-        $rsaKey->update([
-            'is_active' => 0,
-            'key_status' => 'retired',
-            'retired_at' => now(),
-            'status_reason' => 'Dinonaktifkan melalui dashboard.',
-        ]);
+            $rsaKey->update([
+                'is_active' => 0,
+                'key_status' => 'retired',
+                'retired_at' => now(),
+                'status_reason' => 'Dinonaktifkan melalui dashboard.',
+            ]);
 
-        return $this->success('Sukses: RSA Key berhasil dinonaktifkan.', $rsaKey->fresh());
+            return $this->success('Sukses: RSA Key berhasil dinonaktifkan.', $rsaKey->fresh());
+        }, 3);
     }
 
+    /**
+     * @return array<array-key, mixed>
+     */
     public function markCompromised(RsaKey $rsaKey, ?string $reason = null): array
     {
-        if ($rsaKey->key_status === 'compromised') {
-            return $this->error('Peringatan: RSA Key ini sudah dinonaktifkan.');
-        }
+        return DB::transaction(function () use ($rsaKey, $reason) {
+            $rsaKey = $this->lockOwnerAndKey($rsaKey);
+            if ($rsaKey->key_status === 'compromised') {
+                return $this->error('Peringatan: RSA Key ini sudah dinonaktifkan.');
+            }
 
-        $rsaKey->update([
-            'is_active' => 0,
-            'key_status' => 'compromised',
-            'compromised_at' => now(),
-            'status_reason' => $reason ?? 'Key dicurigai bocor atau tidak lagi aman digunakan.',
-        ]);
+            $rsaKey->update([
+                'is_active' => 0,
+                'key_status' => 'compromised',
+                'compromised_at' => now(),
+                'status_reason' => $reason ?? 'Key dicurigai bocor atau tidak lagi aman digunakan.',
+            ]);
 
-        return $this->success('Sukses: RSA Key berhasil dinonaktifkan dan tidak dapat digunakan untuk tanda tangan baru.', $rsaKey->fresh());
+            return $this->success('Sukses: RSA Key berhasil dinonaktifkan dan tidak dapat digunakan untuk tanda tangan baru.', $rsaKey->fresh());
+        }, 3);
     }
 
     public function authorizeKeyAccess(RsaKey $rsaKey, ?User $user): void
@@ -261,6 +308,10 @@ class RsaKeyService
         }
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<array-key, mixed>
+     */
     private function applyActiveState(RsaKey $rsaKey, bool $newActive, array $data): array
     {
         if ($newActive) {
@@ -289,6 +340,9 @@ class RsaKeyService
         return $this->rawSuccess($data);
     }
 
+    /**
+     * @return array<array-key, mixed>|null
+     */
     private function canActivate(RsaKey $rsaKey): ?array
     {
         if (! $rsaKey->has_private_key) {
@@ -325,12 +379,47 @@ class RsaKeyService
             ->count();
     }
 
+    private function lockOwnerAndKey(RsaKey $rsaKey): RsaKey
+    {
+        User::query()->whereKey($rsaKey->user_id)->lockForUpdate()->firstOrFail();
+
+        return RsaKey::query()->whereKey($rsaKey->id)->lockForUpdate()->firstOrFail();
+    }
+
     private function privateKeyPath(string $keyIdentifier): string
     {
         $directory = storage_path('app/keys/rsa');
         File::ensureDirectoryExists($directory, 0700, true);
 
         return $directory.DIRECTORY_SEPARATOR.$this->safeKeyFileName($keyIdentifier).'_private.pem.enc';
+    }
+
+    private function writeNewPrivateKey(string $path, string $contents): bool
+    {
+        $stream = @fopen($path, 'x');
+        if ($stream === false) {
+            return false;
+        }
+
+        try {
+            $remaining = $contents;
+            while ($remaining !== '') {
+                $written = fwrite($stream, $remaining);
+                if ($written === false || $written === 0) {
+                    throw new \RuntimeException('File private key RSA gagal disimpan.');
+                }
+                $remaining = substr($remaining, $written);
+            }
+        } catch (\Throwable $exception) {
+            fclose($stream);
+            File::delete($path);
+            throw $exception;
+        }
+
+        fclose($stream);
+        @chmod($path, 0600);
+
+        return true;
     }
 
     private function safeKeyFileName(string $keyIdentifier): string
@@ -355,6 +444,9 @@ class RsaKeyService
         return hash('sha256', $this->normalizePem($pem));
     }
 
+    /**
+     * @return array<int, string>
+     */
     private function fingerprintsForPublicKey(string $pem): array
     {
         return array_values(array_unique([
@@ -363,6 +455,9 @@ class RsaKeyService
         ]));
     }
 
+    /**
+     * @return array<string, string>
+     */
     private function opensslConfigArgs(): array
     {
         $configPath = config('bbh.openssl_conf');
@@ -374,16 +469,25 @@ class RsaKeyService
         return [];
     }
 
+    /**
+     * @return array<array-key, mixed>
+     */
     private function success(string $message, mixed $data, int $status = 200): array
     {
         return ['ok' => true, 'status' => $status, 'message' => $message, 'data' => $data];
     }
 
+    /**
+     * @return array<array-key, mixed>
+     */
     private function rawSuccess(mixed $data): array
     {
         return ['ok' => true, 'data' => $data];
     }
 
+    /**
+     * @return array<array-key, mixed>
+     */
     private function error(string $message, int $status = 422): array
     {
         return ['ok' => false, 'status' => $status, 'message' => $message];

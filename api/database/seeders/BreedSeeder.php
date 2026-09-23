@@ -24,7 +24,7 @@ class BreedSeeder extends Seeder
     }
 
     /**
-     * @return array<int, array<string, string>>
+     * @return array<int, array<string, bool|string>>
      */
     private function animal_breeds(): array
     {

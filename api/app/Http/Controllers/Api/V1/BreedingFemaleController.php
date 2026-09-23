@@ -65,7 +65,7 @@ class BreedingFemaleController extends Controller
 
     public function recordMating(RecordBreedingFemaleMatingRequest $request, BreedingFemale $breedingFemale): JsonResponse
     {
-        return $this->serviceResponse($this->breedingFemales->recordMating($breedingFemale, $request->validated('mating_date')));
+        return $this->serviceResponse($this->breedingFemales->recordMating($breedingFemale, $this->stringValue($request->validated('mating_date'))));
     }
 
     public function exit(ExitBreedingFemaleRequest $request, BreedingFemale $breedingFemale): JsonResponse
@@ -80,20 +80,23 @@ class BreedingFemaleController extends Controller
         ], 422);
     }
 
+    /**
+     * @param  array<array-key, mixed>  $result
+     */
     private function serviceResponse(array $result): JsonResponse
     {
         if (($result['ok'] ?? false) !== true) {
-            $payload = ['message' => $result['message']];
+            $payload = ['message' => $this->stringValue($result['message'] ?? '')];
             if (isset($result['inbreeding'])) {
                 $payload['inbreeding'] = $result['inbreeding'];
             }
 
-            return response()->json($payload, $result['status'] ?? 422);
+            return response()->json($payload, $this->intValue($result['status'] ?? 422));
         }
 
         return response()->json([
-            'message' => $result['message'],
+            'message' => $this->stringValue($result['message'] ?? ''),
             'data' => $result['data'],
-        ], $result['status'] ?? 200);
+        ], $this->intValue($result['status'] ?? 200));
     }
 }

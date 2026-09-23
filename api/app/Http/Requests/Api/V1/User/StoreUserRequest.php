@@ -3,12 +3,9 @@
 namespace App\Http\Requests\Api\V1\User;
 
 use App\Http\Requests\Api\V1\ApiRequest;
-use Illuminate\Validation\Rule;
 
 class StoreUserRequest extends ApiRequest
 {
-    private const ROLE_OPTIONS = ['super_admin', 'admin'];
-
     /**
      * @return array<string, mixed>
      */
@@ -19,9 +16,10 @@ class StoreUserRequest extends ApiRequest
             'first_name' => ['nullable', 'string', 'max:120', 'required_without:name'],
             'last_name' => ['nullable', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:255', 'unique:sys_users,email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'role' => ['required', Rule::in(self::ROLE_OPTIONS)],
-            'is_active' => ['nullable', 'boolean'],
+            'phone' => ['nullable', 'string', 'max:100'],
+            'password' => ['prohibited'],
+            'role' => ['prohibited'],
+            'is_active' => ['prohibited'],
         ];
     }
 }

@@ -22,16 +22,19 @@ class AnimalPenMovement extends Model
         'updated_at' => 'datetime',
     ];
 
+    /** @return BelongsTo<Animal, $this> */
     public function animal(): BelongsTo
     {
         return $this->belongsTo(Animal::class);
     }
 
+    /** @return BelongsTo<ColonyPen, $this> */
     public function fromPen(): BelongsTo
     {
         return $this->belongsTo(ColonyPen::class, 'from_pen_id');
     }
 
+    /** @return BelongsTo<ColonyPen, $this> */
     public function toPen(): BelongsTo
     {
         return $this->belongsTo(ColonyPen::class, 'to_pen_id');

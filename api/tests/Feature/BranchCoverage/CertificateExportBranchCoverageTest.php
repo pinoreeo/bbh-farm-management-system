@@ -31,7 +31,7 @@ class CertificateExportBranchCoverageTest extends ApiTestCase
         $this->putJson('/api/v1/certificates/'.$certificate->id, [
             'issue_place' => 'Purwokerto',
         ])->assertUnprocessable()
-            ->assertJsonPath('message', 'Peringatan: Sertifikat yang sudah diterbitkan tidak dapat diedit. Cabut sertifikat lama dan terbitkan sertifikat baru jika data perlu diperbaiki.');
+            ->assertJsonPath('message', 'Peringatan: Sertifikat yang sudah diterbitkan tidak dapat diubah. Cabut sertifikat lama sebelum menerbitkan penggantinya.');
 
         $this->postJson('/api/v1/certificates/'.$certificate->id.'/sign')
             ->assertOk()
@@ -176,7 +176,7 @@ class CertificateExportBranchCoverageTest extends ApiTestCase
 
         $this->postJson('/api/v1/certificates/'.$unsigned->id.'/sign')
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Gagal: Sertifikat gagal ditandatangani. Pastikan RSA Key aktif telah dikonfigurasi dengan benar.');
+            ->assertJsonPath('message', 'Gagal: Sertifikat belum berhasil ditandatangani. Silakan coba lagi.');
 
         Certificate::query()->whereKey($expired->id)->update(['status' => 'expired']);
 

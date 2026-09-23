@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\DB;
 
 class CertificateVerificationService
 {
+    /**
+     * @return array<string, mixed>
+     */
     public function verify(Certificate $certificate, string $verificationMethod = 'certificate_number', ?Request $request = null): array
     {
         $isAuthentic = true;
@@ -113,13 +116,27 @@ class CertificateVerificationService
         return $payload[$key];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function publicCertificateData(Certificate $certificate): array
     {
         $animal = $certificate->animal;
+        $snapshot = json_decode((string) $certificate->payload_snapshot, true);
+        $snapshot = is_array($snapshot) ? $snapshot : [];
+        $viewData = isset($snapshot['view_data']) && is_array($snapshot['view_data']) ? $snapshot['view_data'] : [];
+        $signedAnimal = $animal || isset($snapshot['animal_tag_number']) ? [
+            'tag_number' => $snapshot['animal_tag_number'] ?? $animal?->tag_number,
+            'breed_name' => $snapshot['animal_breed_name'] ?? $animal?->breed?->breed_name,
+            'sex' => $snapshot['animal_sex'] ?? $animal?->sex,
+            'generation' => $snapshot['animal_generation'] ?? $animal?->generation,
+            'birth_date' => $snapshot['animal_birth_date'] ?? $animal?->birth_date?->toDateString(),
+            'life_status' => $snapshot['animal_life_status'] ?? $animal?->life_status,
+        ] : null;
 
         return [
             'certificate_type' => $certificate->certificateType?->type_code,
-            'certificate_type_name' => $certificate->certificateType?->type_name,
+            'certificate_type_name' => $viewData['certificate_type'] ?? $certificate->certificateType?->type_name,
             'certificate_type_template_version' => $certificate->certificateType?->template_version,
             'signature_info' => $certificate->signature ? [
                 'signed_by' => $certificate->signature->signedByUser?->name ?? 'Pengelola Bumiku Bumimu Hijau Farm',
@@ -143,14 +160,7 @@ class CertificateVerificationService
                 'key_status' => $certificate->officialPdfRsaKey?->key_status,
                 'compromised_at' => $certificate->officialPdfRsaKey?->compromised_at?->toIso8601String(),
             ] : null,
-            'animal' => $animal ? [
-                'tag_number' => $animal->tag_number,
-                'breed_name' => $animal->breed?->breed_name,
-                'sex' => $animal->sex,
-                'generation' => $animal->generation,
-                'birth_date' => $animal->birth_date?->toDateString(),
-                'life_status' => $animal->life_status,
-            ] : null,
+            'animal' => $signedAnimal,
         ];
     }
 

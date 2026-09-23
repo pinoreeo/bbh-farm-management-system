@@ -6,14 +6,21 @@ use App\Models\Animal;
 use App\Models\BirthEvent;
 use App\Models\PregnancyCheck;
 use App\Support\PureBreedSireMarker;
+use App\Support\TypeValue;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class BirthEventService
 {
-    public function __construct(private readonly PureBreedSireMarker $sireMarker) {}
+    public function __construct(
+        private readonly PureBreedSireMarker $sireMarker,
+        private readonly ReproductiveStatusService $statuses,
+    ) {}
 
+    /**
+     * @return LengthAwarePaginator<int, BirthEvent>
+     */
     public function paginate(Request $request, int $perPage): LengthAwarePaginator
     {
         $query = BirthEvent::query()->with([
@@ -22,11 +29,11 @@ class BirthEventService
         ]);
 
         if ($request->filled('dam_id')) {
-            $query->where('dam_id', (int) $request->query('dam_id'));
+            $query->where('dam_id', TypeValue::int($request->query('dam_id')));
         }
 
         if ($request->filled('birth_date')) {
-            $query->where('birth_date', $request->query('birth_date'));
+            $query->where('birth_date', TypeValue::string($request->query('birth_date')));
         }
 
         return $query->orderByDesc('birth_date')->paginate($perPage);
@@ -38,19 +45,38 @@ class BirthEventService
      */
     public function store(array $data): array
     {
-        $validation = $this->validateDamAndSire($data['dam_id'], $data['sire_id'] ?? null);
+        return DB::transaction(function () use ($data) {
+            Animal::query()->whereKey(TypeValue::int($data['dam_id'] ?? null))->lockForUpdate()->firstOrFail();
+
+            return $this->storeLocked($data);
+        }, 3);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function storeLocked(array $data): array
+    {
+        $damId = TypeValue::int($data['dam_id'] ?? null);
+        $sireId = isset($data['sire_id']) ? TypeValue::int($data['sire_id']) : null;
+
+        $validation = $this->validateDamAndSire($damId, $sireId);
         if (! $validation['ok']) {
             return $validation;
         }
 
-        /** @var Animal $dam */
-        $dam = $validation['dam'];
-        $pregnancyCheck = $this->latestPregnantCheck((int) $data['dam_id']);
+        $dam = $validation['dam'] ?? null;
+        if (! $dam instanceof Animal) {
+            return $this->error('Peringatan: Tag induk harus mengarah ke kambing betina.');
+        }
+
+        $pregnancyCheck = $this->latestPregnantCheck($damId);
         if (! $pregnancyCheck) {
             return $this->missingPregnancyError($dam);
         }
 
-        $dateError = $this->validateBirthDateAgainstMating($data['birth_date'], $pregnancyCheck);
+        $dateError = $this->validateBirthDateAgainstMating(TypeValue::nullableString($data['birth_date'] ?? null), $pregnancyCheck);
         if ($dateError !== null) {
             return $this->error($dateError);
         }
@@ -60,14 +86,13 @@ class BirthEventService
             $data['sire_id'] = $expectedSireId;
         }
 
-        $row = DB::transaction(function () use ($data, $pregnancyCheck) {
+        $data['breeding_female_id'] = $pregnancyCheck->breeding_female_id;
+        $row = DB::transaction(function () use ($data, $pregnancyCheck, $dam) {
             $birthEvent = BirthEvent::query()->create($data);
 
-            $pregnancyCheck->forceFill(['outcome_status' => 'born'])->save();
-            $pregnancyCheck->femaleAnimal?->forceFill([
-                'reproductive_status' => 'melahirkan',
-                'status_date' => $birthEvent->birth_date?->toDateString(),
-            ])->save();
+            PregnancyCheck::query()->where('breeding_female_id', $pregnancyCheck->breeding_female_id)
+                ->update(['outcome_status' => 'born']);
+            $this->statuses->sync($dam);
 
             return $birthEvent;
         });
@@ -81,49 +106,50 @@ class BirthEventService
      */
     public function update(BirthEvent $birthEvent, array $data): array
     {
-        $newDamId = $data['dam_id'] ?? $birthEvent->dam_id;
-        $newSireId = array_key_exists('sire_id', $data) ? $data['sire_id'] : $birthEvent->sire_id;
+        return DB::transaction(function () use ($birthEvent, $data) {
+            $dam = Animal::query()->whereKey($birthEvent->dam_id)->lockForUpdate()->firstOrFail();
+            $birthEvent = BirthEvent::query()->whereKey($birthEvent->id)->lockForUpdate()->firstOrFail();
 
-        $validation = $this->validateDamAndSire($newDamId, $newSireId);
-        if (! $validation['ok']) {
-            return $validation;
-        }
-
-        /** @var Animal $dam */
-        $dam = $validation['dam'];
-        $damChanged = array_key_exists('dam_id', $data) && (int) $data['dam_id'] !== (int) $birthEvent->dam_id;
-        $birthDateChanged = array_key_exists('birth_date', $data);
-
-        if ($damChanged) {
-            $pregnancyCheck = $this->latestPregnantCheck((int) $newDamId);
-            if (! $pregnancyCheck) {
-                return $this->missingPregnancyError($dam);
-            }
-
-            $dateError = $this->validateBirthDateAgainstMating($data['birth_date'] ?? $birthEvent->birth_date?->toDateString(), $pregnancyCheck);
-            if ($dateError !== null) {
-                return $this->error($dateError);
-            }
-
-            if ($pregnancyCheck->breedingPeriod?->male_animal_id !== null) {
-                $data['sire_id'] = $pregnancyCheck->breedingPeriod->male_animal_id;
-            }
-        } elseif ($birthDateChanged) {
-            $pregnancyCheck = $this->latestPregnantCheck((int) $newDamId);
-            if ($pregnancyCheck) {
-                $dateError = $this->validateBirthDateAgainstMating($data['birth_date'], $pregnancyCheck);
-                if ($dateError !== null) {
-                    return $this->error($dateError);
+            foreach (['dam_id', 'sire_id'] as $field) {
+                if (array_key_exists($field, $data)
+                    && TypeValue::nullableString($data[$field]) !== TypeValue::nullableString($birthEvent->$field)) {
+                    return $this->error('Peringatan: Induk dan pejantan pada catatan kelahiran tidak dapat diganti.');
                 }
             }
-        } elseif (array_key_exists('sire_id', $data)) {
-            unset($data['sire_id']);
-        }
 
-        $birthEvent->fill($data)->save();
-        $this->syncOffspringMarkers($birthEvent);
+            $childCount = $birthEvent->offspringBirths()->count();
+            if (isset($data['offspring_count']) && TypeValue::int($data['offspring_count']) < $childCount) {
+                return $this->error('Peringatan: Jumlah anak tidak boleh kurang dari jumlah cempe yang sudah dicatat.');
+            }
 
-        return $this->success('Sukses: Data kelahiran berhasil diperbarui.', $this->loadSummary($birthEvent));
+            $oldDate = $birthEvent->birth_date->toDateString();
+            $dateChanged = isset($data['birth_date']) && $data['birth_date'] !== $oldDate;
+            if ($dateChanged) {
+                if ($childCount > 0 || $birthEvent->postnatalCareRecords()->exists() || $birthEvent->certificates()->exists()) {
+                    return $this->error('Peringatan: Tanggal lahir tidak dapat diubah karena sudah memiliki catatan cempe, perawatan, atau sertifikat.');
+                }
+
+                $registration = $birthEvent->breedingFemale;
+                if (! $registration) {
+                    return $this->error('Peringatan: Tanggal lahir belum dapat diubah karena catatan kelahiran lama belum terhubung ke periode perkawinan.');
+                }
+
+                $lastCheck = PregnancyCheck::query()->where('breeding_female_id', $registration->id)
+                    ->orderByDesc('check_date')->first();
+                if (($registration->mating_date && $data['birth_date'] < $registration->mating_date->toDateString())
+                    || ($lastCheck && $data['birth_date'] < $lastCheck->check_date->toDateString())) {
+                    return $this->error('Peringatan: Tanggal lahir tidak boleh sebelum tanggal kawin atau pemeriksaan kebuntingan.');
+                }
+            }
+
+            $birthEvent->fill($data)->save();
+            $this->syncOffspringMarkers($birthEvent);
+            if ($dateChanged) {
+                $this->statuses->sync($dam, $oldDate);
+            }
+
+            return $this->success('Sukses: Data kelahiran berhasil diperbarui.', $this->loadSummary($birthEvent));
+        }, 3);
     }
 
     public function loadDetail(BirthEvent $birthEvent): BirthEvent
@@ -141,7 +167,7 @@ class BirthEventService
      */
     private function validateDamAndSire(int|string|null $damId, int|string|null $sireId): array
     {
-        $dam = Animal::query()->find($damId);
+        $dam = $damId === null ? null : Animal::query()->whereKey($damId)->first();
         if (! $dam || $dam->sex !== 'female') {
             return $this->error('Peringatan: Tag induk harus mengarah ke kambing betina.');
         }
@@ -151,11 +177,11 @@ class BirthEventService
         }
 
         if (! empty($sireId)) {
-            if ((int) $sireId === (int) $damId) {
+            if (TypeValue::int($sireId) === TypeValue::int($damId)) {
                 return $this->error('Peringatan: Tag induk dan tag pejantan tidak boleh menggunakan kambing yang sama.');
             }
 
-            $sire = Animal::query()->find($sireId);
+            $sire = Animal::query()->whereKey(TypeValue::int($sireId))->first();
             if (! $sire || $sire->sex !== 'male') {
                 return $this->error('Peringatan: Tag pejantan harus mengarah ke kambing jantan.');
             }
@@ -170,16 +196,18 @@ class BirthEventService
 
     private function latestPregnantCheck(int $damId): ?PregnancyCheck
     {
-        return PregnancyCheck::query()
+        $check = PregnancyCheck::query()
             ->with(['breedingPeriod', 'breedingFemale'])
             ->where('female_animal_id', $damId)
-            ->where('is_pregnant', true)
-            ->where(function ($query) {
-                $query->whereNull('outcome_status')
-                    ->orWhere('outcome_status', '!=', 'born');
-            })
-            ->latest('check_date')
-            ->first();
+            ->orderByDesc('check_date')->orderByDesc('id')->first();
+
+        if (! $check || ! $check->is_pregnant
+            || PregnancyCheck::query()->where('breeding_female_id', $check->breeding_female_id)->where('outcome_status', 'born')->exists()
+            || BirthEvent::query()->where('breeding_female_id', $check->breeding_female_id)->exists()) {
+            return null;
+        }
+
+        return $check;
     }
 
     private function validateBirthDateAgainstMating(?string $birthDate, PregnancyCheck $pregnancyCheck): ?string
@@ -188,6 +216,10 @@ class BirthEventService
 
         if ($birthDate && $matingDate && $birthDate < $matingDate) {
             return 'Peringatan: Tanggal lahir tidak boleh lebih awal dari tanggal kawin induk.';
+        }
+
+        if ($birthDate && $birthDate < $pregnancyCheck->check_date->toDateString()) {
+            return 'Peringatan: Tanggal lahir tidak boleh sebelum pemeriksaan kebuntingan.';
         }
 
         return null;
