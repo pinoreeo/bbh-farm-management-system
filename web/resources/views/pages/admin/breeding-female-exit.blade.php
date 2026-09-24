@@ -60,7 +60,7 @@
                 </div>
             </div>
 
-            <form class="mt-6 grid gap-5" method="post" action="{{ route('admin.breeding-females.exit.store', ['id' => $id]) }}">
+            <form class="mt-6 grid gap-5" method="post" action="{{ route('admin.breeding-females.exit.store', ['id' => $id]) }}" data-skeleton-target="table">
                 @csrf
 
                 <div class="grid gap-4 md:grid-cols-2">

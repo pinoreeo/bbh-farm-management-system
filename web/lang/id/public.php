@@ -14,6 +14,8 @@ return [
     'hero' => [
         'title' => 'Pusat Pembibitan Kambing Perah Unggul Berbasis Peternakan Modern Terintegrasi',
         'copy' => 'Menghasilkan bibit kambing perah berkualitas tinggi dengan keunggulan genetik melalui sistem pertanian dan peternakan terpadu, sekaligus menyelenggarakan program pelatihan manajemen peternakan.',
+        'primary_action' => 'Mulai Verifikasi',
+        'secondary_action' => 'Lihat Lokasi',
         'goat_alt' => 'Kambing perah Bumiku Bumimu Hijau Farm',
     ],
     'core' => [
@@ -84,10 +86,12 @@ return [
             'Tanda tangan digital adalah bentuk tanda tangan elektronis yang menggunakan metode kriptografi untuk menandai keabsahan suatu dokumen digital. Tanda tangan digital bukan berarti tanda tangan fisik yang di-scan atau digambar di komputer kemudian ditempelkan ke dokumen, melainkan hasil perhitungan matematis menggunakan konsep kriptografi kunci publik terhadap data digital yang ditandatangani.',
             'Terdapat dua kegiatan utama dalam konsep tanda tangan digital:',
         ],
+        'process_title' => 'Cara kerja tanda tangan digital',
         'sign_verify' => [
             ['term' => 'Sign', 'copy' => 'yaitu proses membubuhkan tanda tangan digital pada sertifikat atau dokumen digital.'],
             ['term' => 'Verify', 'copy' => 'yaitu proses menentukan apakah tanda tangan digital pada sertifikat atau dokumen digital masih valid.'],
         ],
+        'goals_title' => 'Manfaat untuk sertifikat BBH Farm',
         'goals_intro' => 'Berikut adalah tujuan dari penerapan tanda tangan digital pada sertifikat elektronik:',
         'goals' => [
             ['term' => 'Otentikasi', 'copy' => 'yaitu memastikan bahwa sertifikat benar-benar diterbitkan oleh pihak atau sistem yang sah.'],
@@ -98,6 +102,7 @@ return [
             'Pada sistem BBH Farm, setiap sertifikat yang diterbitkan diberi tanda tangan digital agar validitas data dan dokumen PDF dapat diperiksa kembali. Jika data sertifikat atau file PDF berubah setelah diterbitkan, hasil verifikasi akan menunjukkan bahwa sertifikat tidak valid.',
             'Tanda tangan digital hanya dapat diverifikasi melalui data atau dokumen digital. Jika sertifikat dicetak, tanda tangan digital pada dokumen cetak tidak dapat diperiksa secara langsung. Namun demikian, sertifikat dapat dilengkapi QR code yang mengarah ke halaman verifikasi untuk mengecek status sertifikat bibit unggul ternak yang diterbitkan oleh BBH Farm.',
         ],
+        'verification_note_title' => 'Catatan verifikasi',
         'technical_title' => 'Spesifikasi Teknis',
         'technical_items' => [
             'Algoritme: RSA-SHA256',

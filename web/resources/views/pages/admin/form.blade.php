@@ -13,7 +13,7 @@
             </div>
         @endif
 
-        <form class="grid gap-5" method="post" enctype="multipart/form-data" action="{{ $mode === 'edit' ? route('admin.resource.update', ['resource' => $slug, 'id' => $id]) : route('admin.resource.store', ['resource' => $slug]) }}">
+        <form class="grid gap-5" method="post" enctype="multipart/form-data" action="{{ $mode === 'edit' ? route('admin.resource.update', ['resource' => $slug, 'id' => $id]) : route('admin.resource.store', ['resource' => $slug]) }}" data-skeleton-target="table">
             @csrf
             @if ($mode === 'edit')
                 @method('put')

@@ -52,21 +52,24 @@ class DashboardViewData
         $selectedBirthYear = in_array($selectedBirthYear, $birthYears, true)
             ? $selectedBirthYear
             : ($birthYears[0] ?? (int) now()->format('Y'));
+        $birthChart = $this->birthChart($birthEvents, $selectedBirthYear);
+        $currentYearBirthChart = $this->birthChart($birthEvents, (int) now()->format('Y'));
 
         return [
             'stats' => [
-                ['label' => 'Total Kambing', 'value' => (string) count($animals), 'note' => count($aliveAnimals).' kambing aktif', 'tone' => 'green', 'icon' => 'goat'],
-                ['label' => 'Jantan Dewasa', 'value' => (string) count($adultMales), 'note' => 'Pejantan produktif', 'tone' => 'blue', 'icon' => 'goat'],
-                ['label' => 'Betina Dewasa', 'value' => (string) count($adultFemales), 'note' => 'Induk produktif', 'tone' => 'green', 'icon' => 'female'],
-                ['label' => 'Pejantan Muda', 'value' => (string) count($youngMales), 'note' => 'Calon pejantan', 'tone' => 'blue', 'icon' => 'goat'],
-                ['label' => 'Dere', 'value' => (string) count($readyFemales), 'note' => 'Betina muda siap masuk program', 'tone' => 'yellow', 'icon' => 'female'],
-                ['label' => 'Cempe', 'value' => (string) count($kids), 'note' => 'Usia sampai 6 bulan', 'tone' => 'orange', 'icon' => 'baby'],
-                ['label' => 'Betina Bunting', 'value' => (string) count($pregnantAnimals), 'note' => $this->percent(count($pregnantAnimals), $totalAlive).' dari populasi aktif', 'tone' => 'green', 'icon' => 'pregnancy'],
-                ['label' => 'Kelahiran Tahun Ini', 'value' => (string) count($birthEvents), 'note' => count($birthEvents).' data kelahiran tercatat', 'tone' => 'orange', 'icon' => 'birth'],
+                ['label' => 'Total Kambing', 'value' => (string) count($animals), 'note' => count($aliveAnimals).' kambing aktif', 'tone' => 'green', 'icon' => 'goat', 'trend' => $this->animalTrend($animals, null, $selectedBirthYear)],
+                ['label' => 'Jantan Dewasa', 'value' => (string) count($adultMales), 'note' => 'Pejantan produktif', 'tone' => 'blue', 'icon' => 'goat', 'trend' => $this->animalTrend($adultMales, null, $selectedBirthYear)],
+                ['label' => 'Betina Dewasa', 'value' => (string) count($adultFemales), 'note' => 'Induk produktif', 'tone' => 'green', 'icon' => 'female', 'trend' => $this->animalTrend($adultFemales, null, $selectedBirthYear)],
+                ['label' => 'Pejantan Muda', 'value' => (string) count($youngMales), 'note' => 'Calon pejantan', 'tone' => 'blue', 'icon' => 'goat', 'trend' => $this->animalTrend($youngMales, null, $selectedBirthYear)],
+                ['label' => 'Dere', 'value' => (string) count($readyFemales), 'note' => 'Betina muda siap masuk program', 'tone' => 'yellow', 'icon' => 'female', 'trend' => $this->animalTrend($readyFemales, null, $selectedBirthYear)],
+                ['label' => 'Cempe', 'value' => (string) count($kids), 'note' => 'Usia sampai 6 bulan', 'tone' => 'orange', 'icon' => 'baby', 'trend' => $this->animalTrend($kids, null, $selectedBirthYear)],
+                ['label' => 'Betina Bunting', 'value' => (string) count($pregnantAnimals), 'note' => $this->percent(count($pregnantAnimals), $totalAlive).' dari populasi aktif', 'tone' => 'green', 'icon' => 'pregnancy', 'trend' => $this->animalTrend($pregnantAnimals, 'status_date', $selectedBirthYear)],
+                ['label' => 'Kelahiran Tahun Ini', 'value' => (string) array_sum($currentYearBirthChart), 'note' => array_sum($currentYearBirthChart).' data kelahiran tercatat', 'tone' => 'orange', 'icon' => 'birth', 'trend' => $currentYearBirthChart],
             ],
             'birthYears' => $birthYears,
             'selectedBirthYear' => $selectedBirthYear,
-            'birthChart' => $this->birthChart($birthEvents, $selectedBirthYear),
+            'birthChart' => $birthChart,
+            'birthChartSvg' => $this->chartPaths($birthChart, 108, 884, 54, 334),
             'activities' => $this->activities($activityLogs),
             'agenda' => $agenda,
             'priorityTasks' => $priorityTasks,
@@ -323,9 +326,75 @@ class DashboardViewData
             }
         }
 
-        $max = max($counts) ?: 1;
+        return array_values($counts);
+    }
 
-        return array_map(fn ($count) => max(8, (int) round(($count / $max) * 88)), array_values($counts));
+    /**
+     * @param  array<int, array<string, mixed>>  $animals
+     * @return array<int, int>
+     */
+    private function animalTrend(array $animals, ?string $dateKey, int $year): array
+    {
+        $counts = array_fill(1, 12, 0);
+        $dateKey ??= 'birth_date';
+
+        foreach ($animals as $animal) {
+            $date = $this->value($animal, $dateKey);
+            if ($date === '-' || (int) substr($date, 0, 4) !== $year) {
+                continue;
+            }
+
+            $month = (int) substr($date, 5, 2);
+            if ($month >= 1 && $month <= 12) {
+                $counts[$month]++;
+            }
+        }
+
+        if (array_sum($counts) === 0) {
+            return array_fill(0, 12, 0);
+        }
+
+        return array_values($counts);
+    }
+
+    /**
+     * @param  array<int, int>  $values
+     * @return array{line: string, area: string, points: array<int, array{x: float, y: float, value: int}>}
+     */
+    public function chartPaths(array $values, float $minX, float $maxX, float $minY, float $maxY): array
+    {
+        $values = array_values($values);
+        if ($values === []) {
+            $values = [0];
+        }
+
+        $maxValue = max($values);
+        $minValue = min(0, min($values));
+        $isZeroTrend = $maxValue === 0 && $minValue === 0;
+        $range = max(1, $maxValue - $minValue);
+        $step = count($values) > 1 ? ($maxX - $minX) / (count($values) - 1) : 0;
+
+        $points = array_map(function (int $value, int $index) use ($isZeroTrend, $minX, $maxY, $minY, $minValue, $range, $step): array {
+            return [
+                'x' => round($minX + ($step * $index), 2),
+                'y' => $isZeroTrend ? $maxY : round($maxY - ((($value - $minValue) / $range) * ($maxY - $minY)), 2),
+                'value' => $value,
+            ];
+        }, $values, array_keys($values));
+
+        $line = 'M'.$points[0]['x'].' '.$points[0]['y'];
+        for ($index = 1, $total = count($points); $index < $total; $index++) {
+            $previous = $points[$index - 1];
+            $current = $points[$index];
+            $controlOffset = round(($current['x'] - $previous['x']) / 2, 2);
+            $line .= ' C'.($previous['x'] + $controlOffset).' '.$previous['y'].' '.($current['x'] - $controlOffset).' '.$current['y'].' '.$current['x'].' '.$current['y'];
+        }
+
+        $first = $points[0];
+        $last = $points[array_key_last($points)];
+        $area = $line.' L'.$last['x'].' '.$maxY.' L'.$first['x'].' '.$maxY.' Z';
+
+        return compact('line', 'area', 'points');
     }
 
     /**
@@ -516,17 +585,18 @@ class DashboardViewData
     {
         return [
             'stats' => [
-                ['label' => 'Total Kambing', 'value' => '128', 'note' => '118 kambing aktif', 'tone' => 'green', 'icon' => 'goat'],
-                ['label' => 'Jantan Dewasa', 'value' => '22', 'note' => 'Pejantan produktif', 'tone' => 'blue', 'icon' => 'goat'],
-                ['label' => 'Betina Dewasa', 'value' => '48', 'note' => 'Induk produktif', 'tone' => 'green', 'icon' => 'female'],
-                ['label' => 'Pejantan Muda', 'value' => '14', 'note' => 'Calon pejantan', 'tone' => 'blue', 'icon' => 'goat'],
-                ['label' => 'Dere', 'value' => '19', 'note' => 'Betina muda siap masuk program', 'tone' => 'yellow', 'icon' => 'female'],
-                ['label' => 'Cempe', 'value' => '36', 'note' => 'Usia sampai 6 bulan', 'tone' => 'orange', 'icon' => 'baby'],
-                ['label' => 'Betina Bunting', 'value' => '12', 'note' => '10% dari populasi aktif', 'tone' => 'green', 'icon' => 'pregnancy'],
-                ['label' => 'Kelahiran Tahun Ini', 'value' => '24', 'note' => '+6 kelahiran bulan ini', 'tone' => 'orange', 'icon' => 'birth'],
+                ['label' => 'Total Kambing', 'value' => '128', 'note' => '118 kambing aktif', 'tone' => 'green', 'icon' => 'goat', 'trend' => [18, 24, 31, 38, 45, 52, 67, 76, 84, 96, 108, 128]],
+                ['label' => 'Jantan Dewasa', 'value' => '22', 'note' => 'Pejantan produktif', 'tone' => 'blue', 'icon' => 'goat', 'trend' => [3, 4, 5, 7, 9, 10, 12, 15, 16, 18, 20, 22]],
+                ['label' => 'Betina Dewasa', 'value' => '48', 'note' => 'Induk produktif', 'tone' => 'green', 'icon' => 'female', 'trend' => [8, 10, 13, 16, 20, 24, 29, 34, 38, 42, 45, 48]],
+                ['label' => 'Pejantan Muda', 'value' => '14', 'note' => 'Calon pejantan', 'tone' => 'blue', 'icon' => 'goat', 'trend' => [2, 3, 4, 4, 6, 7, 8, 10, 10, 12, 13, 14]],
+                ['label' => 'Dere', 'value' => '19', 'note' => 'Betina muda siap masuk program', 'tone' => 'yellow', 'icon' => 'female', 'trend' => [1, 3, 4, 7, 8, 8, 10, 12, 14, 16, 18, 19]],
+                ['label' => 'Cempe', 'value' => '36', 'note' => 'Usia sampai 6 bulan', 'tone' => 'orange', 'icon' => 'baby', 'trend' => [4, 8, 12, 16, 20, 25, 28, 32, 31, 34, 35, 36]],
+                ['label' => 'Betina Bunting', 'value' => '12', 'note' => '10% dari populasi aktif', 'tone' => 'green', 'icon' => 'pregnancy', 'trend' => [1, 2, 2, 4, 5, 7, 6, 8, 9, 10, 11, 12]],
+                ['label' => 'Kelahiran Tahun Ini', 'value' => '24', 'note' => '+6 kelahiran bulan ini', 'tone' => 'orange', 'icon' => 'birth', 'trend' => [1, 1, 2, 2, 3, 4, 2, 1, 2, 2, 2, 2]],
             ],
             'birthYears' => [2026, 2025],
-            'birthChart' => [35, 55, 68, 82, 76, 64, 48, 58, 74, 88, 70, 52],
+            'birthChart' => [1, 1, 2, 2, 3, 4, 2, 1, 2, 2, 2, 2],
+            'birthChartSvg' => $this->chartPaths([1, 1, 2, 2, 3, 4, 2, 1, 2, 2, 2, 2], 108, 884, 54, 334),
             'activities' => [
                 ['text' => 'Admin Rio menambahkan data kambing dengan tag BBH-001', 'time' => '2 jam lalu'],
                 ['text' => 'Admin Rio memperbarui kandang dengan kode kandang KP-001', 'time' => '2 jam lalu'],

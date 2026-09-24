@@ -55,14 +55,14 @@
         @if ($hasRecords)
             <div class="overflow-hidden rounded-[18px] border border-[var(--app-border)]">
                 <table class="min-w-full divide-y divide-[var(--app-border)] text-left text-sm">
-                    <thead class="bg-[var(--app-surface-soft)] text-xs uppercase tracking-[0.08em] text-[var(--app-muted)]">
+                    <thead class="bg-[var(--app-surface-soft)] text-xs text-[var(--app-muted)]">
                         <tr>
-                            <th class="px-5 py-4 font-semibold">Key Identifier</th>
-                            <th class="px-5 py-4 font-semibold">Pemilik</th>
-                            <th class="px-5 py-4 font-semibold">Fingerprint</th>
-                            <th class="px-5 py-4 font-semibold">Dibuat</th>
-                            <th class="px-5 py-4 font-semibold">Status</th>
-                            <th class="px-5 py-4 text-right font-semibold">Aksi</th>
+                            <th class="px-5 py-4 font-medium">Key Identifier</th>
+                            <th class="px-5 py-4 font-medium">Pemilik</th>
+                            <th class="px-5 py-4 font-medium">Fingerprint</th>
+                            <th class="px-5 py-4 font-medium">Dibuat</th>
+                            <th class="px-5 py-4 font-medium">Status</th>
+                            <th class="px-5 py-4 text-right font-medium">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-[var(--app-border)] bg-[var(--app-surface)]">
@@ -74,7 +74,7 @@
                             @php($isDisabled = $status === 'Dinonaktifkan')
                             <tr>
                                 <td class="px-5 py-4">
-                                    <div class="font-semibold text-[var(--app-text)]">{{ $cells[0] ?? '-' }}</div>
+                                    <div class="font-medium text-[var(--app-text)]">{{ $cells[0] ?? '-' }}</div>
                                 </td>
                                 <td class="max-w-[260px] px-5 py-4 text-[var(--app-muted)]">{{ $cells[1] ?? '-' }}</td>
                                 <td class="px-5 py-4 font-mono text-xs text-[var(--app-muted)]" title="{{ $cells[4] ?? '-' }}">{{ $shortFingerprint($cells[4] ?? '-') }}</td>
@@ -86,7 +86,7 @@
                                 </td>
                                 <td class="px-5 py-4 text-right">
                                     @if ($isActive)
-                                        <form method="POST" action="{{ route('admin.resource.action', ['resource' => 'rsa-keys', 'id' => $record['id'], 'action' => 'deactivate']) }}" onsubmit="return confirm('Nonaktifkan RSA Key ini? Key tidak akan digunakan untuk penerbitan sertifikat baru.');">
+                                        <form method="POST" action="{{ route('admin.resource.action', ['resource' => 'rsa-keys', 'id' => $record['id'], 'action' => 'deactivate']) }}" data-skeleton-target="table" onsubmit="return confirm('Nonaktifkan RSA Key ini? Key tidak akan digunakan untuk penerbitan sertifikat baru.');">
                                             @csrf
                                             <button type="submit" class="ui-btn ui-btn-danger-soft">
                                                 Nonaktifkan
@@ -96,9 +96,9 @@
                                         <span class="text-xs font-medium text-[var(--app-muted)]">Tidak tersedia</span>
                                     @else
                                         <div class="flex justify-end gap-2">
-                                            <form method="POST" action="{{ route('admin.resource.action', ['resource' => 'rsa-keys', 'id' => $record['id'], 'action' => 'activate']) }}">
+                                            <form method="POST" action="{{ route('admin.resource.action', ['resource' => 'rsa-keys', 'id' => $record['id'], 'action' => 'activate']) }}" data-skeleton-target="table">
                                                 @csrf
-                                                <button type="submit" class="ui-btn ui-btn-secondary">
+                                                <button type="submit" class="ui-btn ui-btn-soft">
                                                     Aktifkan
                                                 </button>
                                             </form>

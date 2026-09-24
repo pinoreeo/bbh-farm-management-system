@@ -6,7 +6,7 @@
 <nav class="thin-scrollbar flex-1 space-y-3 overflow-y-auto px-3 py-4">
     @foreach ($groups as $title => $items)
         <div>
-            <h3 class="admin-sidebar-group mb-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase leading-4">{{ $title }}</h3>
+            <h3 class="admin-sidebar-group mb-1.5 px-3 py-1.5 text-xs font-medium uppercase leading-4">{{ $title }}</h3>
             <ul class="flex flex-col gap-1.5">
                 @foreach ($items as $item)
                     @php($active = request()->routeIs($item['route']))

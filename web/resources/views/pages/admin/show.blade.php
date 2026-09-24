@@ -16,8 +16,8 @@
         <dl class="grid gap-4 md:grid-cols-2">
             @foreach ($columns as $index => $column)
                 <div class="admin-detail-item">
-                    <dt class="text-xs font-semibold uppercase tracking-wide theme-muted">{{ $column }}</dt>
-                    <dd class="mt-2 text-sm font-semibold" style="color: var(--app-text);">{{ $row[$index] ?? '-' }}</dd>
+                    <dt class="admin-meta-text uppercase">{{ $column }}</dt>
+                    <dd class="mt-2 text-sm font-medium" style="color: var(--app-text);">{{ $row[$index] ?? '-' }}</dd>
                 </div>
             @endforeach
         </dl>

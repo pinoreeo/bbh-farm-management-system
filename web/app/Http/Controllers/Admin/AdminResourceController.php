@@ -143,15 +143,11 @@ class AdminResourceController extends Controller
         return back()->with('formMessage', $resources->successMessage($resource, $action));
     }
 
-    public function show(string $resource, int $id, AdminTableViewData $pageData)
+    public function show(string $resource, int $id, AdminTableViewData $pageData, AdminResourceViewData $resources)
     {
-        [$title, $subtitle, $columns, $rows] = $this->page($resource);
-        $record = collect($pageData->records($resource, $rows, session('bbh_api_token')))->firstWhere('id', $id);
-        abort_if($record === null, 404);
-        $row = $record['cells'] ?? ($rows[max(0, min(count($rows) - 1, $id - 1))] ?? []);
+        [$title, $subtitle, $columns] = $this->page($resource);
 
         if ($resource === 'pregnancy-checks') {
-            $resources = app(AdminResourceViewData::class);
             $pregnancyPeriod = $resources->pregnancyPeriod($id, $this->token());
             abort_if($pregnancyPeriod === [], 404);
 
@@ -161,21 +157,25 @@ class AdminResourceController extends Controller
             ]);
         }
 
-        if ($resource === 'certificates') {
-            return view('pages.admin.certificate-preview', [
-                'id' => $id,
-                'row' => $row,
-            ]);
-        }
-
         if ($resource === 'animals') {
-            $resources = app(AdminResourceViewData::class);
             $animal = $resources->item('animals', $id, $this->token());
             abort_if($animal === [], 404);
 
             return view('pages.admin.animal-show', [
                 'id' => $id,
                 'animal' => $animal,
+            ]);
+        }
+
+        $item = $resources->item($resource, $id, $this->token());
+        abort_if($item === [], 404);
+        $record = $pageData->recordFromItem($resource, $item);
+        $row = $record['cells'];
+
+        if ($resource === 'certificates') {
+            return view('pages.admin.certificate-preview', [
+                'id' => $id,
+                'row' => $row,
             ]);
         }
 
@@ -189,10 +189,9 @@ class AdminResourceController extends Controller
         ]);
     }
 
-    public function edit(string $resource, int $id, AdminTableViewData $pageData, AdminResourceViewData $resources)
+    public function edit(string $resource, int $id, AdminResourceViewData $resources)
     {
-        [$title, $subtitle, $columns, $rows] = $this->page($resource);
-        $record = collect($pageData->records($resource, $rows, session('bbh_api_token')))->firstWhere('id', $id);
+        [$title, $subtitle, $columns] = $this->page($resource);
 
         if ($resource === 'pregnancy-checks') {
             $values = $resources->item('pregnancy-checks', $id, $this->token());
@@ -205,8 +204,8 @@ class AdminResourceController extends Controller
             ]);
         }
 
-        abort_if($record === null, 404);
-        $values = $record['raw'] ?? [];
+        $values = $resources->item($resource, $id, $this->token());
+        abort_if($values === [], 404);
 
         if ($resource === 'users' && ! data_get($values, 'first_name')) {
             $parts = preg_split('/\s+/', trim((string) data_get($values, 'name', '')), 2);

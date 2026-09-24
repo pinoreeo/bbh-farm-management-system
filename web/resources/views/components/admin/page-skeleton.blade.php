@@ -1,10 +1,10 @@
 @props(['type' => 'table'])
 
-<div class="admin-page-skeleton" data-page-loader hidden aria-live="polite" aria-busy="false">
+<div class="admin-page-skeleton" data-page-loader data-current-skeleton="{{ $type }}" hidden aria-live="polite" aria-busy="false">
     <div class="content-wrap">
         <div class="skeleton-line h-8 w-56"></div>
 
-        @if ($type === 'dashboard')
+        <div data-skeleton-variant="dashboard" @if ($type !== 'dashboard') hidden @endif>
             <div class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 @for ($index = 0; $index < 8; $index++)
                     <div class="skeleton-card">
@@ -67,7 +67,9 @@
                     @endfor
                 </div>
             </div>
-        @elseif ($type === 'form')
+        </div>
+
+        <div data-skeleton-variant="form" @if ($type !== 'form') hidden @endif>
             <div class="admin-form-shell mt-6">
                 <div class="skeleton-panel">
                     <div class="skeleton-line h-5 w-44"></div>
@@ -85,7 +87,9 @@
                     </div>
                 </div>
             </div>
-        @elseif ($type === 'detail')
+        </div>
+
+        <div data-skeleton-variant="detail" @if ($type !== 'detail') hidden @endif>
             <div class="mt-6 flex justify-between gap-3">
                 <div class="skeleton-line h-9 w-24"></div>
                 <div class="skeleton-line h-9 w-20"></div>
@@ -101,7 +105,9 @@
                     @endfor
                 </div>
             </div>
-        @else
+        </div>
+
+        <div data-skeleton-variant="table" @if ($type !== 'table') hidden @endif>
             <div class="mt-6 admin-list-toolbar">
                 <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div class="skeleton-line h-9 w-full lg:max-w-md"></div>
@@ -125,6 +131,6 @@
                     @endfor
                 </div>
             </div>
-        @endif
+        </div>
     </div>
 </div>
