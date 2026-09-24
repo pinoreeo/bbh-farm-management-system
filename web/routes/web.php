@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminResourceController;
+use App\Http\Controllers\Admin\AdminSearchController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\FarmProfileController;
 use App\Http\Controllers\AuthSessionController;
@@ -40,6 +41,7 @@ Route::middleware('bbh.auth')->group(function () {
     Route::redirect('/admin', '/admin/dashboard');
 
     Route::get('/admin/dashboard', DashboardController::class)->name('admin.dashboard');
+    Route::get('/admin/search', AdminSearchController::class)->name('admin.search');
     Route::get('/admin/profile', [FarmProfileController::class, 'show'])->name('admin.profile');
     Route::put('/admin/profile', [FarmProfileController::class, 'update'])->name('admin.profile.update');
     Route::put('/admin/profile/password', [FarmProfileController::class, 'updatePassword'])->name('admin.profile.password');

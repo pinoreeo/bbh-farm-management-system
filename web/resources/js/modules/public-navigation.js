@@ -1,6 +1,7 @@
 export const initPublicNavigation = () => {
     const button = document.querySelector('[data-public-menu-button]');
     const menu = document.querySelector('[data-public-menu]');
+    const sectionLinks = Array.from(document.querySelectorAll('[data-public-section-link]'));
 
     const closeMenu = () => {
         if (!button || !menu) return;
@@ -40,6 +41,44 @@ export const initPublicNavigation = () => {
             target.scrollIntoView({ behavior: 'smooth', block: 'start' });
             window.history.replaceState(null, '', window.location.pathname + window.location.search);
         });
+    }
+
+    const sectionTargets = sectionLinks
+        .map((link) => document.getElementById(link.dataset.publicSectionLink))
+        .filter((section, index, sections) => section && sections.indexOf(section) === index);
+
+    if (sectionTargets.length > 0) {
+        const setActiveSection = (id) => {
+            sectionLinks.forEach((link) => {
+                link.classList.toggle('is-active', link.dataset.publicSectionLink === id);
+            });
+        };
+
+        const updateActiveSection = () => {
+            const navHeight = document.querySelector('.bbh-public-nav')?.offsetHeight ?? 0;
+            const readPoint = window.scrollY + navHeight + (window.innerHeight * 0.22);
+            const activeSection = sectionTargets.reduce((current, section) => (
+                section.offsetTop <= readPoint ? section : current
+            ), sectionTargets[0]);
+
+            setActiveSection(activeSection.id);
+        };
+
+        let ticking = false;
+        const requestActiveUpdate = () => {
+            if (ticking) return;
+
+            ticking = true;
+            window.requestAnimationFrame(() => {
+                updateActiveSection();
+                ticking = false;
+            });
+        };
+
+        updateActiveSection();
+        window.addEventListener('load', updateActiveSection, { once: true });
+        window.addEventListener('scroll', requestActiveUpdate, { passive: true });
+        window.addEventListener('resize', requestActiveUpdate);
     }
 
     if (!button || !menu || button.dataset.ready === 'true') return;

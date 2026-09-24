@@ -11,11 +11,11 @@
         <div>
             <h2 class="bbh-result-card-title">{{ $title }}</h2>
             @if ($description)
-                <p class="mt-2 text-sm font-semibold leading-6 text-[#626c65]">{{ $description }}</p>
+                <p class="bbh-result-muted mt-2">{{ $description }}</p>
             @endif
         </div>
         @if ($photoUrl)
-            <img src="{{ $photoUrl }}" alt="Foto kambing" class="h-28 w-28 rounded-[20px] border object-cover" style="border-color: var(--result-border);">
+            <img src="{{ $photoUrl }}" alt="Foto kambing" class="h-28 w-28 rounded-[12px] border object-cover" style="border-color: var(--result-border);">
         @endif
     </div>
 

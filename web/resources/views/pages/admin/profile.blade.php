@@ -1,7 +1,7 @@
 <x-layouts.admin title="Profil Farm" skeleton="form">
     <div class="grid gap-4 xl:grid-cols-2">
         <x-panel title="Profil Farm">
-            <form class="space-y-4" method="post" action="{{ route('admin.profile.update') }}">
+            <form class="space-y-4" method="post" action="{{ route('admin.profile.update') }}" data-skeleton-target="form">
                 @csrf
                 @method('put')
 
@@ -60,7 +60,7 @@
         </x-panel>
 
         <x-panel title="Ubah Password">
-            <form class="space-y-4" method="post" action="{{ route('admin.profile.password') }}">
+            <form class="space-y-4" method="post" action="{{ route('admin.profile.password') }}" data-skeleton-target="form">
                 @csrf
                 @method('put')
 

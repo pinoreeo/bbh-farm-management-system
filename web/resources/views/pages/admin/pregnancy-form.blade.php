@@ -13,7 +13,7 @@
         @endif
 
         <x-panel title="Form Pemeriksaan Bunting">
-            <form class="grid gap-5" method="post" action="{{ ($mode ?? 'edit') === 'edit' ? route('admin.resource.update', ['resource' => 'pregnancy-checks', 'id' => $id]) : route('admin.resource.store', ['resource' => 'pregnancy-checks']) }}">
+            <form class="grid gap-5" method="post" action="{{ ($mode ?? 'edit') === 'edit' ? route('admin.resource.update', ['resource' => 'pregnancy-checks', 'id' => $id]) : route('admin.resource.store', ['resource' => 'pregnancy-checks']) }}" data-skeleton-target="table">
                 @csrf
                 @if (($mode ?? 'edit') === 'edit')
                     @method('put')
@@ -24,8 +24,8 @@
                 <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     @foreach ([['Kode Periode', data_get($values ?? [], 'breeding_period.period_code', 'BRD-2026-001')], ['Kandang', data_get($values ?? [], 'breeding_period.colony_pen.pen_code', 'KP-001')], ['Pejantan', data_get($values ?? [], 'breeding_period.male_animal.tag_number', '0001')], ['Tag Betina', data_get($values ?? [], 'female_animal.tag_number', '0002')]] as [$label, $value])
                         <div class="admin-field-summary">
-                            <p class="text-xs font-medium uppercase tracking-wide theme-muted">{{ $label }}</p>
-                            <p class="mt-2 text-sm font-semibold text-[var(--app-text)]">{{ $value }}</p>
+                            <p class="admin-meta-text uppercase">{{ $label }}</p>
+                            <p class="mt-2 text-sm font-medium text-[var(--app-text)]">{{ $value }}</p>
                         </div>
                     @endforeach
                 </div>

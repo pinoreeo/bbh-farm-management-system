@@ -14,6 +14,8 @@ return [
     'hero' => [
         'title' => 'An Integrated Modern Breeding Center for Superior Dairy Goats',
         'copy' => 'We produce high-quality dairy goat breeding stock with strong genetic traits through an integrated farming system, while also providing livestock management training programs.',
+        'primary_action' => 'Start Verification',
+        'secondary_action' => 'View Location',
         'goat_alt' => 'Dairy goats at Bumiku Bumimu Hijau Farm',
     ],
     'core' => [
@@ -84,10 +86,12 @@ return [
             'A digital signature is an electronic signature that uses cryptographic methods to validate a digital document. It is not a scanned or computer-drawn physical signature placed on a document, but a mathematical result generated using public key cryptography over the signed digital data.',
             'There are two main activities in the digital signature process:',
         ],
+        'process_title' => 'How digital signatures work',
         'sign_verify' => [
             ['term' => 'Sign', 'copy' => 'the process of applying a digital signature to a certificate or digital document.'],
             ['term' => 'Verify', 'copy' => 'the process of determining whether the digital signature on a certificate or digital document remains valid.'],
         ],
+        'goals_title' => 'Benefits for BBH Farm certificates',
         'goals_intro' => 'The following are the objectives of applying digital signatures to electronic certificates:',
         'goals' => [
             ['term' => 'Authentication', 'copy' => 'ensures that the certificate was truly issued by an authorized party or system.'],
@@ -98,6 +102,7 @@ return [
             'In the BBH Farm system, every issued certificate is signed digitally so the validity of its data and PDF document can be checked again. If the certificate data or PDF file changes after issuance, the verification result will show that the certificate is invalid.',
             'Digital signatures can only be verified through digital data or documents. If a certificate is printed, the digital signature on the printed document cannot be checked directly. However, the certificate can include a QR code that leads to the verification page, where users can check the status of superior breeding livestock certificates issued by BBH Farm.',
         ],
+        'verification_note_title' => 'Verification note',
         'technical_title' => 'Technical Specifications',
         'technical_items' => [
             'Algorithm: RSA-SHA256',

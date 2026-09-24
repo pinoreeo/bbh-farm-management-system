@@ -9,9 +9,40 @@ const isDownloadUrl = (url) => {
     return /\/(pdf|xlsx)(?:\/)?$/i.test(url.pathname);
 };
 
-const setPageSkeleton = (loading) => {
+const inferAdminSkeleton = (url) => {
+    const path = url.pathname.replace(/\/+$/, '') || '/';
+
+    if (!path.startsWith('/admin')) return null;
+    if (path === '/admin' || path === '/admin/dashboard') return 'dashboard';
+    if (path === '/admin/profile') return 'form';
+
+    if (/\/(create|edit|mating|exit)$/.test(path)) return 'form';
+    if (/\/preview-frame$/.test(path)) return 'detail';
+
+    const segments = path.split('/').filter(Boolean);
+
+    if (segments.length === 2) return 'table';
+    if (segments.length >= 3) return 'detail';
+
+    return 'table';
+};
+
+const setSkeletonVariant = (loader, type) => {
+    const variant = type || loader.dataset.currentSkeleton || 'table';
+
+    loader.querySelectorAll('[data-skeleton-variant]').forEach((panel) => {
+        if (panel.dataset.skeletonVariant === variant) {
+            panel.removeAttribute('hidden');
+        } else {
+            panel.setAttribute('hidden', '');
+        }
+    });
+};
+
+const setPageSkeleton = (loading, type = null) => {
     document.querySelectorAll('[data-page-loader]').forEach((loader) => {
         if (loading) {
+            setSkeletonVariant(loader, type);
             loader.removeAttribute('hidden');
             document.documentElement.classList.add('is-page-loading');
             loader.setAttribute('aria-busy', 'true');
@@ -21,6 +52,10 @@ const setPageSkeleton = (loading) => {
             loader.removeAttribute('aria-busy');
         }
     });
+};
+
+const targetSkeletonFor = (element, url) => {
+    return element.dataset.skeletonTarget || inferAdminSkeleton(url);
 };
 
 export const initPageSkeleton = () => {
@@ -43,7 +78,7 @@ export const initPageSkeleton = () => {
             return;
         }
 
-        window.requestAnimationFrame(() => setPageSkeleton(true));
+        window.requestAnimationFrame(() => setPageSkeleton(true, targetSkeletonFor(link, url)));
     });
 
     document.addEventListener('submit', (event) => {
@@ -57,6 +92,8 @@ export const initPageSkeleton = () => {
         if (form.target && form.target !== '_self') return;
         if (!form.checkValidity()) return;
 
-        window.requestAnimationFrame(() => setPageSkeleton(true));
+        const url = new URL(form.action || window.location.href, window.location.href);
+
+        window.requestAnimationFrame(() => setPageSkeleton(true, targetSkeletonFor(form, url)));
     });
 };

@@ -2,8 +2,8 @@
     .ui-card {
         border: 1px solid var(--app-border);
         background: var(--app-surface);
-        box-shadow: var(--app-shadow);
-        border-radius: calc(var(--app-radius) + 2px);
+        box-shadow: none;
+        border-radius: var(--app-radius);
     }
 
     .dark .ui-card {
@@ -65,8 +65,8 @@
     .skeleton-panel {
         border: 1px solid var(--app-border);
         background: var(--app-surface);
-        box-shadow: var(--app-shadow);
-        border-radius: calc(var(--app-radius) + 2px);
+        box-shadow: none;
+        border-radius: var(--app-radius);
     }
 
     .skeleton-card {
@@ -99,8 +99,8 @@
     }
 
     .ui-btn {
-        border-radius: calc(var(--app-radius) - 2px);
-        @apply inline-flex h-9 items-center justify-center gap-2 px-4 text-sm font-medium transition;
+        border-radius: 999px;
+        @apply inline-flex h-9 items-center justify-center gap-2 px-3.5 text-sm font-medium transition;
     }
 
     .ui-btn-primary {
@@ -175,8 +175,8 @@
         background: var(--app-surface);
         color: var(--app-text);
         box-shadow: none;
-        border-radius: calc(var(--app-radius) - 2px);
-        @apply h-9 w-full px-3 text-sm outline-none placeholder:text-gray-400;
+        border-radius: .375rem;
+        @apply h-9 w-full px-3 text-sm font-normal outline-none placeholder:text-[var(--app-muted)];
     }
 
     .ui-input:focus {
@@ -248,14 +248,15 @@
     .ui-table th {
         border-bottom: 1px solid var(--app-border);
         color: var(--app-muted);
-        background: var(--app-surface-soft);
-        @apply px-4 py-2.5 text-xs font-medium uppercase tracking-wide first:rounded-l-lg last:rounded-r-lg;
+        background: transparent;
+        letter-spacing: 0;
+        @apply px-4 py-2 text-xs font-medium;
     }
 
     .ui-sort-btn {
         color: inherit;
         letter-spacing: inherit;
-        @apply inline-flex items-center gap-1.5 text-left text-xs font-semibold uppercase;
+        @apply inline-flex items-center gap-1.5 text-left text-xs font-medium;
     }
 
     .ui-sort-icon {
@@ -277,7 +278,7 @@
     }
 
     .ui-table td {
-        border-bottom: 1px solid color-mix(in srgb, var(--app-border) 70%, transparent);
+        border-bottom: 1px solid var(--app-border);
         color: var(--app-text);
         @apply px-4 py-3 align-middle;
     }

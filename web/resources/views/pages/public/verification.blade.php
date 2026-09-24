@@ -1,7 +1,7 @@
 @php($publicCopy = \App\Support\PublicSiteCopy::current())
 
 <x-layouts.guest :title="$publicCopy['nav']['home']" :force-light="true">
-    <div class="bbh-public bbh-profile min-h-screen overflow-hidden bg-white text-[#101820]">
+    <div class="bbh-public bbh-profile min-h-screen overflow-hidden bg-[#f7faf4] text-[var(--bbh-text)]">
         <x-public.navbar />
 
         <main class="pt-[72px] lg:pt-[84px]">

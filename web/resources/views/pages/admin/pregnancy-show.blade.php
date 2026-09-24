@@ -27,21 +27,21 @@
                     ['Status Periode', $periodStatus],
                 ] as [$label, $value])
                     <div class="admin-detail-item">
-                        <p class="text-xs font-medium uppercase tracking-wide theme-muted">{{ $label }}</p>
-                        <p class="mt-2 text-sm font-semibold text-[var(--app-text)]">{{ $value }}</p>
+                        <p class="admin-meta-text uppercase">{{ $label }}</p>
+                        <p class="mt-2 text-sm font-medium text-[var(--app-text)]">{{ $value }}</p>
                     </div>
                 @endforeach
             </div>
 
             <div class="mt-4 grid gap-4 md:grid-cols-2">
                 <div class="admin-detail-item">
-                    <p class="text-xs font-medium uppercase tracking-wide theme-muted">Tanggal Periode</p>
-                    <p class="mt-2 text-sm font-semibold text-[var(--app-text)]">
+                    <p class="admin-meta-text uppercase">Tanggal Periode</p>
+                    <p class="mt-2 text-sm font-medium text-[var(--app-text)]">
                         {{ substr((string) data_get($period, 'start_date', '-'), 0, 10) }} s/d {{ substr((string) data_get($period, 'end_date', '-'), 0, 10) }}
                     </p>
                 </div>
                 <div class="admin-detail-item">
-                    <p class="text-xs font-medium uppercase tracking-wide theme-muted">Ringkasan Betina</p>
+                    <p class="admin-meta-text uppercase">Ringkasan Betina</p>
                     <div class="mt-2 flex flex-wrap gap-2">
                         @foreach ([
                             'Total ' . $summary['total'],

@@ -7,12 +7,12 @@
             Unduh
         </a>
         @if (($row[4] ?? '') === 'Dicabut')
-            <form method="post" action="{{ route('admin.resource.action', ['resource' => $slug, 'id' => $id, 'action' => 'unrevoke']) }}">
+            <form method="post" action="{{ route('admin.resource.action', ['resource' => $slug, 'id' => $id, 'action' => 'unrevoke']) }}" data-skeleton-target="table">
                 @csrf
                 <button class="ui-btn ui-btn-soft h-9 px-3" type="submit">Aktifkan Kembali</button>
             </form>
         @else
-            <form method="post" action="{{ route('admin.resource.action', ['resource' => $slug, 'id' => $id, 'action' => 'revoke']) }}">
+            <form method="post" action="{{ route('admin.resource.action', ['resource' => $slug, 'id' => $id, 'action' => 'revoke']) }}" data-skeleton-target="table">
                 @csrf
                 <button class="ui-btn ui-btn-danger-soft h-9 px-3" type="submit">Cabut Sertifikat</button>
             </form>

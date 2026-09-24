@@ -122,6 +122,12 @@ class AuthSessionController extends Controller
         }
 
         if (! $response->successful()) {
+            if ($response->notFound()) {
+                throw ValidationException::withMessages([
+                    'email' => 'Gagal Masuk: Endpoint API tidak ditemukan. Pastikan backend API berjalan di port 8000 dan web berjalan di port 8001.',
+                ]);
+            }
+
             $message = $response->json('message');
             $errors = $response->json('errors');
 

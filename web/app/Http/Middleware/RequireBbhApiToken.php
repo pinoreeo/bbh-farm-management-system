@@ -23,17 +23,22 @@ class RequireBbhApiToken
         try {
             $response = $this->api->get('auth/me', [], $token);
         } catch (ConnectionException) {
-            session()->forget(['bbh_api_token', 'bbh_admin_user']);
+            session()->flash('adminApiStatus', 'Layanan API sedang tidak merespons. Sesi tetap dipertahankan, tetapi sebagian data mungkin belum dapat dimuat.');
 
-            return redirect()->route('login')
-                ->with('status', 'Sesi tidak dapat divalidasi karena layanan API tidak merespons. Silakan masuk kembali.');
+            return $next($request);
         }
 
-        if (! $response->successful()) {
+        if ($response->status() === 401 || $response->status() === 403) {
             session()->forget(['bbh_api_token', 'bbh_admin_user']);
 
             return redirect()->route('login')
                 ->with('status', 'Sesi Anda sudah berakhir. Silakan masuk kembali.');
+        }
+
+        if (! $response->successful()) {
+            session()->flash('adminApiStatus', 'Layanan API sedang bermasalah. Sesi tetap aktif, tetapi sebagian data mungkin belum dapat dimuat.');
+
+            return $next($request);
         }
 
         session(['bbh_admin_user' => $response->json()]);

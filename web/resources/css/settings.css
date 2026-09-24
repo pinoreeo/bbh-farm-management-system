@@ -5,67 +5,67 @@
 @source '../../storage/framework/views/*.php';
 
 @theme {
-    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --font-sans: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     --font-weight-semibold: 550;
     --font-weight-bold: 650;
     --font-weight-extrabold: 700;
-    --text-xs: 0.8125rem;
-    --text-sm: 0.9375rem;
-    --text-base: 1.0625rem;
-    --text-lg: 1.1875rem;
-    --text-xl: 1.3125rem;
-    --text-2xl: 1.5625rem;
-    --text-3xl: 1.9375rem;
-    --text-4xl: 2.4375rem;
-    --text-5xl: 3.1875rem;
-    --text-6xl: 3.9375rem;
+    --text-xs: 0.75rem;
+    --text-sm: 0.875rem;
+    --text-base: 1rem;
+    --text-lg: 1.125rem;
+    --text-xl: 1.25rem;
+    --text-2xl: 1.5rem;
+    --text-3xl: 1.875rem;
+    --text-4xl: 2.25rem;
+    --text-5xl: 3rem;
+    --text-6xl: 3.75rem;
 }
 
 @layer base {
     :root {
-        --app-radius: .625rem;
-        --app-bg: oklch(100% 0 0);
-        --app-sidebar: oklch(98.5% 0 0);
-        --app-sidebar-soft: oklch(96.5% 0 0);
-        --app-sidebar-text: oklch(14.5% 0 0);
-        --app-sidebar-muted: oklch(55.6% 0 0);
+        --app-radius: .5rem;
+        --app-bg: #FFFFFF;
+        --app-sidebar: #F7F8F7;
+        --app-sidebar-soft: #EEEEEE;
+        --app-sidebar-text: #202020;
+        --app-sidebar-muted: #646464;
         --app-surface: oklch(100% 0 0);
-        --app-surface-soft: oklch(96.5% 0 0);
-        --app-border: oklch(92.2% 0 0);
-        --app-text: oklch(14.5% 0 0);
-        --app-muted: oklch(55.6% 0 0);
-        --app-accent: oklch(52% .14 160);
-        --app-accent-soft: oklch(96.5% 0 0);
-        --app-accent-strong: oklch(42% .12 160);
-        --app-active-text: oklch(39% .11 160);
-        --app-success: oklch(62% .17 145);
+        --app-surface-soft: #F8F9FA;
+        --app-border: #E8E8E8;
+        --app-text: #202020;
+        --app-muted: #646464;
+        --app-accent: #0F6B3A;
+        --app-accent-soft: #EEF5F0;
+        --app-accent-strong: #0A4F2A;
+        --app-active-text: #0F6B3A;
+        --app-success: #0F6B3A;
         --app-warning: oklch(75% .175 75);
         --app-danger: oklch(57.7% .245 27.325);
-        --app-chart: oklch(60% .118 184.704);
+        --app-chart: #0F6B3A;
         --app-shadow: 0 1px 2px rgb(0 0 0 / 4%);
-        --skeleton-base: #EEF2F0;
+        --skeleton-base: #ECEEEC;
         --skeleton-shine: #FAFCFB;
     }
 
     .dark {
-        --app-bg: #101828;
-        --app-sidebar: #0C111D;
-        --app-sidebar-soft: #111827;
-        --app-sidebar-text: #F9FAFB;
-        --app-sidebar-muted: #98A2B3;
-        --app-surface: #111827;
-        --app-surface-soft: #1F2937;
-        --app-border: #344054;
-        --app-text: #F9FAFB;
-        --app-muted: #98A2B3;
-        --app-accent: #22C55E;
-        --app-accent-soft: #102A1A;
-        --app-accent-strong: #4ADE80;
-        --app-active-text: #4ADE80;
-        --app-success: #22C55E;
+        --app-bg: #0E1511;
+        --app-sidebar: #111B15;
+        --app-sidebar-soft: #18271E;
+        --app-sidebar-text: #F4F7F1;
+        --app-sidebar-muted: #A9B8AD;
+        --app-surface: #121D17;
+        --app-surface-soft: #1B2A21;
+        --app-border: #2B4034;
+        --app-text: #F4F7F1;
+        --app-muted: #D7E0D9;
+        --app-accent: #2F8F5B;
+        --app-accent-soft: #173322;
+        --app-accent-strong: #3FA56C;
+        --app-active-text: #8FD3AA;
+        --app-success: #52B779;
         --app-warning: #F59E0B;
         --app-danger: #F43F5E;
-        --app-chart: #22C55E;
+        --app-chart: #8FD3AA;
         --app-shadow: 0 18px 38px rgb(0 0 0 / 22%);
         --skeleton-base: #1F2937;
         --skeleton-shine: #344054;
@@ -97,7 +97,7 @@
         background: var(--app-bg);
         color: var(--app-text);
         font-family: var(--font-sans);
-        font-size: 17px;
+        font-size: 16px;
     }
 
     button,

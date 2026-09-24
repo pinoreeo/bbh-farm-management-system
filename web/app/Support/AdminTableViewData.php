@@ -22,16 +22,16 @@ class AdminTableViewData
      * @param  array<int, array<int, string>>  $fallbackRows
      * @return array<int, array<int, string>>
      */
-    public function rows(string $slug, array $fallbackRows, ?string $token): array
+    public function rows(string $slug, array $fallbackRows, ?string $token, int $maxPages = 50, array $extraQuery = []): array
     {
-        return array_map(fn ($record) => $record['cells'], $this->records($slug, $fallbackRows, $token));
+        return array_map(fn ($record) => $record['cells'], $this->records($slug, $fallbackRows, $token, $maxPages, $extraQuery));
     }
 
     /**
      * @param  array<int, array<int, string>>  $fallbackRows
      * @return array<int, array{id:int, cells:array<int, string>, raw:array<string, mixed>}>
      */
-    public function records(string $slug, array $fallbackRows, ?string $token): array
+    public function records(string $slug, array $fallbackRows, ?string $token, int $maxPages = 50, array $extraQuery = []): array
     {
         if (! is_string($token) || $token === '') {
             return $this->fallbackRecords($fallbackRows);
@@ -43,7 +43,7 @@ class AdminTableViewData
         }
 
         try {
-            $result = $this->api->paginatedData($endpoint, $this->queryFor($slug), $token);
+            $result = $this->api->paginatedData($endpoint, $this->queryFor($slug, $extraQuery), $token, $maxPages);
         } catch (Throwable) {
             $this->failureMessage = 'Gagal: Layanan API tidak merespons. Data tidak dapat dimuat saat ini.';
 
@@ -69,6 +69,18 @@ class AdminTableViewData
         )));
 
         return $rows;
+    }
+
+    /**
+     * @return array{id:int, cells:array<int, string>, raw:array<string, mixed>}
+     */
+    public function recordFromItem(string $slug, array $item): array
+    {
+        return [
+            'id' => (int) ($item['id'] ?? 0),
+            'cells' => $this->mapRow($slug, $item),
+            'raw' => $item,
+        ];
     }
 
     private function apiFailureMessage(Response $response): string
@@ -110,7 +122,7 @@ class AdminTableViewData
     /**
      * @return array<string, mixed>
      */
-    private function queryFor(string $slug): array
+    private function queryFor(string $slug, array $extraQuery = []): array
     {
         $query = match ($slug) {
             'breeding-periods', 'pregnancy-checks' => ['include_closed' => 1],
@@ -125,7 +137,7 @@ class AdminTableViewData
             }
         }
 
-        return $query;
+        return array_merge($query, array_filter($extraQuery, fn ($value) => $value !== null && $value !== ''));
     }
 
     /**

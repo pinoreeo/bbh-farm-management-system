@@ -104,16 +104,16 @@
         $pdfRows = array_values(array_filter($pdfRows, fn ($row) => ! empty($row[1]) && $row[1] !== '-'));
     @endphp
 
-    <div class="bbh-public bbh-verification-result flex min-h-screen flex-col bg-[#f5f7f1] text-[#101820]">
+    <div class="bbh-public bbh-verification-result flex min-h-screen flex-col bg-[#f7faf4] text-[var(--bbh-text)]">
         <x-public.navbar />
 
-        <main class="bbh-result-shell mx-auto flex-1 px-5 pb-16 pt-36 sm:px-8 lg:pb-20 lg:pt-40">
-            <div class="mb-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <main class="bbh-result-shell mx-auto flex-1 px-6 pb-16 pt-28 sm:px-8 lg:px-10 lg:pb-20 lg:pt-32 xl:px-0">
+            <div class="bbh-result-hero mb-8 flex flex-col gap-5 rounded-[14px] border border-[#dfe9d9] bg-white px-6 py-7 text-[var(--bbh-text)] sm:flex-row sm:items-center sm:justify-between sm:px-8">
                 <div>
                     <p class="bbh-result-eyebrow">{{ $verificationResult['method_label'] ?? 'Verifikasi Sertifikat' }}</p>
                     <h1 class="bbh-result-title mt-2">Hasil Verifikasi Sertifikat</h1>
                 </div>
-                <a class="bbh-result-action inline-flex w-fit" href="{{ route('verification') }}">Verifikasi Lagi</a>
+                <a class="bbh-result-action bbh-result-action-primary inline-flex w-fit" href="{{ route('verification') }}">Verifikasi Lagi</a>
             </div>
 
             <x-public.result-status :is-valid="$isValid" :result="$verificationResult" />

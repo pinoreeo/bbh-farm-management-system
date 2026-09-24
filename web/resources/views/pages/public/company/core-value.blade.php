@@ -1,20 +1,16 @@
 @php($copy = $publicCopy ?? \App\Support\PublicSiteCopy::current())
 
-<section id="tentang" class="flex min-h-[176px] scroll-mt-[72px] items-center bg-[#101820] px-6 py-10 text-center text-white sm:px-8 lg:h-[176px] lg:min-h-0 lg:scroll-mt-[84px] lg:px-10 lg:py-0">
-    <div class="mx-auto max-w-[1400px]">
-        <h2 class="bbh-heading lg:whitespace-nowrap">{{ $copy['core']['title'] }}</h2>
+<section id="tentang" class="scroll-mt-[72px] border-b border-[#dfe9d9] bg-[#f7faf4] px-6 py-12 sm:px-8 lg:scroll-mt-[84px] lg:px-10 lg:py-16">
+    <div class="mx-auto max-w-[1012px] text-center">
+        <h2 class="bbh-heading mx-auto max-w-[900px]">{{ $copy['core']['title'] }}</h2>
     </div>
-</section>
 
-<div class="bbh-core-curve -mt-px bg-[#101820]" aria-hidden="true"></div>
-
-<section class="relative z-10 -mt-2 bg-white px-6 pb-10 pt-10 sm:px-8 lg:px-10 lg:pt-12">
-    <div class="relative mx-auto grid max-w-[1012px] gap-8 text-center sm:grid-cols-3 lg:gap-10">
+    <div class="relative mx-auto mt-8 grid max-w-[1012px] gap-4 text-center sm:grid-cols-3 lg:gap-5">
         @foreach ($copy['core']['points'] as $point)
-            <div>
-                <h3 class="bbh-h3 font-extrabold">{{ $point[0] }}</h3>
-                <p class="mt-4 bbh-text font-medium text-[#626c65]">{{ $point[1] }}</p>
-            </div>
+            <article class="rounded-[14px] border border-[#dfe9d9] bg-white p-6 shadow-none">
+                <h3 class="bbh-h3 text-[var(--bbh-text)]">{{ $point[0] }}</h3>
+                <p class="mt-4 bbh-text text-[var(--bbh-muted)]">{{ $point[1] }}</p>
+            </article>
         @endforeach
     </div>
 </section>

@@ -41,7 +41,7 @@
                 ] as $label => $value)
                     <div class="flex justify-between gap-4 border-b pb-2" style="border-color: var(--app-border);">
                         <dt class="theme-muted">{{ $label }}</dt>
-                        <dd class="text-right font-semibold" style="color: var(--app-text);">{{ $value ?: '-' }}</dd>
+                        <dd class="text-right font-medium" style="color: var(--app-text);">{{ $value ?: '-' }}</dd>
                     </div>
                 @endforeach
             </dl>
