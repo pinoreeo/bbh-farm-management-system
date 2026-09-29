@@ -88,9 +88,14 @@ class BbhApiClient
                 ];
             }
 
-            $pageItems = $response->json('data', []);
+            $pageItems = $response->json('data');
             if (! is_array($pageItems)) {
-                break;
+                return [
+                    'ok' => false,
+                    'data' => [],
+                    'response' => $response,
+                    'truncated' => false,
+                ];
             }
 
             array_push($items, ...$pageItems);
@@ -157,8 +162,17 @@ class BbhApiClient
                 continue;
             }
 
-            $pageItems = $response->json('data', []);
-            $pageItems = is_array($pageItems) ? $pageItems : [];
+            $pageItems = $response->json('data');
+            if (! is_array($pageItems)) {
+                $results[$key] = [
+                    'ok' => false,
+                    'data' => [],
+                    'response' => $response,
+                    'truncated' => false,
+                ];
+
+                continue;
+            }
             $currentPage = max(1, (int) $response->json('current_page', 1));
             $lastPage = max($currentPage, (int) $response->json('last_page', $currentPage));
 
@@ -179,23 +193,40 @@ class BbhApiClient
             }
         }
 
-        foreach ($this->getMany($followUpRequests, $token) as $followUpKey => $response) {
-            $owner = $followUpOwners[$followUpKey] ?? null;
-            if (! is_string($owner) || ! isset($results[$owner])) {
-                continue;
-            }
+        foreach (array_chunk($followUpRequests, 20, true) as $requestBatch) {
+            $responses = $this->getMany($requestBatch, $token);
+            foreach (array_keys($requestBatch) as $followUpKey) {
+                $owner = $followUpOwners[$followUpKey] ?? null;
+                if (! is_string($owner) || ! isset($results[$owner]) || ! $results[$owner]['ok']) {
+                    continue;
+                }
 
-            $results[$owner]['response'] = $response;
+                $response = $responses[$followUpKey] ?? null;
+                if (! $response instanceof Response) {
+                    $results[$owner]['ok'] = false;
+                    $results[$owner]['data'] = [];
+                    $results[$owner]['response'] = null;
 
-            if (! $response->successful()) {
-                $results[$owner]['ok'] = false;
-                $results[$owner]['data'] = [];
+                    continue;
+                }
 
-                continue;
-            }
+                $results[$owner]['response'] = $response;
 
-            $pageItems = $response->json('data', []);
-            if (is_array($pageItems)) {
+                if (! $response->successful()) {
+                    $results[$owner]['ok'] = false;
+                    $results[$owner]['data'] = [];
+
+                    continue;
+                }
+
+                $pageItems = $response->json('data');
+                if (! is_array($pageItems)) {
+                    $results[$owner]['ok'] = false;
+                    $results[$owner]['data'] = [];
+
+                    continue;
+                }
+
                 array_push($results[$owner]['data'], ...$pageItems);
             }
         }

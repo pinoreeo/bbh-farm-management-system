@@ -195,34 +195,6 @@
         background: var(--bbh-action);
     }
 
-    .bbh-public-nav .bbh-nav-action {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid var(--bbh-action);
-        border-radius: 999px;
-        background: var(--bbh-action);
-        color: #ffffff;
-        font-size: 13px !important;
-        font-weight: 500 !important;
-        line-height: 18px !important;
-        padding: 6px 13px;
-        transition: border-color 180ms ease, background-color 180ms ease;
-    }
-
-    .bbh-public-nav .bbh-nav-action:hover {
-        border-color: var(--bbh-action-hover);
-        background: var(--bbh-action-hover);
-    }
-
-    @media (max-width: 1023px) {
-        .bbh-public-nav .bbh-nav-action {
-            font-size: 12px !important;
-            line-height: 18px !important;
-            padding: 10px 14px;
-        }
-    }
-
     .bbh-public-footer :where(.bbh-small) {
         font-size: 12px !important;
         line-height: 18px !important;
@@ -821,6 +793,332 @@
     @media (min-width: 1280px) {
         .bbh-public-container {
             padding-inline: 0;
+        }
+    }
+}
+
+@layer components {
+    /* Field Ledger: a confident editorial identity for the public farm experience. */
+    .bbh-public,
+    .bbh-profile,
+    .bbh-public-nav,
+    .bbh-public-footer {
+        --bbh-green: #183D2E;
+        --bbh-green-dark: #0F281D;
+        --bbh-lime: #C7EE72;
+        --bbh-text: #173128;
+        --bbh-muted: #5C7064;
+        --bbh-dark: #10251B;
+        --bbh-dark-soft: #1D382B;
+        --bbh-chrome-bg: #10231A;
+        --bbh-action: #2D6C4B;
+        --bbh-action-hover: #173D2B;
+        font-family: var(--font-sans);
+    }
+
+    .bbh-profile {
+        background: #F3F6EF;
+    }
+
+    .bbh-public-nav {
+        background: var(--bbh-chrome-bg);
+        border-color: rgb(255 255 255 / 10%);
+        color: #FFFFFF;
+        box-shadow: 0 8px 24px rgb(15 40 29 / 4%);
+        backdrop-filter: blur(16px);
+    }
+
+    .bbh-public-nav .bbh-nav-link {
+        color: rgb(255 255 255 / 72%);
+    }
+
+    .bbh-public-nav .bbh-nav-link:hover,
+    .bbh-public-nav .bbh-nav-link.is-active {
+        color: #FFFFFF;
+    }
+
+    .bbh-public-nav .bbh-nav-link.is-active {
+        color: #FFFFFF;
+        font-weight: 700 !important;
+    }
+
+    .bbh-public-nav .bbh-nav-link.is-active::after {
+        display: none;
+    }
+
+    .bbh-public .bbh-public-action,
+    .bbh-public .bbh-hero-action,
+    .bbh-public .bbh-public-action-secondary {
+        border-radius: 8px;
+        min-height: 42px;
+        padding-inline: 18px;
+    }
+
+    .bbh-nav-menu-button {
+        border-color: rgb(255 255 255 / 24%);
+        color: #FFFFFF;
+        border-radius: 8px;
+    }
+
+    .bbh-nav-mobile {
+        background: var(--bbh-chrome-bg);
+        border-color: rgb(255 255 255 / 10%);
+    }
+
+    .bbh-public .bbh-hero-section {
+        background: #0D281C;
+        min-height: max(636px, calc(100svh - 84px));
+    }
+
+    .bbh-public .bbh-hero-pattern {
+        display: block;
+        color: #42684F;
+        opacity: .42;
+    }
+
+    .bbh-public .bbh-hero-pattern span {
+        border-color: currentColor;
+        border-radius: 28px;
+    }
+
+    .bbh-public .bbh-hero-inner {
+        max-width: 1280px;
+        grid-template-columns: minmax(0, .94fr) minmax(390px, .86fr);
+    }
+
+    .bbh-public .bbh-hero-content {
+        max-width: 650px;
+        transform: none;
+    }
+
+    .bbh-public .bbh-hero-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--bbh-lime);
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        line-height: 18px !important;
+        text-transform: uppercase;
+    }
+
+    .bbh-public .bbh-hero-brand span {
+        color: rgb(255 255 255 / 54%);
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .bbh-public .bbh-hero-title,
+    .bbh-public h1.bbh-hero-title {
+        color: #F7FAF3;
+        font-family: var(--font-sans);
+        font-size: clamp(3.2rem, 4.5vw, 4.45rem) !important;
+        font-weight: 600 !important;
+        line-height: 1.08 !important;
+        text-wrap: balance;
+    }
+
+    .bbh-public .bbh-hero-copy {
+        color: rgb(247 250 243 / 78%);
+        font-size: 17px !important;
+        font-weight: 400 !important;
+        line-height: 1.65 !important;
+    }
+
+    .bbh-public .bbh-hero-action {
+        min-height: 46px;
+        font-size: 14px !important;
+    }
+
+    .bbh-public .bbh-hero-action-primary {
+        border-color: #10231A;
+        background: #10231A;
+        color: #FFFFFF;
+    }
+
+    .bbh-public .bbh-hero-action-primary:hover {
+        border-color: #183D2E;
+        background: #183D2E;
+        color: #FFFFFF;
+    }
+
+    .bbh-public .bbh-hero-action-secondary {
+        border-color: rgb(255 255 255 / 32%);
+        background: transparent;
+        color: #F7FAF3;
+    }
+
+    .bbh-public .bbh-hero-action-secondary:hover {
+        border-color: #F7FAF3;
+        background: transparent;
+        color: #F7FAF3;
+    }
+
+    .bbh-public .bbh-hero-visual {
+        align-self: stretch;
+    }
+
+    .bbh-public .bbh-goat-cutout {
+        filter: saturate(.9) contrast(1.04);
+    }
+
+    .bbh-public #tentang {
+        border-color: #D4DED1;
+        background: #F3F6EF;
+        padding-block: 88px;
+    }
+
+    .bbh-public #tentang .bbh-heading,
+    .bbh-public #fokus .bbh-heading,
+    .bbh-public #verifikasi .bbh-heading {
+        font-family: var(--font-sans);
+        font-size: clamp(2.1rem, 3.2vw, 3.2rem) !important;
+        font-weight: 600 !important;
+        line-height: 1.12 !important;
+    }
+
+    .bbh-public #tentang article {
+        position: relative;
+        border-color: #D4DED1;
+        border-radius: 8px;
+        background: #FFFFFF;
+        box-shadow: 0 12px 28px rgb(23 49 40 / 4%);
+    }
+
+    .bbh-public #fokus {
+        border-color: #253E31;
+        background: #122D20;
+        color: #F6FAF2;
+        padding-block: 88px;
+    }
+
+    .bbh-public #fokus :where(.bbh-heading, .bbh-h3) {
+        color: #F6FAF2;
+    }
+
+    .bbh-public #fokus .bbh-stat-card {
+        border-color: #3C5C4A;
+        border-radius: 8px;
+        background: #1A3729;
+    }
+
+    .bbh-public #fokus .bbh-stat-card:nth-child(2) {
+        background: #1E3C2D;
+    }
+
+    .bbh-public #fokus .bbh-stat-card:nth-child(3) {
+        background: #224231;
+    }
+
+    .bbh-public #fokus .bbh-stat-card p {
+        color: rgb(246 250 242 / 70%) !important;
+    }
+
+    .bbh-public #galeri {
+        border-color: #D4DED1;
+        background: #FFFFFF;
+        padding-block: 56px;
+    }
+
+    .bbh-public .bbh-gallery {
+        border-radius: 8px;
+    }
+
+    .bbh-public .bbh-gallery h3 {
+        color: #FFFFFF;
+    }
+
+    .bbh-public .bbh-gallery p {
+        color: rgb(255 255 255 / 85%);
+    }
+
+    .bbh-public #verifikasi {
+        background: #E6EDE0;
+        padding-block: 88px;
+    }
+
+    .bbh-public #verifikasi form {
+        border-color: #B9CDB9;
+        border-radius: 8px;
+        background: #F9FBF6;
+        box-shadow: 0 18px 42px rgb(23 49 40 / 7%);
+    }
+
+    .bbh-public #verifikasi form > div {
+        border-color: #B9CDB9;
+        border-radius: 8px;
+    }
+
+    .bbh-public .bbh-public-action {
+        border-radius: 8px;
+        background: #10231A;
+    }
+
+    .bbh-public .bbh-public-action:hover {
+        background: #183D2E;
+    }
+
+    .bbh-result-action-invert,
+    .bbh-result-action-primary {
+        border-color: #10231A;
+        background: #10231A;
+    }
+
+    .bbh-result-action-invert:hover,
+    .bbh-result-action.bbh-result-action-primary:hover {
+        border-color: #183D2E;
+        background: #183D2E;
+    }
+
+    .bbh-public .bbh-public-action-secondary {
+        border-color: #B9CDB9;
+        border-radius: 8px;
+        color: var(--bbh-text);
+    }
+
+    .bbh-public-footer {
+        background: var(--bbh-chrome-bg);
+        padding-top: 56px;
+    }
+
+    .bbh-public-footer details summary,
+    .bbh-public-footer details > div {
+        border-radius: 8px !important;
+    }
+
+    @media (max-width: 1023px) {
+        .bbh-public .bbh-hero-section {
+            min-height: 0;
+        }
+
+        .bbh-public .bbh-hero-inner {
+            grid-template-columns: 1fr;
+        }
+
+        .bbh-public .bbh-hero-visual {
+            border: 0;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .bbh-public .bbh-hero-title,
+        .bbh-public h1.bbh-hero-title {
+            font-size: 3rem !important;
+            line-height: 1.05 !important;
+        }
+
+        .bbh-public .bbh-hero-copy {
+            font-size: 16px !important;
+        }
+
+        .bbh-public #tentang,
+        .bbh-public #fokus,
+        .bbh-public #verifikasi {
+            padding-block: 56px;
+        }
+
+        .bbh-public #galeri {
+            padding-block: 48px;
         }
     }
 }

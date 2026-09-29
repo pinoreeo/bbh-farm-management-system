@@ -1,22 +1,29 @@
 import { initMobileSidebar } from './modules/mobile-sidebar';
-import { initNotificationMenu } from './modules/notifications';
+import { initNotificationFeed, initNotificationMenu, initProfileMenu } from './modules/notifications';
 import { initPageSkeleton } from './modules/page-skeleton';
 import { initPublicGallery } from './modules/public-gallery';
 import { initPublicNavigation } from './modules/public-navigation';
 import { initPublicPdfInputs } from './modules/public-pdf-inputs';
 import { initSortableTables } from './modules/sortable-tables';
-import { initThemeToggle } from './modules/theme';
 import { initAdminForms } from './modules/admin-forms';
-import { initLiveSearch } from './modules/live-search';
-
-initThemeToggle();
+import { initResourceColumns } from './modules/resource-columns';
+import { initSettingsTabs } from './modules/settings-tabs';
+import { initDashboardCharts } from './modules/dashboard-chart';
+import { initFlashToasts } from './modules/flash-toast';
+import { initRowActions } from './modules/row-actions';
 
 document.addEventListener('DOMContentLoaded', initSortableTables);
 document.addEventListener('DOMContentLoaded', initMobileSidebar);
 document.addEventListener('DOMContentLoaded', initPageSkeleton);
 document.addEventListener('DOMContentLoaded', initNotificationMenu);
+document.addEventListener('DOMContentLoaded', initProfileMenu);
+document.addEventListener('DOMContentLoaded', initNotificationFeed);
 document.addEventListener('DOMContentLoaded', initAdminForms);
-document.addEventListener('DOMContentLoaded', initLiveSearch);
+document.addEventListener('DOMContentLoaded', initResourceColumns);
+document.addEventListener('DOMContentLoaded', initSettingsTabs);
+document.addEventListener('DOMContentLoaded', initDashboardCharts);
+document.addEventListener('DOMContentLoaded', initFlashToasts);
+document.addEventListener('DOMContentLoaded', initRowActions);
 document.addEventListener('DOMContentLoaded', initPublicGallery);
 document.addEventListener('DOMContentLoaded', initPublicNavigation);
 document.addEventListener('DOMContentLoaded', initPublicPdfInputs);

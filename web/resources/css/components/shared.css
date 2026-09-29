@@ -99,7 +99,7 @@
     }
 
     .ui-btn {
-        border-radius: 999px;
+        border-radius: 8px;
         @apply inline-flex h-9 items-center justify-center gap-2 px-3.5 text-sm font-medium transition;
     }
 
@@ -256,6 +256,7 @@
     .ui-sort-btn {
         color: inherit;
         letter-spacing: inherit;
+        text-decoration: none;
         @apply inline-flex items-center gap-1.5 text-left text-xs font-medium;
     }
 

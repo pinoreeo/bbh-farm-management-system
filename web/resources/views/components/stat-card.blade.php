@@ -1,4 +1,4 @@
-@props(['label', 'value', 'note' => null, 'tone' => 'neutral', 'trend' => [], 'icon' => 'dashboard'])
+@props(['label', 'value', 'note' => null, 'tone' => 'neutral', 'trend' => []])
 
 @php
     $trendValues = array_values(array_map('intval', is_array($trend) ? $trend : []));
@@ -32,14 +32,11 @@
 
 <article class="dashboard-stat-card" data-tone="{{ $tone }}">
     <div class="relative flex h-full flex-col justify-between gap-5">
-        <div class="flex items-start justify-between gap-4">
+        <div>
             <div>
                 <p class="admin-meta-text">{{ $label }}</p>
                 <p class="mt-2 text-2xl font-semibold leading-none text-[var(--app-text)]">{{ $value }}</p>
             </div>
-            <span class="dashboard-stat-icon" aria-hidden="true">
-                <x-icons :name="$icon" class="h-5 w-5" />
-            </span>
         </div>
         <div>
             @if ($note)

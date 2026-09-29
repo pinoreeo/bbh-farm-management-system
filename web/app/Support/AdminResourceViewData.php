@@ -8,6 +8,9 @@ use Illuminate\Support\Arr;
 
 class AdminResourceViewData
 {
+    /** @var array<string, array<int, array<string, mixed>>> */
+    private array $itemsCache = [];
+
     public function __construct(private readonly BbhApiClient $api) {}
 
     public function endpoint(string $slug): ?string
@@ -37,14 +40,29 @@ class AdminResourceViewData
      * @param  array<int, array<string, mixed>>  $fields
      * @return array<int, array<string, mixed>>
      */
-    public function fields(string $slug, array $fields, ?string $token): array
+    public function fields(string $slug, array $fields, ?string $token, ?array $values = null): array
     {
         if (! is_string($token) || $token === '') {
             return $fields;
         }
 
-        return array_map(function ($field) use ($slug, $token) {
+        return array_map(function ($field) use ($slug, $token, $values) {
             if (! is_array($field)) {
+                return $field;
+            }
+
+            if ($slug === 'animals' && ($field['name'] ?? '') === 'life_status'
+                && data_get($values, 'life_status') === 'dead') {
+                $field['options'] = ['dead' => 'Mati'];
+            }
+
+            if ($slug === 'birth-events' && $values !== null && in_array($field['name'] ?? '', ['dam_id', 'sire_id'], true)) {
+                $name = $field['name'];
+                $relation = $name === 'dam_id' ? 'dam' : 'sire';
+                $field['readonly'] = true;
+                $field['options'] = [(string) ($values[$name] ?? '') => (string) data_get($values, $relation.'.tag_number', '-')];
+                unset($field['depends_on'], $field['option_meta']);
+
                 return $field;
             }
 
@@ -279,11 +297,36 @@ class AdminResourceViewData
         return $label;
     }
 
+    private function historyActionLabel(string $action): string
+    {
+        return match ($action) {
+            'create' => 'Data dibuat',
+            'update' => 'Data diperbarui',
+            'activate' => 'Data diaktifkan',
+            'deactivate' => 'Data dinonaktifkan',
+            'revoke' => 'Data dicabut',
+            'unrevoke' => 'Data diaktifkan kembali',
+            'mating' => 'Tanggal kawin dicatat',
+            'exit' => 'Data dikeluarkan',
+            default => str($action)->replace('-', ' ')->title()->toString(),
+        };
+    }
+
+    private function historyTimestamp(string $value): string
+    {
+        return $value === '' ? '-' : str_replace('T', ' ', substr($value, 0, 16));
+    }
+
     /**
      * @return array<int, array<string, mixed>>
      */
     private function items(string $endpoint, string $token): array
     {
+        $cacheKey = $endpoint.'|'.hash('sha256', $token);
+        if (array_key_exists($cacheKey, $this->itemsCache)) {
+            return $this->itemsCache[$cacheKey];
+        }
+
         $query = [];
 
         if ($endpoint === 'breeding-periods') {
@@ -294,9 +337,11 @@ class AdminResourceViewData
             $query['include_inactive'] = 1;
         }
 
-        $result = $this->api->paginatedData($endpoint, $query, $token);
+        $result = $this->api->paginatedBatchData([
+            'items' => ['path' => $endpoint, 'query' => $query],
+        ], $token, PHP_INT_MAX)['items'];
 
-        return $result['ok'] ? $result['data'] : [];
+        return $this->itemsCache[$cacheKey] = $result['ok'] ? $result['data'] : [];
     }
 
     /**
@@ -317,22 +362,84 @@ class AdminResourceViewData
     }
 
     /**
+     * Resolve the public-facing animal eartag to its internal API record.
+     *
      * @return array<string, mixed>
      */
-    public function pregnancyPeriod(int $periodId, string $token): array
+    public function animalByTag(string $tag, string $token): array
+    {
+        $normalizedTag = trim($tag);
+        if ($normalizedTag === '') {
+            return [];
+        }
+
+        $result = $this->api->paginatedData('animals', ['tag_number' => $normalizedTag], $token, 1);
+        $animal = collect($result['ok'] ? $result['data'] : [])
+            ->first(fn ($item) => is_array($item)
+                && strcasecmp(trim((string) Arr::get($item, 'tag_number')), $normalizedTag) === 0);
+
+        return is_array($animal) ? $animal : [];
+    }
+
+    /**
+     * @return array<int, array{action:string, description:string, admin:string, performed_at:string}>
+     */
+    public function activityHistory(string $slug, int $id, string $token): array
+    {
+        $module = $this->endpoint($slug);
+        if ($module === null) {
+            return [];
+        }
+
+        $response = $this->api->get('admin-activity-logs', [
+            'module' => $module,
+            'subject_id' => $id,
+            'per_page' => 8,
+        ], $token);
+
+        if (! $response->successful()) {
+            return [];
+        }
+
+        $items = $response->json('data', []);
+        if (! is_array($items)) {
+            return [];
+        }
+
+        return collect($items)
+            ->filter(fn ($item) => is_array($item) && (int) Arr::get($item, 'subject_id') === $id)
+            ->map(fn (array $item) => [
+                'action' => $this->historyActionLabel((string) Arr::get($item, 'action', 'update')),
+                'description' => (string) Arr::get($item, 'description', 'Perubahan data dicatat.'),
+                'admin' => (string) (Arr::get($item, 'admin_name') ?: Arr::get($item, 'admin.name') ?: 'Sistem'),
+                'performed_at' => $this->historyTimestamp((string) Arr::get($item, 'created_at', '')),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function breedingPeriodContext(int $periodId, string $token): array
     {
         $period = $this->api->get("breeding-periods/{$periodId}", [], $token);
         if (! $period->successful() || ! is_array($period->json())) {
             return [];
         }
 
-        $females = $this->api->paginatedData('breeding-females', [
-            'breeding_period_id' => $periodId,
-        ], $token);
-
-        $checks = $this->api->paginatedData('pregnancy-checks', [
-            'breeding_period_id' => $periodId,
-        ], $token);
+        $related = $this->api->paginatedBatchData([
+            'females' => [
+                'path' => 'breeding-females',
+                'query' => ['breeding_period_id' => $periodId],
+            ],
+            'checks' => [
+                'path' => 'pregnancy-checks',
+                'query' => ['breeding_period_id' => $periodId],
+            ],
+        ], $token, PHP_INT_MAX);
+        $females = $related['females'];
+        $checks = $related['checks'];
 
         $checkItems = $checks['ok'] ? $checks['data'] : [];
         $latestChecks = collect($checkItems)
@@ -372,6 +479,18 @@ class AdminResourceViewData
                 'born' => collect($femaleRows)->where('pregnancy_status', 'Lahir')->count(),
             ],
         ];
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    public function breedingFemaleCounts(string $token): array
+    {
+        return collect($this->items('breeding-females', $token))
+            ->filter(fn ($item) => is_array($item) && Arr::get($item, 'breeding_period_id') !== null)
+            ->countBy(fn ($item) => (string) Arr::get($item, 'breeding_period_id'))
+            ->map(fn ($count) => (int) $count)
+            ->all();
     }
 
     private function pregnancyStatus(array $check): string
@@ -470,6 +589,11 @@ class AdminResourceViewData
         return $this->api->put($this->endpoint($slug)."/{$id}", $data, $token);
     }
 
+    public function sendUserPasswordResetLink(int $id, string $token): Response
+    {
+        return $this->api->post("users/{$id}/send-password-reset", [], $token);
+    }
+
     public function revokeCertificate(int $id, string $token): Response
     {
         return $this->api->post("certificates/{$id}/revoke", ['reason' => 'Dicabut melalui dashboard Laravel.'], $token);
@@ -537,7 +661,7 @@ class AdminResourceViewData
             'activate' => "Sukses: {$resource} berhasil diaktifkan.",
             'deactivate' => "Sukses: {$resource} berhasil dinonaktifkan.",
             'compromise' => 'Peringatan: RSA Key dinonaktifkan dari sistem penandatanganan.',
-            'exit' => 'Sukses: Betina berhasil dikeluarkan dari periode kawin.',
+            'exit' => 'Sukses: Catatan keluar betina dari periode perkawinan berhasil disimpan.',
             'mating' => 'Sukses: Tanggal kawin berhasil dicatat.',
             default => 'Sukses: Perubahan data berhasil disimpan.',
         };
@@ -553,6 +677,18 @@ class AdminResourceViewData
      */
     public function failureMessages(Response $response, string $fallback): array
     {
+        if ($response->status() === 401) {
+            return ['Sesi Berakhir: Sesi login Anda telah berakhir. Silakan login kembali.'];
+        }
+
+        if ($response->status() === 403) {
+            return ['Peringatan: Akun Anda tidak memiliki izin untuk melakukan tindakan ini.'];
+        }
+
+        if ($response->serverError()) {
+            return ['Gagal: Layanan belum dapat diakses. Silakan coba lagi.'];
+        }
+
         $errors = $response->json('errors');
 
         if (is_array($errors) && $errors !== []) {
@@ -615,8 +751,13 @@ class AdminResourceViewData
             $data['is_active'] = true;
         }
 
-        if ($slug === 'animals' && array_key_exists('exit_status', $data) && $data['exit_status'] !== null && ! array_key_exists('status_date', $data)) {
-            $data['status_date'] = now()->toDateString();
+        if ($slug === 'animals') {
+            if (($data['life_status'] ?? null) !== 'dead') {
+                unset($data['status_date']);
+            }
+            if (array_key_exists('exit_status', $data) && $data['exit_status'] !== null && ! array_key_exists('status_date', $data)) {
+                $data['status_date'] = now()->toDateString();
+            }
         }
 
         if ($slug === 'rsa-keys') {
@@ -626,6 +767,7 @@ class AdminResourceViewData
         if ($editing) {
             foreach ([
                 'weight-records' => ['animal_id'],
+                'birth-events' => ['dam_id', 'sire_id'],
                 'breeding-females' => ['breeding_period_id', 'female_animal_id'],
                 'offspring-births' => ['birth_event_id', 'offspring_animal_id', 'tag_number', 'breed_id', 'generation', 'sex'],
                 'postnatal-care' => ['birth_event_id', 'target_animal_id'],
@@ -687,54 +829,65 @@ class AdminResourceViewData
 
     private function translateValidationMessage(string $field, string $message): string
     {
+        // Pesan dari API yang sudah diterjemahkan tidak perlu diberi label kedua.
+        if (preg_match('/^(Peringatan|Gagal|Sukses|Info|Gagal Masuk): /', $message)) {
+            return $message;
+        }
+
         $label = $this->fieldLabel($field);
         $lower = strtolower($message);
 
-        if (str_contains($lower, 'required')) {
-            return "Peringatan: Kolom {$label} wajib diisi.";
+        if (str_contains($lower, 'field is required')) {
+            return "Peringatan: {$label} wajib diisi.";
         }
 
-        if (str_contains($lower, 'already been taken') || str_contains($lower, 'has already been taken') || str_contains($lower, 'unique')) {
-            return "Peringatan: {$label} sudah terdaftar. Gunakan nilai yang berbeda.";
+        if (str_contains($lower, 'already been taken')) {
+            return "Peringatan: {$label} ini sudah digunakan.";
         }
 
         if (str_contains($lower, 'must be an integer') || str_contains($lower, 'must be a valid integer')) {
-            return "Peringatan: Isian {$label} harus sesuai dengan pilihan yang tersedia.";
+            return "Peringatan: {$label} harus berupa angka bulat.";
         }
 
         if (str_contains($lower, 'selected') && str_contains($lower, 'invalid')) {
-            return "Peringatan: Pilihan {$label} tidak valid atau sudah tidak aktif.";
+            return "Peringatan: Pilih {$label} dari pilihan yang tersedia.";
+        }
+
+        if (str_contains($lower, 'valid email')) {
+            return 'Peringatan: Masukkan alamat email yang benar.';
         }
 
         if (str_contains($lower, 'must be a date') || str_contains($lower, 'not a valid date')) {
-            return "Peringatan: Kolom {$label} harus menggunakan format tanggal yang valid.";
+            return "Peringatan: Masukkan tanggal yang benar untuk {$label}.";
         }
 
-        if (str_contains($lower, 'before or equal') || str_contains($lower, 'before_or_equal')) {
-            return "Peringatan: Tanggal {$label} tidak boleh melebihi hari ini.";
+        if (str_contains($lower, 'must be true or false')) {
+            return "Peringatan: Pilih {$label} dari pilihan yang tersedia.";
         }
 
-        if (str_contains($lower, 'must be true or false') || str_contains($lower, 'boolean')) {
-            return "Peringatan: Kolom {$label} wajib memilih 'Ya' atau 'Tidak'.";
+        if (str_contains($lower, 'must be a number')) {
+            return "Peringatan: {$label} harus berupa angka.";
         }
 
-        if (str_contains($lower, 'must be a number') || str_contains($lower, 'numeric')) {
-            return "Peringatan: Kolom {$label} hanya boleh diisi dengan angka.";
+        if (preg_match('/(?:must be at least|must not be greater than|may not be greater than) (-?[0-9.]+)( characters| kilobytes| items)?\\./', $message, $matches)) {
+            $limit = str_contains($lower, 'at least') ? 'minimal' : 'maksimal';
+            $unit = match ($matches[2] ?? '') {
+                ' characters' => ' karakter',
+                ' kilobytes' => ' KB',
+                ' items' => ' data',
+                default => '',
+            };
+
+            return "Peringatan: {$label} {$limit} {$matches[1]}{$unit}.";
         }
 
-        if (str_contains($lower, 'must be at least') || str_contains($lower, 'min')) {
-            return "Peringatan: Nilai kolom {$label} di bawah batas minimum yang ditentukan.";
+        if (str_contains($lower, 'confirmation') && str_contains($lower, 'match')) {
+            return $field === 'password'
+                ? 'Peringatan: Konfirmasi password harus sama dengan password baru.'
+                : "Peringatan: Konfirmasi {$label} harus sama dengan {$label}.";
         }
 
-        if (str_contains($lower, 'confirmation') || str_contains($lower, 'confirmed')) {
-            return "Peringatan: Konfirmasi {$label} tidak cocok. Pastikan nilai sama dengan kolom sebelumnya.";
-        }
-
-        if (str_contains($lower, 'may not be greater') || str_contains($lower, 'max')) {
-            return "Peringatan: Isian kolom {$label} melebihi batas maksimum karakter.";
-        }
-
-        return "Peringatan: {$label}: {$message}";
+        return $this->translateBusinessMessage($message);
     }
 
     private function translateBusinessMessage(string $message): string
@@ -746,46 +899,46 @@ class AdminResourceViewData
             'Minimal harus ada satu super admin aktif.' => 'Peringatan: Minimal harus tersedia satu akun super admin aktif agar pengelolaan sistem tetap dapat dilakukan.',
             'animal_id must refer to an active animal.' => 'Peringatan: Kambing yang dipilih tidak aktif atau sudah tidak tersedia.',
             'record_date cannot be earlier than animal birth_date.' => 'Peringatan: Tanggal pencatatan tidak boleh lebih awal dari tanggal lahir kambing.',
-            'Weight record already exists for this animal & date.' => 'Peringatan: Catatan bobot untuk kambing dan tanggal tersebut sudah terdaftar.',
-            'Another weight record already exists for this animal & date.' => 'Peringatan: Catatan bobot lain untuk kambing dan tanggal tersebut sudah terdaftar.',
+            'Weight record already exists for this animal & date.' => 'Peringatan: Catatan bobot kambing ini pada tanggal tersebut sudah tersedia.',
+            'Another weight record already exists for this animal & date.' => 'Peringatan: Catatan bobot kambing ini pada tanggal tersebut sudah tersedia.',
             'colony_pen_id must refer to a breeding pen.' => 'Peringatan: Kode kandang harus mengarah ke kandang perkawinan.',
             'male_animal_id must refer to a male animal.' => 'Peringatan: Tag pejantan harus mengarah ke kambing jantan.',
             'female_animal_id must refer to a female animal.' => 'Peringatan: Tag betina harus mengarah ke kambing betina.',
             'Tag pejantan harus mengarah ke kambing jantan yang masih hidup.' => 'Peringatan: Tag pejantan harus mengarah ke kambing jantan yang masih hidup.',
             'Kode kandang harus mengarah ke kandang perkawinan yang masih aktif.' => 'Peringatan: Kode kandang harus mengarah ke kandang perkawinan yang masih aktif.',
             'Tag betina harus mengarah ke kambing betina yang masih hidup dan tersedia.' => 'Peringatan: Tag betina harus mengarah ke kambing betina yang masih hidup dan tersedia.',
-            'Female already exists in this period.' => 'Peringatan: Betina tersebut sudah terdaftar pada periode kawin ini.',
+            'Female already exists in this period.' => 'Peringatan: Betina ini sudah terdaftar pada periode perkawinan tersebut.',
             'Breeding period capacity exceeded.' => 'Peringatan: Kapasitas kandang pada periode kawin ini sudah penuh.',
             'Tanggal masuk tidak boleh lebih awal dari tanggal mulai periode kawin.' => 'Peringatan: Tanggal masuk tidak boleh lebih awal dari tanggal mulai periode kawin.',
             'entry_date cannot be later than breeding period end_date.' => 'Peringatan: Tanggal masuk tidak boleh melewati tanggal selesai periode kawin.',
             'breeding_period_id must refer to an active breeding period.' => 'Peringatan: Kode periode harus mengarah ke periode kawin yang masih aktif.',
             'Keluar dari periode kawin hanya dapat diproses melalui aksi Keluarkan Betina.' => 'Peringatan: Keluar dari periode kawin hanya dapat diproses melalui tombol Keluarkan.',
             'Betina ini sudah keluar dari periode kawin.' => 'Peringatan: Betina ini sudah tercatat keluar dari periode kawin.',
-            'Betina berhasil dikeluarkan dari periode kawin.' => 'Sukses: Betina berhasil dikeluarkan dari periode kawin.',
+            'Betina berhasil dikeluarkan dari periode kawin.' => 'Sukses: Catatan keluar betina dari periode perkawinan berhasil disimpan.',
             'Tanggal kawin hanya dapat dicatat melalui aksi Catat Kawin.' => 'Peringatan: Tanggal kawin hanya dapat dicatat melalui tombol Catat Kawin.',
             'Tanggal kawin tidak dapat dicatat karena betina sudah keluar dari periode kawin.' => 'Peringatan: Tanggal kawin tidak dapat dicatat karena betina sudah keluar dari periode kawin.',
-            'Tanggal kawin tidak boleh lebih awal dari tanggal masuk betina.' => 'Peringatan: Tanggal kawin tidak boleh lebih awal dari tanggal masuk betina.',
+            'Tanggal kawin tidak boleh lebih awal dari tanggal masuk betina.' => 'Peringatan: Tanggal kawin tidak boleh sebelum tanggal masuk betina.',
             'Tanggal kawin tidak boleh lebih awal dari tanggal mulai periode kawin.' => 'Peringatan: Tanggal kawin tidak boleh lebih awal dari tanggal mulai periode kawin.',
             'Tanggal kawin tidak boleh melewati tanggal selesai periode kawin.' => 'Peringatan: Tanggal kawin tidak boleh melewati tanggal selesai periode kawin.',
             'Tanggal masuk tidak boleh melewati tanggal kawin yang sudah dicatat.' => 'Peringatan: Tanggal masuk tidak boleh melewati tanggal kawin yang sudah dicatat.',
             'Tanggal keluar tidak boleh lebih awal dari tanggal masuk betina.' => 'Peringatan: Tanggal keluar tidak boleh lebih awal dari tanggal masuk betina.',
-            'Tanggal keluar tidak boleh lebih awal dari tanggal kawin yang sudah dicatat.' => 'Peringatan: Tanggal keluar tidak boleh lebih awal dari tanggal kawin yang sudah dicatat.',
+            'Tanggal keluar tidak boleh lebih awal dari tanggal kawin yang sudah dicatat.' => 'Peringatan: Tanggal keluar tidak boleh sebelum tanggal kawin.',
             'Pindah ke koloni kawin harus melalui alur Periode Kawin agar pengecekan inbreeding tetap berjalan.' => 'Peringatan: Pindah ke koloni kawin harus dilakukan melalui menu Periode Kawin agar pemeriksaan hubungan darah tetap berjalan.',
             'Pindah ke koloni kawin harus diproses melalui menu Periode Kawin agar pengecekan hubungan darah tetap berjalan.' => 'Peringatan: Pindah ke koloni kawin harus dilakukan melalui menu Periode Kawin agar pemeriksaan hubungan darah tetap berjalan.',
             'Koloni tujuan tidak aktif atau tidak ditemukan.' => 'Peringatan: Koloni tujuan tidak aktif atau tidak ditemukan.',
-            'Kambing sudah berada di koloni tujuan yang dipilih.' => 'Peringatan: Kambing sudah berada di koloni tujuan yang dipilih.',
+            'Kambing sudah berada di koloni tujuan yang dipilih.' => 'Peringatan: Pilih koloni tujuan yang berbeda dari koloni asal.',
             'Tanggal pindah koloni tidak boleh lebih awal dari tanggal lahir kambing.' => 'Peringatan: Tanggal pindah koloni tidak boleh lebih awal dari tanggal lahir kambing.',
             'Koloni anak hanya dapat diisi oleh cempe berdasarkan kategori umur ternak.' => 'Peringatan: Koloni anak hanya dapat diisi oleh cempe berdasarkan kategori umur ternak.',
             'Koloni bunting, kering, dan laktasi hanya dapat diisi oleh kambing betina.' => 'Peringatan: Koloni bunting, kering, dan laktasi hanya dapat diisi oleh kambing betina.',
             'Koloni, kode periode, tanggal mulai, dan pejantan tidak dapat diubah karena periode kawin sudah berisi betina.' => 'Peringatan: Koloni, kode periode, tanggal mulai, dan pejantan tidak dapat diubah karena periode kawin sudah berisi betina.',
-            'Koloni kawin ini masih memiliki periode aktif. Tutup periode sebelumnya sebelum membuat periode baru.' => 'Peringatan: Koloni kawin ini masih memiliki periode aktif. Tutup periode sebelumnya sebelum membuat periode baru.',
+            'Koloni kawin ini masih memiliki periode aktif. Tutup periode sebelumnya sebelum membuat periode baru.' => 'Peringatan: Tutup periode perkawinan yang masih aktif sebelum membuat periode baru pada koloni ini.',
             'Koloni kawin ini masih memiliki periode aktif lain. Tutup periode tersebut sebelum mengaktifkan periode ini.' => 'Peringatan: Koloni kawin ini masih memiliki periode aktif lain. Tutup periode tersebut sebelum mengaktifkan periode ini.',
             'Tanggal selesai periode kawin tidak boleh lebih awal dari tanggal mulai.' => 'Peringatan: Tanggal selesai periode kawin tidak boleh lebih awal dari tanggal mulai.',
             'female_animal_id is not registered as an active female in the selected breeding period.' => 'Peringatan: Betina yang dipilih belum terdaftar aktif pada periode kawin tersebut.',
             'breeding_female_id must refer to an active female registration in the selected breeding period.' => 'Peringatan: Data betina dalam periode kawin tidak valid atau sudah tidak aktif.',
             'check_date cannot be earlier than breeding period start_date.' => 'Peringatan: Tanggal periksa tidak boleh lebih awal dari tanggal mulai periode.',
             'check_date cannot be earlier than female entry_date in the breeding period.' => 'Peringatan: Tanggal periksa tidak boleh lebih awal dari tanggal masuk betina.',
-            'Status bunting hanya dapat dicatat setelah tanggal kawin betina tersebut diisi.' => 'Peringatan: Status bunting hanya dapat dicatat setelah tanggal kawin betina tersebut diisi.',
+            'Status bunting hanya dapat dicatat setelah tanggal kawin betina tersebut diisi.' => 'Peringatan: Catat tanggal kawin terlebih dahulu sebelum mencatat hasil pemeriksaan bunting.',
             'Tanggal periksa tidak boleh lebih awal dari tanggal kawin betina tersebut.' => 'Peringatan: Tanggal periksa tidak boleh lebih awal dari tanggal kawin betina tersebut.',
             'check_date cannot be later than female exit_date in the breeding period.' => 'Peringatan: Tanggal periksa tidak boleh melewati tanggal keluar betina.',
             'Pregnancy check already exists for this period, female, and date.' => 'Peringatan: Pemeriksaan kebuntingan untuk betina dan tanggal tersebut sudah terdaftar.',
@@ -809,18 +962,18 @@ class AdminResourceViewData
             'Vaccination already exists for this animal, category, date, and product.' => 'Peringatan: Data vaksinasi untuk kambing, jenis vaksin, tanggal, dan produk tersebut sudah terdaftar.',
             'certificate_type_id is invalid.' => 'Peringatan: Jenis sertifikat tidak valid.',
             'certificate already exists for this animal and type.' => 'Peringatan: Sertifikat untuk kambing dan jenis tersebut sudah pernah diterbitkan.',
-            'RSA key generation failed.' => 'Gagal: Gagal membuat kunci digital. Silakan coba lagi nanti atau hubungi Administrator.',
+            'RSA key generation failed.' => 'Gagal: RSA Key belum dapat dibuat. Silakan coba lagi.',
             'No active RSA key found for authenticated user.' => 'Peringatan: Penandatangan belum memiliki RSA Key aktif. Buat atau aktifkan RSA Key terlebih dahulu.',
             'User ini sudah memiliki RSA Key.' => 'Peringatan: Admin sudah memiliki RSA Key. Gunakan fitur rotasi untuk memperbarui kunci.',
             'Data birth event untuk hewan ini tidak ditemukan.' => 'Peringatan: Hewan yang dipilih tidak memiliki data kejadian kelahiran di peternakan.',
-            'Certificate PDF could not be generated.' => 'Gagal: Gagal membuat file PDF sertifikat. Periksa kelengkapan data dan konfigurasi dokumen.',
+            'Certificate PDF could not be generated.' => 'Gagal: PDF sertifikat belum dapat dibuat. Silakan coba lagi.',
             'Barcode value is not available for this certificate.' => 'Peringatan: QR code belum tersedia untuk sertifikat ini.',
             'QR code is only available for BIBIT_UNGGUL certificates.' => 'Peringatan: QR code hanya tersedia untuk Sertifikat Bibit Unggul.',
             'Already revoked.' => 'Peringatan: Sertifikat ini sudah dicabut.',
             'Certificate is not revoked.' => 'Peringatan: Sertifikat ini belum dalam status dicabut.',
             'Expired certificate cannot be revoked.' => 'Peringatan: Masa berlaku sertifikat telah habis (Kedaluwarsa).',
             'Only active certificate can be signed.' => 'Peringatan: Hanya sertifikat aktif yang dapat ditandatangani.',
-            'Signing failed.' => 'Gagal: Sertifikat gagal ditandatangani. Pastikan RSA Key aktif telah dikonfigurasi dengan benar.',
+            'Signing failed.' => 'Gagal: Sertifikat belum berhasil ditandatangani. Silakan coba lagi.',
             'Invalid RSA public key PEM.' => 'Peringatan: Format public key RSA tidak valid.',
             'RSA key fingerprint already exists.' => 'Peringatan: RSA Key dengan fingerprint tersebut sudah terdaftar.',
             'At least one RSA key must remain active.' => 'Peringatan: Minimal harus ada satu RSA Key yang aktif.',
@@ -846,21 +999,25 @@ class AdminResourceViewData
         $lower = strtolower($message);
 
         if (str_contains($lower, 'no query results') || str_contains($lower, 'not found')) {
-            return 'Gagal: Data tidak ditemukan atau telah diubah oleh pengguna lain. Silakan muat ulang halaman.';
+            return 'Gagal: Data tidak ditemukan. Silakan muat ulang halaman.';
         }
 
-        if (str_contains($lower, 'unauthenticated') || str_contains($lower, 'unauthorized')) {
-            return 'Sesi Berakhir: Sesi Anda telah berakhir. Silakan masuk kembali.';
+        if (str_contains($lower, 'unauthenticated')) {
+            return 'Sesi Berakhir: Sesi login Anda telah berakhir. Silakan login kembali.';
+        }
+
+        if (str_contains($lower, 'unauthorized') || str_contains($lower, 'forbidden')) {
+            return 'Peringatan: Akun Anda tidak memiliki izin untuk melakukan tindakan ini.';
         }
 
         if (str_contains($lower, 'failed') || str_contains($lower, 'error') || str_contains($lower, 'exception')) {
-            return 'Gagal: Sistem gagal memproses tindakan. Silakan coba lagi nanti atau hubungi Administrator.';
+            return 'Gagal: Tindakan belum berhasil diproses. Silakan coba lagi.';
         }
 
         if (preg_match('/\b(must|cannot|failed|invalid|exception|error|required|exists|already|only|not found)\b/i', $message)
             || preg_match('/\b[a-z]+_[a-z_]+\b/', $message)
         ) {
-            return 'Gagal: Gagal menyimpan perubahan. Periksa kembali data yang Anda isi.';
+            return 'Gagal: Data belum berhasil disimpan. Silakan coba lagi.';
         }
 
         return $message;
@@ -869,7 +1026,7 @@ class AdminResourceViewData
     private function fieldLabel(string $field): string
     {
         return [
-            'name' => 'Nama',
+            'name' => 'Nama pengguna',
             'first_name' => 'Nama Depan',
             'last_name' => 'Nama Belakang',
             'email' => 'Email',
@@ -877,7 +1034,7 @@ class AdminResourceViewData
             'password_confirmation' => 'Konfirmasi Password',
             'role' => 'Role',
             'is_active' => 'Status Aktif',
-            'tag_number' => 'Nomor Eartag',
+            'tag_number' => 'Eartag',
             'photo' => 'Foto Kambing',
             'breed_id' => 'Ras Kambing',
             'sex' => 'Jenis Kelamin',
@@ -895,7 +1052,7 @@ class AdminResourceViewData
             'origin_detail' => 'Detail Asal',
             'animal_id' => 'Kambing',
             'record_date' => 'Tanggal Timbang',
-            'weight_kg' => 'Berat',
+            'weight_kg' => 'Bobot',
             'pen_code' => 'Kode Kandang',
             'colony_code' => 'Kode Koloni',
             'colony_name' => 'Nama Koloni',
@@ -969,7 +1126,7 @@ class AdminResourceViewData
     private function resourceLabel(string $slug): string
     {
         return [
-            'users' => 'Manajemen pengguna',
+            'users' => 'Data pengguna',
             'animals' => 'Data kambing',
             'weight-records' => 'Catatan bobot',
             'pen-movements' => 'Riwayat pindah koloni',
@@ -983,7 +1140,7 @@ class AdminResourceViewData
             'vaccinations' => 'Data vaksinasi',
             'postnatal-care' => 'Data pascalahir',
             'certificates' => 'Sertifikat',
-            'rsa-keys' => 'Kunci digital',
+            'rsa-keys' => 'RSA Key',
         ][$slug] ?? 'Data';
     }
 }

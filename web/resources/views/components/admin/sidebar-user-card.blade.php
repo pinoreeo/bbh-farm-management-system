@@ -6,13 +6,13 @@
 
 <div class="admin-sidebar-user-wrap">
     <div class="admin-sidebar-user-row">
-        <a href="{{ route('admin.profile') }}" class="flex min-w-0 flex-1 items-center gap-3" @if($mobile) data-mobile-sidebar-link @endif>
+        <div class="flex min-w-0 flex-1 items-center gap-3">
             <div class="admin-sidebar-user-avatar">{{ $initials }}</div>
             <div class="min-w-0 leading-tight">
-                <p class="admin-sidebar-brand truncate text-sm font-medium">{{ $adminUser['name'] ?? 'Demo Admin' }}</p>
-                <p class="admin-sidebar-muted truncate text-xs">{{ $adminUser['role'] ?? 'Admin' }}</p>
+                <p class="admin-sidebar-brand truncate text-sm font-medium">{{ $adminUser['name'] ?? 'Admin' }}</p>
+                <p class="admin-sidebar-muted truncate text-xs">{{ \Illuminate\Support\Str::headline((string) ($adminUser['role'] ?? 'admin')) }}</p>
             </div>
-        </a>
+        </div>
 
         <form method="post" action="{{ route('logout') }}" class="shrink-0">
             @csrf

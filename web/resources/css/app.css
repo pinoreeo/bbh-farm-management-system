@@ -1,7 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 @import './settings.css';
 @import './components/public.css';
+@import './components/company-profile.css';
 @import './components/shared.css';
 @import './components/admin.css';
 @import './components/dashboard.css';
 @import './utilities.css';
+@import './components/admin-type-scale.css';

@@ -7,7 +7,7 @@
 @endphp
 
 <!doctype html>
-<html lang="id">
+<html lang="id" data-force-theme="light">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -16,7 +16,7 @@
     <link rel="icon" type="image/webp" href="{{ asset('logo-main.webp') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=Plus+Jakarta+Sans:wght@400..800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[var(--app-bg)] antialiased">
@@ -24,11 +24,15 @@
 
     <div class="layout-main" data-admin-main>
         <x-admin.topbar />
+        <x-admin.flash-toast />
 
         <main class="content-wrap">
             @if ($pageHeader)
                 <div class="mb-4">
                     <h1 class="admin-page-title">{{ $title ?? 'Dashboard' }}</h1>
+                    @if ($subtitle)
+                        <p class="admin-page-subtitle">{{ $subtitle }}</p>
+                    @endif
                 </div>
             @endif
 

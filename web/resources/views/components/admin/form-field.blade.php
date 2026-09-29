@@ -71,7 +71,7 @@
             @elseif ($type === 'display')
                 <x-admin.fields.display :value="$displayValue" :role="$displayRole" />
             @elseif ($type === 'select')
-                <x-admin.fields.select :name="$name" :options="$options" :value="$currentValue" :field-config="$fieldConfig" :readonly="$readonly" />
+                <x-admin.fields.select :name="$name" :options="$options" :value="$currentValue" :field-config="$fieldConfig" :required="$required" :readonly="$readonly" />
             @elseif ($type === 'multiselect')
                 <x-admin.fields.multiselect :name="$name" :label="$label" :options="$options" :value="$currentValue" />
             @elseif ($type === 'radio')

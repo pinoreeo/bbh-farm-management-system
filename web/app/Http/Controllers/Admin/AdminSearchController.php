@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Support\AdminTableViewData;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class AdminSearchController extends Controller
 {
@@ -12,11 +13,20 @@ class AdminSearchController extends Controller
     {
         $query = trim((string) $request->query('q', ''));
         $results = $query === '' ? [] : $this->searchData($query, $tableData);
+        $page = min(max(1, (int) $request->query('page', 1)), max(1, (int) ceil(count($results) / 10)));
+        $results = new LengthAwarePaginator(
+            array_slice($results, ($page - 1) * 10, 10),
+            count($results),
+            10,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
 
         return view('pages.admin.search', [
             'query' => $query,
             'results' => $results,
             'failureMessage' => $tableData->failureMessage(),
+            'dataTruncated' => $tableData->isTruncated(),
         ]);
     }
 
@@ -29,26 +39,34 @@ class AdminSearchController extends Controller
         $terms = collect(preg_split('/\s+/', $normalizedQuery) ?: [])
             ->filter()
             ->values();
+        $pages = $this->searchableSlugs();
+        $recordsBySlug = $tableData->recordsBatch(
+            collect($pages)->map(fn (array $page) => $page[3] ?? [])->all(),
+            session('bbh_api_token')
+        );
 
-        return collect($this->searchableSlugs())
-            ->flatMap(function (array $page, string $slug) use ($query, $terms, $tableData) {
+        return collect($pages)
+            ->flatMap(function (array $page, string $slug) use ($query, $terms, $recordsBySlug) {
                 [$title, $description, $columns, $fallbackRows] = array_pad($page, 4, []);
 
-                return collect($tableData->records($slug, $fallbackRows, session('bbh_api_token'), 2, ['search' => $query]))
+                return collect($recordsBySlug[$slug] ?? [])
                     ->map(function (array $record) use ($slug, $title, $description, $columns, $query, $terms) {
                         $cells = $record['cells'] ?? [];
-                        $haystack = mb_strtolower(implode(' ', $cells));
+                        $fields = collect($cells)->map(fn ($value, int $index) => [
+                            'label' => $columns[$index] ?? 'Data',
+                            'value' => (string) $value,
+                        ]);
+                        if ($slug === 'users' && ! empty(data_get($record, 'raw.email'))) {
+                            $fields->push(['label' => 'Email', 'value' => (string) data_get($record, 'raw.email')]);
+                        }
+                        $haystack = mb_strtolower($fields->pluck('value')->implode(' '));
                         $score = $terms->sum(fn (string $term) => str_contains($haystack, $term) ? 1 : 0);
 
                         if ($score === 0) {
                             return null;
                         }
 
-                        $matchedFields = collect($cells)
-                            ->map(fn ($value, int $index) => [
-                                'label' => $columns[$index] ?? 'Data',
-                                'value' => (string) $value,
-                            ])
+                        $matchedFields = $fields
                             ->filter(fn (array $field) => $terms->contains(fn (string $term) => str_contains(mb_strtolower($field['value']), $term)))
                             ->take(3)
                             ->values()
@@ -63,14 +81,15 @@ class AdminSearchController extends Controller
                             'secondary' => collect($cells)->skip(1)->take(3)->filter()->implode(' | '),
                             'matchedFields' => $matchedFields,
                             'score' => $score,
-                            'listRoute' => route('admin.'.$slug, ['search' => $query]),
-                            'detailRoute' => ! empty($record['id']) ? route('admin.resource.show', ['resource' => $slug, 'id' => $record['id']]) : route('admin.'.$slug, ['search' => $query]),
+                            'listRoute' => route('admin.'.$slug, ['q' => $query]),
+                            'detailRoute' => $slug === 'animals' && ! empty(data_get($record, 'raw.tag_number'))
+                                ? route('admin.animals.show', ['tag' => data_get($record, 'raw.tag_number')])
+                                : (! empty($record['id']) ? route('admin.resource.show', ['resource' => $slug, 'id' => $record['id']]) : route('admin.'.$slug, ['q' => $query])),
                         ];
                     })
                     ->filter();
             })
             ->sortByDesc('score')
-            ->take(30)
             ->values()
             ->all();
     }

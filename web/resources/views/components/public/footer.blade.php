@@ -30,14 +30,14 @@
                 <p class="bbh-small font-semibold">{{ $copy['footer']['services'] }}</p>
                 <div class="mt-3 grid gap-2 text-white/60">
                     <a href="{{ route('verification') }}#verifikasi" class="hover:text-white">{{ $copy['nav']['verification'] }}</a>
-                    <a href="{{ route('certificate.info') }}" class="hover:text-white">{{ $copy['nav']['certificate'] }}</a>
+                    <a href="{{ route('verification') }}#sertifikat" class="hover:text-white">{{ $copy['nav']['certificate'] }}</a>
                     <a href="{{ route('login') }}" class="hover:text-white">{{ $copy['nav']['login'] }}</a>
                 </div>
             </div>
             <div>
                 <p class="bbh-small font-semibold">{{ $copy['footer']['contact'] }}</p>
                 <div class="mt-3 grid gap-2 text-white/60">
-                    <a href="{{ route('location') }}" class="hover:text-white">{{ $copy['footer']['location'] }}</a>
+                    <a href="{{ route('verification') }}#lokasi" class="hover:text-white">{{ $copy['footer']['location'] }}</a>
                     <a href="{{ $contactUrl }}" target="_blank" rel="noopener noreferrer" class="hover:text-white">{{ $copy['footer']['contact_link'] }}</a>
                 </div>
             </div>
@@ -48,19 +48,10 @@
             <details class="group relative sm:w-[320px]">
                 <summary class="bbh-small inline-flex h-10 w-full cursor-pointer list-none items-center justify-between rounded-full border border-white/18 px-4 text-left font-normal text-white transition hover:border-white/35 hover:bg-white/5">
                     <span class="inline-flex items-center gap-3">
-                        <svg class="h-4 w-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="m5 8 6 6" />
-                            <path d="m4 14 6-6 2-3" />
-                            <path d="M2 5h12" />
-                            <path d="M7 2h1" />
-                            <path d="m22 22-5-10-5 10" />
-                            <path d="M14 18h6" />
-                        </svg>
+                        <x-icons name="language" class="h-4 w-4 text-white" />
                         {{ $languages[$currentLocale] }}
                     </span>
-                    <svg class="h-4 w-4 text-white/80 transition group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="m6 9 6 6 6-6" />
-                    </svg>
+                    <x-icons name="chevron-down" class="h-4 w-4 text-white/80 transition group-open:rotate-180" />
                 </summary>
                 <div class="absolute bottom-12 right-0 z-20 w-full overflow-hidden rounded-[14px] border border-white/10 bg-[#182430] py-2 shadow-none">
                     @foreach ($languages as $locale => $label)

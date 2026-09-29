@@ -17,6 +17,11 @@
     </summary>
     <div class="admin-filter-panel">
         <form class="grid gap-3 md:grid-cols-2 xl:grid-cols-4" method="get">
+            @foreach (['q', 'account_status', 'sort', 'direction'] as $key)
+                @if (request()->filled($key))
+                    <input type="hidden" name="{{ $key }}" value="{{ request($key) }}">
+                @endif
+            @endforeach
             @if ($slug === 'animals')
                 <label>
                     <span class="ui-filter-label">Jenis kelamin</span>

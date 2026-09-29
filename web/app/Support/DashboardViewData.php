@@ -17,10 +17,8 @@ class DashboardViewData
      */
     public function data(?string $token, ?int $selectedBirthYear = null, bool $includeActivityLogs = false): array
     {
-        $fallback = $this->fallback();
-
         if (! is_string($token) || $token === '') {
-            return $fallback;
+            return $this->fallback($includeActivityLogs);
         }
 
         $dashboardItems = $this->batchItems([
@@ -53,24 +51,27 @@ class DashboardViewData
             ? $selectedBirthYear
             : ($birthYears[0] ?? (int) now()->format('Y'));
         $birthChart = $this->birthChart($birthEvents, $selectedBirthYear);
+        $offspringChart = $this->offspringChart($birthEvents, $selectedBirthYear);
         $currentYearBirthChart = $this->birthChart($birthEvents, (int) now()->format('Y'));
 
         return [
             'stats' => [
-                ['label' => 'Total Kambing', 'value' => (string) count($animals), 'note' => count($aliveAnimals).' kambing aktif', 'tone' => 'green', 'icon' => 'goat', 'trend' => $this->animalTrend($animals, null, $selectedBirthYear)],
-                ['label' => 'Jantan Dewasa', 'value' => (string) count($adultMales), 'note' => 'Pejantan produktif', 'tone' => 'blue', 'icon' => 'goat', 'trend' => $this->animalTrend($adultMales, null, $selectedBirthYear)],
-                ['label' => 'Betina Dewasa', 'value' => (string) count($adultFemales), 'note' => 'Induk produktif', 'tone' => 'green', 'icon' => 'female', 'trend' => $this->animalTrend($adultFemales, null, $selectedBirthYear)],
-                ['label' => 'Pejantan Muda', 'value' => (string) count($youngMales), 'note' => 'Calon pejantan', 'tone' => 'blue', 'icon' => 'goat', 'trend' => $this->animalTrend($youngMales, null, $selectedBirthYear)],
-                ['label' => 'Dere', 'value' => (string) count($readyFemales), 'note' => 'Betina muda siap masuk program', 'tone' => 'yellow', 'icon' => 'female', 'trend' => $this->animalTrend($readyFemales, null, $selectedBirthYear)],
-                ['label' => 'Cempe', 'value' => (string) count($kids), 'note' => 'Usia sampai 6 bulan', 'tone' => 'orange', 'icon' => 'baby', 'trend' => $this->animalTrend($kids, null, $selectedBirthYear)],
-                ['label' => 'Betina Bunting', 'value' => (string) count($pregnantAnimals), 'note' => $this->percent(count($pregnantAnimals), $totalAlive).' dari populasi aktif', 'tone' => 'green', 'icon' => 'pregnancy', 'trend' => $this->animalTrend($pregnantAnimals, 'status_date', $selectedBirthYear)],
-                ['label' => 'Kelahiran Tahun Ini', 'value' => (string) array_sum($currentYearBirthChart), 'note' => array_sum($currentYearBirthChart).' data kelahiran tercatat', 'tone' => 'orange', 'icon' => 'birth', 'trend' => $currentYearBirthChart],
+                ['label' => 'Total Kambing', 'value' => (string) count($animals), 'note' => count($aliveAnimals).' kambing tercatat hidup.', 'tone' => 'green', 'icon' => 'goat', 'trend' => $this->animalTrend($animals, null, $selectedBirthYear)],
+                ['label' => 'Jantan Dewasa', 'value' => (string) count($adultMales), 'note' => 'Jantan dewasa yang tercatat.', 'tone' => 'blue', 'icon' => 'goat', 'trend' => $this->animalTrend($adultMales, null, $selectedBirthYear)],
+                ['label' => 'Betina Dewasa', 'value' => (string) count($adultFemales), 'note' => 'Betina dewasa yang tercatat.', 'tone' => 'green', 'icon' => 'female', 'trend' => $this->animalTrend($adultFemales, null, $selectedBirthYear)],
+                ['label' => 'Pejantan Muda', 'value' => (string) count($youngMales), 'note' => 'Jantan muda yang tercatat.', 'tone' => 'blue', 'icon' => 'goat', 'trend' => $this->animalTrend($youngMales, null, $selectedBirthYear)],
+                ['label' => 'Dere', 'value' => (string) count($readyFemales), 'note' => 'Betina muda yang tercatat.', 'tone' => 'yellow', 'icon' => 'female', 'trend' => $this->animalTrend($readyFemales, null, $selectedBirthYear)],
+                ['label' => 'Cempe', 'value' => (string) count($kids), 'note' => 'Usia sampai 6 bulan berdasarkan tanggal lahir.', 'tone' => 'orange', 'icon' => 'baby', 'trend' => $this->animalTrend($kids, null, $selectedBirthYear)],
+                ['label' => 'Betina Bunting', 'value' => (string) count($pregnantAnimals), 'note' => $this->percent(count($pregnantAnimals), $totalAlive).' dari kambing yang tercatat hidup.', 'tone' => 'green', 'icon' => 'pregnancy', 'trend' => $this->animalTrend($pregnantAnimals, 'status_date', $selectedBirthYear)],
+                ['label' => 'Kelahiran Tahun Ini', 'value' => (string) array_sum($currentYearBirthChart), 'note' => 'Jumlah kelahiran yang dicatat tahun ini.', 'tone' => 'orange', 'icon' => 'birth', 'trend' => $currentYearBirthChart],
             ],
             'birthYears' => $birthYears,
             'selectedBirthYear' => $selectedBirthYear,
             'birthChart' => $birthChart,
-            'birthChartSvg' => $this->chartPaths($birthChart, 108, 884, 54, 334),
+            'offspringChart' => $offspringChart,
+            'offspringChartSvg' => $this->chartPaths($offspringChart, 82, 850, 42, 304),
             'activities' => $this->activities($activityLogs),
+            'showActivities' => $includeActivityLogs,
             'agenda' => $agenda,
             'priorityTasks' => $priorityTasks,
             'todayAgenda' => array_values(array_filter($agenda, fn ($item) => $item['date'] === now()->toDateString())),
@@ -93,7 +94,7 @@ class DashboardViewData
         try {
             $result = $this->api->paginatedData($endpoint, [], $token);
         } catch (Throwable) {
-            $this->failureMessage ??= 'Gagal: Layanan API tidak merespons. Sebagian data dashboard tidak dapat dimuat.';
+            $this->failureMessage ??= 'Sebagian data belum dapat ditampilkan. Silakan coba lagi.';
 
             return [];
         }
@@ -122,9 +123,9 @@ class DashboardViewData
         }
 
         try {
-            $results = $this->api->paginatedBatchData($requests, $token);
+            $results = $this->api->paginatedBatchData($requests, $token, PHP_INT_MAX);
         } catch (Throwable) {
-            $this->failureMessage ??= 'Gagal: Layanan API tidak merespons. Sebagian data dashboard tidak dapat dimuat.';
+            $this->failureMessage ??= 'Sebagian data belum dapat ditampilkan. Silakan coba lagi.';
 
             return $items;
         }
@@ -136,6 +137,10 @@ class DashboardViewData
                 $this->setFailureMessageFromResponse($response);
 
                 continue;
+            }
+
+            if ($result['truncated']) {
+                $this->failureMessage ??= 'Sebagian data dashboard belum termuat. Silakan coba lagi.';
             }
 
             $items[$key] = $result['data'];
@@ -150,8 +155,8 @@ class DashboardViewData
         $this->failureMessage ??= match (true) {
             $response->status() === 401 => 'Sesi Berakhir: Silakan masuk kembali sebelum melihat dashboard.',
             $response->status() === 403 => is_string($message) && $message !== '' ? $message : 'Gagal: Akun Anda tidak memiliki izin untuk melihat sebagian data dashboard.',
-            $response->serverError() => 'Gagal: Layanan API sedang bermasalah. Sebagian data dashboard tidak dapat dimuat.',
-            default => is_string($message) && $message !== '' ? $message : 'Gagal: Sebagian data dashboard tidak dapat dimuat dari API.',
+            $response->serverError() => 'Sebagian data belum dapat ditampilkan. Silakan coba lagi.',
+            default => is_string($message) && $message !== '' ? $message : 'Sebagian data belum dapat ditampilkan. Silakan coba lagi.',
         };
     }
 
@@ -226,7 +231,7 @@ class DashboardViewData
                     'tone' => 'warning',
                     'status' => 'Perlu dicatat',
                     'title' => 'Tanggal kawin belum dicatat',
-                    'note' => "{$tag} aktif pada periode {$period}, tetapi tanggal kawin belum dicatat.",
+                    'note' => "Tanggal kawin {$tag} pada periode {$period} belum dicatat.",
                     'date' => $this->value($row, 'entry_date'),
                     'action_label' => 'Catat kawin',
                     'action_url' => route('admin.breeding-females.mating', ['id' => $this->value($row, 'id')]),
@@ -246,8 +251,8 @@ class DashboardViewData
                     $items[] = [
                         'tone' => 'danger',
                         'status' => 'Lewat tenggat',
-                        'title' => 'Perkiraan lahir terlewat',
-                        'note' => "{$tag} melewati perkiraan lahir. Periksa kondisi induk dan catat kelahiran jika sudah terjadi.",
+                        'title' => 'Perkiraan kelahiran terlewat',
+                        'note' => "Perkiraan tanggal melahirkan {$tag} sudah lewat. Perbarui catatan sesuai kondisi terakhir.",
                         'date' => $due->toDateString(),
                         'action_label' => 'Catat kelahiran',
                         'action_url' => route('admin.resource.create', ['resource' => 'birth-events']),
@@ -257,7 +262,7 @@ class DashboardViewData
                         'tone' => $due->isSameDay($today) ? 'danger' : 'warning',
                         'status' => $due->isSameDay($today) ? 'Hari ini' : 'Segera',
                         'title' => 'Persiapan kelahiran',
-                        'note' => "{$tag} diperkirakan lahir pada {$due->toDateString()}.",
+                        'note' => "Perkiraan tanggal melahirkan {$tag}: {$due->translatedFormat('d F Y')}.",
                         'date' => $due->toDateString(),
                         'action_label' => 'Lihat betina',
                         'action_url' => route('admin.resource.show', ['resource' => 'breeding-females', 'id' => $this->value($row, 'id')]),
@@ -278,8 +283,10 @@ class DashboardViewData
                 $items[] = [
                     'tone' => $overdue ? 'danger' : 'info',
                     'status' => $overdue ? 'Lewat tenggat' : ($due->isSameDay($today) ? 'Hari ini' : 'Terjadwal'),
-                    'title' => $overdue ? 'Kontrol kesehatan terlewat' : 'Kontrol kesehatan',
-                    'note' => $this->value($row, 'animal.tag_number').' - '.$this->value($row, 'treatment_group'),
+                    'title' => $overdue ? 'Tanggal kontrol terlewat' : 'Jadwal kontrol',
+                    'note' => $overdue
+                        ? 'Tanggal kontrol '.$this->value($row, 'animal.tag_number').' sudah lewat. Perbarui catatan jika kontrol telah dilakukan.'
+                        : 'Jadwal kontrol '.$this->value($row, 'animal.tag_number').' tercatat pada '.$due->translatedFormat('d F Y').'.',
                     'date' => $due->toDateString(),
                     'action_label' => 'Buka catatan',
                     'action_url' => route('admin.resource.edit', ['resource' => 'health-treatments', 'id' => $this->value($row, 'id')]),
@@ -323,6 +330,29 @@ class DashboardViewData
             $month = (int) substr($this->value($event, 'birth_date'), 5, 2);
             if ($month >= 1 && $month <= 12) {
                 $counts[$month]++;
+            }
+        }
+
+        return array_values($counts);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $birthEvents
+     * @return array<int, int>
+     */
+    private function offspringChart(array $birthEvents, ?int $year = null): array
+    {
+        $counts = array_fill(1, 12, 0);
+
+        foreach ($birthEvents as $event) {
+            if ($year !== null && (int) substr($this->value($event, 'birth_date'), 0, 4) !== $year) {
+                continue;
+            }
+
+            $month = (int) substr($this->value($event, 'birth_date'), 5, 2);
+            if ($month >= 1 && $month <= 12) {
+                $offspring = (int) $this->value($event, 'offspring_count');
+                $counts[$month] += max(1, $offspring);
             }
         }
 
@@ -581,46 +611,24 @@ class DashboardViewData
     /**
      * @return array<string, mixed>
      */
-    private function fallback(): array
+    private function fallback(bool $includeActivityLogs): array
     {
+        $emptyChart = array_fill(0, 12, 0);
+
         return [
-            'stats' => [
-                ['label' => 'Total Kambing', 'value' => '128', 'note' => '118 kambing aktif', 'tone' => 'green', 'icon' => 'goat', 'trend' => [18, 24, 31, 38, 45, 52, 67, 76, 84, 96, 108, 128]],
-                ['label' => 'Jantan Dewasa', 'value' => '22', 'note' => 'Pejantan produktif', 'tone' => 'blue', 'icon' => 'goat', 'trend' => [3, 4, 5, 7, 9, 10, 12, 15, 16, 18, 20, 22]],
-                ['label' => 'Betina Dewasa', 'value' => '48', 'note' => 'Induk produktif', 'tone' => 'green', 'icon' => 'female', 'trend' => [8, 10, 13, 16, 20, 24, 29, 34, 38, 42, 45, 48]],
-                ['label' => 'Pejantan Muda', 'value' => '14', 'note' => 'Calon pejantan', 'tone' => 'blue', 'icon' => 'goat', 'trend' => [2, 3, 4, 4, 6, 7, 8, 10, 10, 12, 13, 14]],
-                ['label' => 'Dere', 'value' => '19', 'note' => 'Betina muda siap masuk program', 'tone' => 'yellow', 'icon' => 'female', 'trend' => [1, 3, 4, 7, 8, 8, 10, 12, 14, 16, 18, 19]],
-                ['label' => 'Cempe', 'value' => '36', 'note' => 'Usia sampai 6 bulan', 'tone' => 'orange', 'icon' => 'baby', 'trend' => [4, 8, 12, 16, 20, 25, 28, 32, 31, 34, 35, 36]],
-                ['label' => 'Betina Bunting', 'value' => '12', 'note' => '10% dari populasi aktif', 'tone' => 'green', 'icon' => 'pregnancy', 'trend' => [1, 2, 2, 4, 5, 7, 6, 8, 9, 10, 11, 12]],
-                ['label' => 'Kelahiran Tahun Ini', 'value' => '24', 'note' => '+6 kelahiran bulan ini', 'tone' => 'orange', 'icon' => 'birth', 'trend' => [1, 1, 2, 2, 3, 4, 2, 1, 2, 2, 2, 2]],
-            ],
-            'birthYears' => [2026, 2025],
-            'birthChart' => [1, 1, 2, 2, 3, 4, 2, 1, 2, 2, 2, 2],
-            'birthChartSvg' => $this->chartPaths([1, 1, 2, 2, 3, 4, 2, 1, 2, 2, 2, 2], 108, 884, 54, 334),
-            'activities' => [
-                ['text' => 'Admin Rio menambahkan data kambing dengan tag BBH-001', 'time' => '2 jam lalu'],
-                ['text' => 'Admin Rio memperbarui kandang dengan kode kandang KP-001', 'time' => '2 jam lalu'],
-                ['text' => 'Admin Rio menambahkan kebuntingan dengan ID #1', 'time' => '2 jam lalu'],
-                ['text' => 'Admin Rio menerbitkan sertifikat dengan nomor sertifikat BBH-SBU-2026-0001', 'time' => '2 jam lalu'],
-                ['text' => 'Admin Rio mengaktifkan RSA Key dengan key identifier BBH-RSA-2026-0001', 'time' => '2 jam lalu'],
-                ['text' => 'Admin Rio memperbarui catatan bobot dengan ID #1', 'time' => '2 jam lalu'],
-            ],
-            'agenda' => [
-                ['date' => '2026-10-11', 'title' => 'Perkiraan lahir', 'note' => 'BBH-26-014 dari periode PK-001'],
-                ['date' => '2026-06-02', 'title' => 'Kontrol kesehatan', 'note' => 'BBH-26-001 - Pemeriksaan Rutin'],
-            ],
-            'priorityTasks' => [
-                ['tone' => 'warning', 'status' => 'Perlu dicatat', 'title' => 'Tanggal kawin belum dicatat', 'note' => 'BBH-26-014 aktif pada periode PK-001, tetapi tanggal kawin belum dicatat.', 'date' => '2026-07-24', 'action_label' => 'Catat kawin', 'action_url' => '#'],
-                ['tone' => 'danger', 'status' => 'Lewat tenggat', 'title' => 'Kontrol kesehatan terlewat', 'note' => 'BBH-26-001 - Pemeriksaan Rutin', 'date' => '2026-07-20', 'action_label' => 'Buka catatan', 'action_url' => '#'],
-                ['tone' => 'info', 'status' => 'Terjadwal', 'title' => 'Kontrol kesehatan', 'note' => 'BBH-26-003 - Pemeriksaan Rutin', 'date' => '2026-07-27', 'action_label' => 'Buka catatan', 'action_url' => '#'],
-            ],
+            'stats' => [],
+            'birthYears' => [(int) now()->year],
+            'selectedBirthYear' => (int) now()->year,
+            'birthChart' => $emptyChart,
+            'offspringChart' => $emptyChart,
+            'offspringChartSvg' => $this->chartPaths($emptyChart, 82, 850, 42, 304),
+            'activities' => [],
+            'showActivities' => $includeActivityLogs,
+            'agenda' => [],
+            'priorityTasks' => [],
             'todayAgenda' => [],
-            'latestAnimals' => [
-                ['BBH-001', 'Boer', 'Jantan', 'Hidup', '30 Mei 2026'],
-                ['BBH-014', 'Saanen', 'Betina', 'Hidup', '30 Mei 2026'],
-                ['BBH-022', 'Etawa', 'Betina', 'Hidup', '30 Mei 2026'],
-            ],
-            'apiFailureMessage' => null,
+            'latestAnimals' => [],
+            'apiFailureMessage' => 'Sesi login Anda telah berakhir. Silakan masuk kembali.',
         ];
     }
 

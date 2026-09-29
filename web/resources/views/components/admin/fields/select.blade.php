@@ -3,10 +3,11 @@
     'options' => [],
     'value' => '',
     'fieldConfig' => [],
+    'required' => false,
     'readonly' => false,
 ])
 
-<select class="ui-input" name="{{ $name }}" @disabled($readonly) @if (! empty($fieldConfig['depends_on'])) data-depends-on="{{ $fieldConfig['depends_on'] }}" @endif @if (! empty($fieldConfig['filter_dead_when'])) data-filter-dead-when="{{ $fieldConfig['filter_dead_when'] }}" data-filter-dead-value="{{ $fieldConfig['filter_dead_value'] }}" @endif>
+<select class="ui-input" name="{{ $name }}" @required($required) @disabled($readonly) @if (! empty($fieldConfig['depends_on'])) data-depends-on="{{ $fieldConfig['depends_on'] }}" @endif @if (! empty($fieldConfig['filter_dead_when'])) data-filter-dead-when="{{ $fieldConfig['filter_dead_when'] }}" data-filter-dead-value="{{ $fieldConfig['filter_dead_value'] }}" @endif>
     @if (! empty($fieldConfig['placeholder']))
         <option value="">{{ $fieldConfig['placeholder'] }}</option>
     @endif

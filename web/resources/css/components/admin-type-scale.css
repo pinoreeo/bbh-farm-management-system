@@ -1,0 +1,1342 @@
+@layer components {
+    /* One shared scale for every operational admin screen. */
+    .layout-main {
+        font-size: var(--admin-navigation-font);
+    }
+
+    .layout-main .admin-page-title,
+    .layout-main .admin-resource-page-header h1,
+    .layout-main .admin-record-page-header h1,
+    .layout-main .dashboard-page-header h1 {
+        font-size: var(--admin-font-title) !important;
+        line-height: 1.2;
+    }
+
+    .layout-main .admin-section-title,
+    .layout-main .admin-settings-content h2,
+    .layout-main .admin-notification-feed-heading h2,
+    .layout-main .dashboard-section-title {
+        font-size: var(--admin-font-section) !important;
+        line-height: 1.3;
+    }
+
+    .layout-main .admin-page-subtitle,
+    .layout-main .admin-resource-page-header p,
+    .layout-main .admin-record-page-header p,
+    .layout-main .admin-resource-breadcrumb,
+    .layout-main .admin-resource-tabs a,
+    .layout-main .admin-notification-tabs button,
+    .layout-main .admin-list-toolbar .ui-btn,
+    .layout-main .admin-list-toolbar .ui-input,
+    .layout-main .admin-form-panel .ui-label,
+    .layout-main .admin-form-panel label > span:first-child,
+    .layout-main .admin-form-panel .ui-input,
+    .layout-main .admin-form-panel select,
+    .layout-main .admin-form-panel textarea,
+    .layout-main .admin-profile-menu-list a,
+    .layout-main .admin-notification-feed-title,
+    .layout-main .dashboard-chart-actions,
+    .layout-main .dashboard-chart-select,
+    .layout-main .dashboard-chart-legend span,
+    .layout-main .ui-btn,
+    .layout-main .ui-input,
+    .layout-main select,
+    .layout-main textarea {
+        font-size: var(--admin-font-control) !important;
+    }
+
+    .layout-main .admin-sidebar-group,
+    .layout-main .admin-meta-text,
+    .layout-main .admin-user-cell small,
+    .layout-main .admin-profile-menu-head span,
+    .layout-main .admin-notification-feed-body,
+    .layout-main .admin-notification-feed-time,
+    .layout-main .dashboard-stat-card .admin-meta-text,
+    .layout-main .dashboard-stat-note,
+    .layout-main .dashboard-chart-label {
+        font-size: var(--admin-font-meta) !important;
+    }
+
+    .layout-main .admin-sidebar-link,
+    .layout-main .ui-table th,
+    .layout-main .ui-table td,
+    .layout-main .ui-table .ui-sort-btn {
+        font-size: var(--admin-navigation-font) !important;
+    }
+
+    /* Keep data rows compact independently from the table header. */
+    .layout-main .admin-data-panel .ui-table tbody > tr,
+    .layout-main .admin-data-panel .ui-table tbody > tr > td {
+        height: var(--admin-table-row-height) !important;
+    }
+
+    .layout-main .admin-data-panel .ui-table tbody > tr > td {
+        box-sizing: border-box;
+        padding-block: 0 !important;
+        padding-inline: 14px !important;
+        vertical-align: middle;
+    }
+
+    .layout-main .dashboard-stat-card p.text-2xl {
+        font-size: var(--admin-font-metric) !important;
+        line-height: 1.1;
+    }
+
+    .layout-main .admin-sidebar-link > svg,
+    .layout-main .dashboard-stat-icon > svg {
+        width: var(--admin-icon-sidebar) !important;
+        height: var(--admin-icon-sidebar) !important;
+    }
+
+    .layout-main .admin-topbar .admin-icon-button > svg {
+        width: var(--admin-icon-topbar) !important;
+        height: var(--admin-icon-topbar) !important;
+    }
+
+    .layout-main .ui-btn > svg,
+    .layout-main .admin-profile-menu-list svg,
+    .layout-main .admin-profile-menu-logout svg,
+    .layout-main .admin-global-search svg {
+        width: var(--admin-icon-control) !important;
+        height: var(--admin-icon-control) !important;
+    }
+
+    .layout-main .admin-data-panel .admin-row-menu summary > svg {
+        width: var(--admin-icon-row-action) !important;
+        height: var(--admin-icon-row-action) !important;
+    }
+
+    .layout-main .admin-pagination {
+        align-items: center;
+        display: flex;
+        font-size: var(--admin-font-control);
+        gap: 16px;
+        justify-content: space-between;
+        padding-top: 8px;
+    }
+
+    .layout-main .admin-pagination p {
+        color: var(--app-muted);
+        font-size: var(--admin-font-control);
+    }
+
+    .layout-main .admin-pagination-actions {
+        align-items: center;
+        display: flex;
+        gap: 4px;
+    }
+
+    .layout-main .admin-pagination-button {
+        align-items: center;
+        border: 1px solid var(--app-border);
+        border-radius: 6px;
+        color: var(--app-text);
+        display: inline-flex;
+        font-size: var(--admin-font-control);
+        justify-content: center;
+        min-height: 30px;
+        padding: 0 10px;
+    }
+
+    .layout-main .admin-pagination-button:hover:not(.is-disabled):not(.is-current) {
+        background: var(--app-surface-soft);
+    }
+
+    .layout-main .admin-pagination-button.is-current {
+        background: var(--app-accent-strong);
+        border-color: var(--app-accent-strong);
+        color: #FFFFFF;
+    }
+
+    .layout-main .admin-pagination-button.is-disabled {
+        color: var(--app-muted);
+        opacity: .55;
+    }
+
+    @media (max-width: 640px) {
+        .layout-main .admin-pagination {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .layout-main .admin-pagination-actions {
+            flex-wrap: wrap;
+        }
+    }
+}
+
+/* Final table-density override for every operational table. */
+.layout-main .content-wrap table > tbody > tr,
+.layout-main .content-wrap table > tbody > tr > td {
+    height: var(--admin-table-row-height) !important;
+    min-height: var(--admin-table-row-height) !important;
+    max-height: var(--admin-table-row-height) !important;
+}
+
+.layout-main .content-wrap table > tbody > tr > td {
+    box-sizing: border-box !important;
+    line-height: 1.2 !important;
+    padding-bottom: 0 !important;
+    padding-top: 0 !important;
+}
+
+.layout-main .content-wrap table > thead > tr,
+.layout-main .content-wrap table > thead > tr > th {
+    height: var(--admin-table-header-height) !important;
+    min-height: var(--admin-table-header-height) !important;
+    max-height: var(--admin-table-header-height) !important;
+}
+
+.layout-main .content-wrap table > thead > tr > th {
+    box-sizing: border-box !important;
+    padding-bottom: 0 !important;
+    padding-top: 0 !important;
+}
+
+.layout-main .admin-data-panel .ui-table > thead > tr > th,
+.layout-main .admin-data-panel .ui-table .ui-sort-btn {
+    height: var(--admin-table-header-height) !important;
+    min-height: var(--admin-table-header-height) !important;
+}
+
+.layout-main .admin-data-panel .ui-table .ui-sort-btn {
+    max-height: var(--admin-table-header-height) !important;
+}
+
+.layout-main .admin-data-panel .admin-user-cell {
+    gap: 18px !important;
+}
+
+.layout-main .admin-data-panel .admin-user-avatar {
+    font-size: .5625rem !important;
+    height: 24px !important;
+    width: 24px !important;
+}
+
+.layout-main .admin-data-panel .admin-user-cell strong {
+    line-height: 1.1 !important;
+}
+
+.layout-main .admin-data-panel .admin-user-cell small {
+    line-height: 1.1 !important;
+    margin-top: 2px !important;
+}
+
+.layout-main .admin-data-panel .admin-row-menu summary {
+    height: var(--admin-table-action-size) !important;
+    width: var(--admin-table-action-size) !important;
+}
+
+/* Primary operational controls share one physical size. */
+.layout-main .ui-btn,
+.layout-main .ui-input,
+.layout-main select {
+    height: var(--admin-control-height) !important;
+    min-height: var(--admin-control-height) !important;
+}
+
+.layout-main .ui-btn {
+    font-weight: 500 !important;
+}
+
+.layout-main .admin-record-page-header {
+    align-items: flex-start;
+    display: flex;
+    gap: 20px;
+    justify-content: space-between;
+    margin-bottom: 28px;
+}
+
+.layout-main .admin-record-page-header h1 {
+    margin-top: 8px;
+}
+
+.layout-main .admin-record-page-header p {
+    color: var(--app-muted);
+    margin-top: 4px;
+}
+
+.layout-main .admin-record-detail-list {
+    display: grid;
+    gap: 0;
+}
+
+.layout-main .admin-record-detail-row {
+    border-bottom: 1px solid var(--app-border);
+    display: grid;
+    gap: 12px;
+    padding: 12px 0;
+}
+
+.layout-main .admin-record-detail-row:last-child {
+    border-bottom: 0;
+}
+
+@media (min-width: 768px) {
+    .layout-main .admin-record-detail-row {
+        column-gap: 32px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .layout-main .admin-record-detail-row-single {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.layout-main .admin-record-detail-list dt {
+    color: var(--app-muted);
+    font-size: var(--admin-font-meta);
+}
+
+.layout-main .admin-record-detail-list dd {
+    color: var(--app-text);
+    font-size: var(--admin-font-control);
+    font-weight: 500;
+    margin-top: 4px;
+}
+
+.layout-main .admin-record-history {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.layout-main .admin-record-history > li {
+    align-items: flex-start;
+    border-bottom: 1px solid var(--app-border);
+    display: flex;
+    gap: 20px;
+    justify-content: space-between;
+    padding: 12px 0;
+}
+
+.layout-main .admin-record-history > li:first-child {
+    padding-top: 0;
+}
+
+.layout-main .admin-record-history > li:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+.layout-main .admin-record-history p,
+.layout-main .admin-record-history-meta {
+    font-size: var(--admin-font-control);
+}
+
+.layout-main .admin-record-history-meta {
+    align-items: flex-end;
+    color: var(--app-muted);
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    gap: 2px;
+    text-align: right;
+}
+
+.layout-main .admin-record-history-meta time {
+    font-size: var(--admin-font-meta);
+}
+
+.admin-toast-stack {
+    pointer-events: none;
+    position: fixed;
+    right: 24px;
+    top: 76px;
+    width: min(440px, calc(100vw - 32px));
+    z-index: 80;
+}
+
+.admin-toast {
+    align-items: center;
+    background: #0E3A25;
+    border: 1px solid #155537;
+    border-radius: 8px;
+    box-shadow: 0 12px 28px rgb(12 31 21 / 20%);
+    color: #FFFFFF;
+    display: flex;
+    font-size: var(--admin-font-control);
+    font-weight: 500;
+    gap: 14px;
+    min-height: 64px;
+    padding: 14px 16px;
+    transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.admin-toast[data-tone="danger"] {
+    background: #A31D26;
+    border-color: #C8313A;
+}
+
+.admin-toast[data-tone="info"] {
+    background: #173D4E;
+    border-color: #26566D;
+}
+
+.admin-toast p {
+    margin: 0;
+}
+
+.admin-toast.is-leaving {
+    opacity: 0;
+    transform: translateY(-8px);
+}
+
+@media (max-width: 640px) {
+    .layout-main .admin-record-page-header {
+        align-items: stretch;
+        flex-direction: column;
+        margin-bottom: 20px;
+    }
+
+    .layout-main .admin-record-page-header .ui-btn {
+        align-self: flex-start;
+    }
+
+    .layout-main .admin-record-history > li {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .layout-main .admin-record-history-meta {
+        align-items: flex-start;
+        text-align: left;
+    }
+
+    .admin-toast-stack {
+        right: 16px;
+        top: 68px;
+    }
+}
+
+.layout-main .content-wrap {
+    padding-bottom: 20px;
+    padding-top: 20px;
+}
+
+.layout-main .admin-resource-page-header {
+    margin-bottom: 12px;
+}
+
+.layout-main .admin-list-toolbar {
+    margin-bottom: 12px !important;
+}
+
+/* Zenith's neutral visual system: hierarchy comes from tone, not tinted surfaces. */
+.layout-main {
+    background: var(--app-bg) !important;
+    color: var(--app-text) !important;
+    font-family: var(--font-sans) !important;
+}
+
+.layout-main .content-wrap,
+.layout-main .admin-sidebar-shell,
+.layout-main .admin-topbar,
+.layout-main .admin-sidebar-user-wrap {
+    border-color: var(--app-border) !important;
+}
+
+.layout-main .admin-sidebar-shell {
+    background: var(--app-sidebar) !important;
+    color: var(--app-sidebar-text) !important;
+}
+
+.layout-main .admin-sidebar-brand,
+.layout-main .admin-sidebar-link,
+.layout-main .admin-page-title,
+.layout-main .admin-resource-page-header h1,
+.layout-main .admin-record-page-header h1,
+.layout-main .dashboard-page-header h1,
+.layout-main .admin-section-title,
+.layout-main .ui-table th,
+.layout-main .ui-table td,
+.layout-main .admin-global-search input {
+    color: var(--app-text) !important;
+}
+
+.layout-main .admin-page-subtitle,
+.layout-main .admin-resource-page-header p,
+.layout-main .admin-record-page-header p,
+.layout-main .admin-resource-breadcrumb,
+.layout-main .admin-sidebar-muted,
+.layout-main .admin-sidebar-group,
+.layout-main .admin-meta-text,
+.layout-main .admin-user-cell small,
+.layout-main .admin-icon-button,
+.layout-main .admin-pagination p {
+    color: var(--app-muted) !important;
+}
+
+.layout-main .admin-sidebar-link:hover,
+.layout-main .admin-sidebar-link-active,
+.layout-main .dark .admin-sidebar-link-active {
+    background: var(--app-sidebar-soft) !important;
+    color: var(--app-sidebar-text) !important;
+}
+
+.layout-main .admin-sidebar-link-active svg {
+    color: var(--app-sidebar-text) !important;
+}
+
+.layout-main .admin-topbar,
+.layout-main .admin-topbar > div,
+.layout-main .admin-sidebar-user-wrap {
+    background: var(--app-surface) !important;
+    box-shadow: none !important;
+}
+
+.layout-main .admin-global-search label,
+.layout-main .ui-input,
+.layout-main select,
+.layout-main textarea,
+.layout-main .ui-btn-soft,
+.layout-main .admin-pagination-button {
+    border-color: var(--app-border) !important;
+    background: var(--app-surface) !important;
+    color: var(--app-text) !important;
+    box-shadow: none !important;
+}
+
+.layout-main .admin-global-search label,
+.layout-main .ui-input,
+.layout-main select,
+.layout-main textarea {
+    background: var(--app-surface-soft) !important;
+}
+
+.layout-main .ui-btn-primary,
+.layout-main .admin-pagination-button.is-current {
+    border-color: var(--app-accent-strong) !important;
+    background: var(--app-accent-strong) !important;
+    color: #FFFFFF !important;
+}
+
+.layout-main .ui-btn-primary:hover,
+.layout-main .admin-pagination-button.is-current:hover {
+    border-color: var(--app-accent) !important;
+    background: var(--app-accent) !important;
+}
+
+.layout-main .admin-panel,
+.layout-main .ui-card,
+.layout-main .admin-data-panel {
+    border-color: var(--app-border) !important;
+    background: var(--app-surface) !important;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 5%) !important;
+}
+
+.layout-main .ui-table th,
+.layout-main .ui-table td {
+    border-color: var(--app-border) !important;
+}
+
+.layout-main .ui-table tbody tr:hover {
+    background: var(--app-surface-soft) !important;
+}
+
+.layout-main .admin-row-menu-panel {
+    background: var(--app-surface) !important;
+    border-color: var(--app-border) !important;
+    box-shadow: 0 8px 20px rgb(0 0 0 / 10%) !important;
+    min-width: 172px;
+}
+
+/* Prevent the native details expansion from briefly enlarging the table before positioning. */
+.has-row-actions .layout-main [data-row-menu][open] .admin-row-menu-panel {
+    position: fixed;
+    right: auto;
+    visibility: hidden;
+}
+
+.layout-main .admin-row-menu-panel a,
+.layout-main .admin-row-menu-action {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 5px;
+    color: var(--app-text) !important;
+    cursor: pointer;
+    display: flex;
+    font-size: var(--admin-font-control) !important;
+    font-weight: 400 !important;
+    gap: 8px;
+    padding: 8px 9px;
+    text-align: left;
+    width: 100%;
+}
+
+.layout-main .admin-row-menu-panel a:hover,
+.layout-main .admin-row-menu-action:hover {
+    background: var(--app-surface-soft) !important;
+}
+
+.layout-main .admin-row-menu-action.is-danger {
+    color: var(--app-danger) !important;
+}
+
+.layout-main .ui-badge,
+.layout-main .admin-status-badge {
+    box-shadow: none !important;
+}
+
+.dark .layout-main .ui-btn-primary,
+.dark .layout-main .admin-pagination-button.is-current {
+    color: #171717 !important;
+}
+
+/* Zenith-style create and edit forms keep actions outside the information surface. */
+.layout-main .admin-form-shell {
+    margin: 0;
+    max-width: 960px;
+}
+
+.layout-main .admin-user-form-shell {
+    max-width: 720px;
+}
+
+.layout-main .admin-form {
+    display: grid;
+    gap: 24px;
+}
+
+.layout-main .admin-form-panel {
+    max-width: none;
+}
+
+.layout-main .admin-form-panel > :first-child {
+    margin: 0;
+    padding: 20px 20px 0;
+}
+
+.layout-main .admin-form-panel-body {
+    padding: 20px;
+}
+
+.layout-main .admin-form-panel .admin-alert {
+    margin-bottom: 16px;
+}
+
+.layout-main .admin-form-panel .ui-label,
+.layout-main .admin-form-panel label > span:first-child {
+    color: var(--app-text) !important;
+    margin-bottom: 6px;
+}
+
+.layout-main .admin-form-panel .ui-input,
+.layout-main .admin-form-panel select,
+.layout-main .admin-form-panel textarea {
+    background: var(--app-surface) !important;
+}
+
+/* Special operational pages use the same form surface as the generic create/edit flow. */
+.layout-main .admin-panel .ui-input,
+.layout-main .admin-panel select,
+.layout-main .admin-panel textarea,
+.layout-main .admin-settings-layout .ui-input,
+.layout-main .admin-settings-layout select,
+.layout-main .admin-settings-layout textarea {
+    background: var(--app-surface) !important;
+    border-color: var(--app-border) !important;
+    color: var(--app-text) !important;
+}
+
+.layout-main .admin-panel .ui-input[readonly],
+.layout-main .admin-panel .ui-input:disabled,
+.layout-main .admin-panel select:disabled,
+.layout-main .admin-panel textarea:disabled,
+.layout-main .admin-settings-layout .ui-input[readonly] {
+    background: var(--app-surface-soft) !important;
+    color: var(--app-muted) !important;
+}
+
+/* One table rhythm, including dashboard, record history, and special resource pages. */
+.layout-main .content-wrap .ui-table > thead > tr > th,
+.layout-main .content-wrap .ui-table > tbody > tr > td {
+    padding-inline: 14px !important;
+}
+
+.layout-main .content-wrap .ui-table > tbody > tr > td {
+    color: var(--app-text) !important;
+    font-size: var(--admin-navigation-font) !important;
+}
+
+.layout-main .content-wrap .ui-table > thead > tr > th {
+    color: var(--app-text) !important;
+    font-size: var(--admin-navigation-font) !important;
+    font-weight: 500 !important;
+}
+
+.layout-main .admin-page-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+}
+
+.layout-main .admin-row-menu-empty {
+    color: var(--app-muted);
+    display: block;
+    font-size: var(--admin-font-meta);
+    padding: 8px 9px;
+    white-space: nowrap;
+}
+
+/* Remaining special-page text follows the same 14 / 12 operational scale. */
+.layout-main .content-wrap .text-sm {
+    font-size: var(--admin-font-control) !important;
+}
+
+.layout-main .content-wrap .text-xs,
+.layout-main .admin-readonly-field span,
+.layout-main .admin-field-summary .admin-meta-text,
+.layout-main .admin-detail-item .admin-meta-text {
+    font-size: var(--admin-font-meta) !important;
+}
+
+.layout-main .admin-readonly-field strong,
+.layout-main .admin-field-summary > p:last-child,
+.layout-main .admin-detail-item > p:not(.admin-meta-text) {
+    color: var(--app-text) !important;
+    font-size: var(--admin-font-control) !important;
+    font-weight: 500 !important;
+}
+
+.layout-main .admin-panel .ui-label,
+.layout-main .admin-panel label > span:first-child,
+.layout-main .admin-settings-layout .ui-label,
+.layout-main .admin-settings-layout label > span:first-child {
+    color: var(--app-text) !important;
+    display: block;
+    font-size: var(--admin-font-control) !important;
+    font-weight: 500 !important;
+    margin-bottom: 6px;
+}
+
+/* The sidebar is a sibling of .layout-main, so it needs the same tokens explicitly. */
+.admin-sidebar-shell {
+    background: var(--app-sidebar) !important;
+    border-color: var(--app-border) !important;
+    color: var(--app-sidebar-text) !important;
+    font-family: var(--font-sans) !important;
+}
+
+.admin-sidebar-brand,
+.admin-sidebar-link,
+.admin-sidebar-user-row {
+    color: var(--app-sidebar-text) !important;
+}
+
+.admin-sidebar-link {
+    color: var(--app-sidebar-muted) !important;
+    font-size: var(--admin-navigation-font) !important;
+    font-weight: 500 !important;
+    line-height: 20px !important;
+}
+
+.admin-sidebar-group,
+.admin-sidebar-muted {
+    color: var(--app-sidebar-muted) !important;
+}
+
+.admin-sidebar-group {
+    font-size: var(--admin-font-meta) !important;
+    font-weight: 500 !important;
+}
+
+.admin-sidebar-user-row .admin-sidebar-brand {
+    font-size: var(--admin-font-control) !important;
+    font-weight: 500 !important;
+}
+
+.admin-sidebar-user-row .admin-sidebar-muted {
+    font-size: var(--admin-font-meta) !important;
+}
+
+.admin-sidebar-link > svg {
+    height: var(--admin-icon-sidebar) !important;
+    width: var(--admin-icon-sidebar) !important;
+}
+
+.admin-sidebar-link:hover,
+.admin-sidebar-link-active,
+.dark .admin-sidebar-link-active {
+    background: var(--app-sidebar-soft) !important;
+    color: var(--app-sidebar-text) !important;
+}
+
+.admin-sidebar-link-active > svg {
+    color: var(--app-sidebar-text) !important;
+}
+
+/* Log pages follow the notification-list hierarchy without notification icons. */
+.layout-main .admin-log-feed-panel {
+    background: var(--app-surface) !important;
+    border-color: var(--app-border) !important;
+    box-shadow: var(--app-shadow) !important;
+}
+
+.layout-main .admin-log-feed-heading {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+    padding: 12px 14px 8px;
+}
+
+.layout-main .admin-log-feed-heading h2 {
+    color: var(--app-text);
+    font-size: var(--admin-font-section);
+    font-weight: 600;
+}
+
+.layout-main .admin-log-feed-heading span {
+    background: var(--app-accent-strong);
+    border-radius: 6px;
+    color: #FFFFFF;
+    font-size: var(--admin-font-meta);
+    font-weight: 500;
+    padding: 4px 7px;
+}
+
+.layout-main .admin-log-feed-list {
+    display: grid;
+    gap: 0;
+    padding: 0 8px 8px;
+}
+
+.layout-main .admin-log-feed-item {
+    border-radius: 7px;
+    padding: 8px 10px;
+}
+
+.layout-main .admin-log-feed-item:hover {
+    background: var(--app-surface-soft);
+}
+
+.layout-main .admin-log-feed-item h3 {
+    color: var(--app-text);
+    font-size: var(--admin-font-control);
+    font-weight: 500;
+    line-height: 20px;
+    margin: 0;
+}
+
+.layout-main .admin-log-feed-item h3 span {
+    color: var(--app-danger);
+    font-size: var(--admin-font-meta);
+    font-weight: 500;
+    margin-left: 4px;
+}
+
+.layout-main .admin-log-feed-item[data-log-result="success"] h3 span {
+    color: var(--app-muted);
+}
+
+.layout-main .admin-log-feed-body,
+.layout-main .admin-log-feed-time {
+    display: block;
+    margin: 0;
+}
+
+.layout-main .admin-log-feed-body {
+    color: var(--app-muted);
+    font-size: var(--admin-font-meta);
+    line-height: 15px;
+    margin-top: 1px;
+}
+
+.layout-main .admin-log-feed-time {
+    color: var(--app-muted);
+    font-size: var(--admin-font-meta);
+    line-height: 15px;
+    margin-top: 1px;
+}
+
+.layout-main .admin-log-feed-empty {
+    color: var(--app-muted);
+    font-size: var(--admin-font-control);
+    padding: 28px 12px;
+    text-align: center;
+}
+
+.layout-main .admin-form-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+@media (max-width: 640px) {
+    .layout-main .admin-form-panel > :first-child,
+    .layout-main .admin-form-panel-body {
+        padding-inline: 16px;
+    }
+}
+
+/* Match Zenith's measured weight hierarchy across every operational page. */
+.layout-main .admin-page-title,
+.layout-main .admin-resource-page-header h1,
+.layout-main .admin-record-page-header h1,
+.layout-main .dashboard-page-header h1 {
+    font-weight: 700 !important;
+}
+
+.layout-main .admin-section-title,
+.layout-main .dashboard-section-title,
+.layout-main .admin-settings-content h2,
+.layout-main .admin-notification-feed-heading h2 {
+    font-weight: 600 !important;
+}
+
+.layout-main .admin-page-subtitle,
+.layout-main .admin-resource-page-header p,
+.layout-main .admin-record-page-header p,
+.layout-main .admin-resource-breadcrumb,
+.layout-main .admin-meta-text,
+.layout-main .admin-user-cell small,
+.layout-main .ui-table td,
+.layout-main .ui-input,
+.layout-main select,
+.layout-main textarea {
+    font-weight: 400 !important;
+}
+
+.layout-main .ui-btn,
+.layout-main .admin-resource-tabs a,
+.layout-main .admin-notification-tabs button,
+.layout-main .admin-topbar-text-action,
+.layout-main .admin-pagination-button,
+.layout-main .ui-table th,
+.layout-main .ui-table .ui-sort-btn,
+.layout-main .admin-form-panel .ui-label,
+.layout-main .admin-form-panel label > span:first-child,
+.layout-main .admin-user-cell strong,
+.layout-main .ui-badge,
+.layout-main .admin-status-badge {
+    font-weight: 500 !important;
+}
+
+/* Active form controls are white everywhere: toolbar, search, filters, and forms. */
+.layout-main .admin-global-search label,
+.layout-main .ui-input,
+.layout-main select,
+.layout-main textarea,
+.layout-main .dashboard-chart-select {
+    background: var(--app-surface) !important;
+    border-color: var(--app-border) !important;
+    color: var(--app-text) !important;
+}
+
+.layout-main .ui-input[readonly],
+.layout-main .ui-input:disabled,
+.layout-main select:disabled,
+.layout-main textarea:disabled,
+.layout-main .dashboard-chart-select:disabled {
+    background: var(--app-surface-soft) !important;
+    color: var(--app-muted) !important;
+}
+
+/* Compact initials stay secondary to the account name and navigation text. */
+.admin-sidebar-user-avatar,
+.layout-main .admin-profile-toggle {
+    font-size: .625rem !important;
+    height: 28px !important;
+    width: 28px !important;
+}
+
+.layout-main .admin-data-panel .admin-user-avatar {
+    font-size: .5625rem !important;
+    height: 22px !important;
+    width: 22px !important;
+}
+
+/* Detail records use compact, scannable cards like the shared product-detail pattern. */
+.layout-main .admin-section-title {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+}
+
+.layout-main .admin-section-title-icon {
+    color: var(--app-muted);
+    flex: 0 0 auto;
+}
+
+.layout-main .admin-record-detail-card {
+    min-height: 0;
+}
+
+.layout-main .admin-record-detail-card .admin-section-title {
+    font-size: var(--admin-font-section) !important;
+}
+
+/* Animal history panels fit their content instead of exposing horizontal scrollbars. */
+.layout-main .animal-history-table-wrap {
+    overflow: hidden;
+}
+
+.layout-main .animal-history-table-wrap .ui-table {
+    min-width: 0 !important;
+    table-layout: fixed;
+    width: 100%;
+}
+
+.layout-main .animal-history-table-wrap .ui-table th,
+.layout-main .animal-history-table-wrap .ui-table td {
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+@media (max-width: 640px) {
+    .layout-main .dashboard-latest-table-wrap,
+    .layout-main .animal-history-table-wrap {
+        overflow-x: auto;
+    }
+
+    .layout-main .dashboard-latest-table,
+    .layout-main .animal-history-table-wrap .ui-table {
+        min-width: 620px !important;
+    }
+}
+
+/* Operational records are scanned as independent statuses, not dense columns. */
+.layout-main .admin-resource-card-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.layout-main .admin-resource-card {
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
+    min-width: 0;
+    padding: 16px;
+}
+
+.layout-main .admin-resource-card-header {
+    align-items: flex-start;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    min-width: 0;
+}
+
+.layout-main .admin-resource-card-eyebrow {
+    align-items: center;
+    color: var(--app-muted);
+    display: flex;
+    font-size: var(--admin-font-meta);
+    font-weight: 500;
+    gap: 6px;
+    margin: 0 0 5px;
+}
+
+.layout-main .admin-resource-card-title {
+    color: var(--app-text);
+    display: block;
+    font-size: var(--admin-font-section);
+    font-weight: 600;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+
+.layout-main .admin-resource-card-title:hover {
+    color: var(--app-primary);
+}
+
+.layout-main .admin-resource-card-subtitle,
+.layout-main .admin-resource-card-note {
+    color: var(--app-muted);
+    font-size: var(--admin-font-meta);
+    line-height: 1.45;
+    margin: 4px 0 0;
+    overflow-wrap: anywhere;
+}
+
+.layout-main .admin-resource-card-status {
+    background: var(--app-surface-soft);
+    border-radius: 5px;
+    color: var(--app-muted);
+    font-size: var(--admin-font-meta);
+    font-weight: 500;
+    line-height: 1;
+    padding: 5px 7px;
+    white-space: nowrap;
+}
+
+.layout-main .admin-resource-card-status[data-tone="positive"] {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.layout-main .admin-resource-card-status[data-tone="negative"] {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.layout-main .admin-resource-card-fields {
+    display: grid;
+    gap: 10px 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 16px 0 0;
+}
+
+.layout-main .admin-resource-card-fields div {
+    min-width: 0;
+}
+
+.layout-main .admin-resource-card-fields dt {
+    color: var(--app-muted);
+    font-size: var(--admin-font-meta);
+    font-weight: 400;
+}
+
+.layout-main .admin-resource-card-fields dd {
+    color: var(--app-text);
+    font-size: var(--admin-font-control);
+    font-weight: 500;
+    margin: 3px 0 0;
+    overflow-wrap: anywhere;
+}
+
+.layout-main .admin-resource-card-note {
+    border-top: 1px solid var(--app-border);
+    margin-top: 14px;
+    padding-top: 12px;
+}
+
+.layout-main .admin-resource-card-empty {
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    color: var(--app-muted);
+    font-size: var(--admin-font-control);
+    grid-column: 1 / -1;
+    padding: 24px;
+    text-align: center;
+}
+
+.layout-main .admin-period-stud {
+    align-items: center;
+    display: flex;
+    gap: 10px;
+}
+
+.layout-main .admin-period-stud-icon {
+    align-items: center;
+    background: var(--app-surface-soft);
+    border-radius: 50%;
+    color: var(--app-muted);
+    display: inline-flex;
+    height: 32px;
+    justify-content: center;
+    width: 32px;
+}
+
+.layout-main .admin-period-stud p,
+.layout-main .admin-period-summary span {
+    color: var(--app-muted);
+    font-size: var(--admin-font-meta);
+    margin: 0;
+}
+
+.layout-main .admin-period-stud strong {
+    color: var(--app-text);
+    display: block;
+    font-size: var(--admin-font-section);
+    margin-top: 3px;
+}
+
+.layout-main .admin-period-summary {
+    display: grid;
+    gap: 10px 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.layout-main .admin-period-summary strong {
+    color: var(--app-text);
+    display: block;
+    font-size: var(--admin-font-section);
+    margin-top: 3px;
+}
+
+.layout-main .admin-period-female-section {
+    margin-top: 20px;
+}
+
+.layout-main .admin-period-female-section-header {
+    align-items: flex-end;
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.layout-main .admin-period-female-section-header h2 {
+    color: var(--app-text);
+    font-size: var(--admin-font-section);
+    font-weight: 600;
+    margin: 0;
+}
+
+.layout-main .admin-period-female-section-header p {
+    color: var(--app-muted);
+    font-size: var(--admin-font-meta);
+    margin: 4px 0 0;
+}
+
+.layout-main .admin-period-female-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+}
+
+.layout-main .admin-period-female-card {
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
+    min-width: 0;
+    padding: 16px;
+}
+
+.layout-main .admin-period-female-card > header {
+    align-items: flex-start;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+}
+
+.layout-main .admin-period-female-card header p,
+.layout-main .admin-period-female-card dt {
+    color: var(--app-muted);
+    font-size: var(--admin-font-meta);
+    margin: 0;
+}
+
+.layout-main .admin-period-female-card h3 {
+    color: var(--app-text);
+    font-size: var(--admin-font-section);
+    font-weight: 600;
+    margin: 3px 0 0;
+}
+
+.layout-main .admin-period-female-card dl {
+    display: grid;
+    gap: 10px 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 16px 0 0;
+}
+
+.layout-main .admin-period-female-card dd {
+    color: var(--app-text);
+    font-size: var(--admin-font-control);
+    font-weight: 500;
+    margin: 3px 0 0;
+    overflow-wrap: anywhere;
+}
+
+.layout-main .admin-period-female-card footer {
+    border-top: 1px solid var(--app-border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 12px;
+}
+
+@media (max-width: 640px) {
+    .layout-main .admin-period-female-section-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .layout-main .admin-period-female-grid,
+    .layout-main .admin-period-female-card dl {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .layout-main .admin-resource-card-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.layout-main .admin-rsa-key-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+.layout-main .admin-rsa-key-card {
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
+    min-width: 0;
+    padding: 16px;
+}
+
+.layout-main .admin-rsa-key-card-header {
+    align-items: flex-start;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+}
+
+.layout-main .admin-rsa-key-card h2 {
+    color: var(--app-text);
+    font-size: var(--admin-font-section);
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.layout-main .admin-rsa-key-fields {
+    display: grid;
+    gap: 10px 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 16px 0 0;
+}
+
+.layout-main .admin-rsa-key-fields div {
+    min-width: 0;
+}
+
+.layout-main .admin-rsa-key-fields dt {
+    color: var(--app-muted);
+    font-size: var(--admin-font-meta);
+    font-weight: 400;
+}
+
+.layout-main .admin-rsa-key-fields dd {
+    color: var(--app-text);
+    font-size: var(--admin-font-control);
+    font-weight: 500;
+    margin: 3px 0 0;
+    overflow-wrap: anywhere;
+}
+
+.layout-main .admin-rsa-key-fingerprint {
+    grid-column: 1 / -1;
+}
+
+.layout-main .admin-rsa-key-fingerprint dd {
+    background: var(--app-surface-soft);
+    border-radius: 5px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: var(--admin-font-meta);
+    padding: 7px 8px;
+}
+
+@media (max-width: 480px) {
+    .layout-main .admin-rsa-key-grid,
+    .layout-main .admin-rsa-key-fields {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

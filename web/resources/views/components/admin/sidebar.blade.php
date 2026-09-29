@@ -2,7 +2,7 @@
     $adminUser = session('bbh_admin_user', []);
     $isSuperAdmin = ($adminUser['role'] ?? null) === 'super_admin';
     $groups = [
-        'Overview' => [
+        'Data Peternakan' => [
             ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => 'dashboard'],
             ['label' => 'Data Kambing', 'route' => 'admin.animals', 'icon' => 'goat'],
             ['label' => 'Catatan Bobot', 'route' => 'admin.weight-records', 'icon' => 'scale'],
@@ -30,7 +30,8 @@
 
     if ($isSuperAdmin) {
         $groups = ['Super Admin' => [
-            ['label' => 'Manajemen Pengguna', 'route' => 'admin.users', 'icon' => 'key'],
+            ['label' => 'Manajemen Pengguna', 'route' => 'admin.users', 'icon' => 'user'],
+            ['label' => 'Profil Peternakan', 'route' => 'admin.farm-profile', 'icon' => 'home'],
         ]] + $groups;
 
         $groups['Dokumen'][] = ['label' => 'Log Aktivitas', 'route' => 'admin.activity-logs', 'icon' => 'activity'];
@@ -43,8 +44,8 @@
         ->join('') ?: 'AD';
 @endphp
 
-<aside class="admin-sidebar-shell fixed left-0 top-0 z-30 hidden h-screen w-[260px] flex-col overflow-hidden border-r lg:flex">
-    <div class="flex h-16 items-center gap-3 border-b border-[var(--app-border)] px-4">
+<aside class="admin-sidebar-shell fixed left-0 top-0 z-30 hidden h-screen w-[272px] flex-col overflow-hidden border-r lg:flex">
+    <div class="admin-sidebar-header flex h-16 items-center gap-3 border-b border-[var(--app-border)] px-5">
         <x-admin.sidebar-brand />
     </div>
 
@@ -56,8 +57,8 @@
 <div id="admin-mobile-sidebar" class="fixed inset-0 z-50 hidden lg:hidden" data-mobile-sidebar aria-hidden="true">
     <button class="absolute inset-0 bg-black/45" type="button" aria-label="Tutup menu" data-mobile-sidebar-close></button>
 
-    <aside class="admin-sidebar-shell relative flex h-full w-[260px] max-w-[calc(100vw-3rem)] flex-col overflow-hidden border-r shadow-2xl">
-        <div class="flex h-16 items-center justify-between gap-3 border-b border-[var(--app-border)] px-4">
+    <aside class="admin-sidebar-shell relative flex h-full w-[272px] max-w-[calc(100vw-3rem)] flex-col overflow-hidden border-r shadow-2xl">
+        <div class="admin-sidebar-header flex h-16 items-center justify-between gap-3 border-b border-[var(--app-border)] px-5">
             <x-admin.sidebar-brand mobile />
 
             <button class="ui-btn ui-btn-soft h-10 w-10 shrink-0 px-0" type="button" aria-label="Tutup menu" data-mobile-sidebar-close>

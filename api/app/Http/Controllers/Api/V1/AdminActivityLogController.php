@@ -18,6 +18,11 @@ class AdminActivityLogController extends Controller
             $q->where('module', $request->query('module'));
         }
 
+        if ($request->filled('subject_id')) {
+            $request->validate(['subject_id' => ['integer', 'min:1']]);
+            $q->where('subject_id', $request->integer('subject_id'));
+        }
+
         if ($request->filled('action')) {
             $q->where('action', $request->query('action'));
         }
@@ -37,7 +42,7 @@ class AdminActivityLogController extends Controller
             });
         }
 
-        return response()->json($q->orderByDesc('created_at')->paginate($perPage));
+        return response()->json($q->orderByDesc('created_at')->orderByDesc('id')->paginate($perPage));
     }
 
     public function show(AdminActivityLog $adminActivityLog): JsonResponse

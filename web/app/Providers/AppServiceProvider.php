@@ -22,7 +22,11 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         View::composer('components.admin.topbar', function ($view): void {
-            $view->with('notifications', app(AdminNotificationViewData::class)->items(session('bbh_api_token')));
+            $readIds = session('bbh_read_notifications', []);
+            $view->with('notifications', app(AdminNotificationViewData::class)->items(
+                session('bbh_api_token'),
+                is_array($readIds) ? $readIds : []
+            ));
         });
     }
 }

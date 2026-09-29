@@ -1,4 +1,4 @@
-<x-layouts.admin title="Keluarkan Betina" skeleton="form">
+<x-layouts.admin title="Keluarkan Betina" skeleton="form" :page-header="false">
     @php
         $record = $context['breeding_female'] ?? [];
         $period = data_get($record, 'breeding_period', []);
@@ -8,8 +8,19 @@
         $date = fn ($value) => $value ? \Illuminate\Support\Carbon::parse($value)->format('d/m/Y') : '-';
     @endphp
 
+    <x-admin.record-page-header
+        collection="Betina Kawin"
+        :collection-route="route('admin.breeding-females')"
+        title="Keluarkan Betina"
+        subtitle="Catat tanggal dan alasan betina keluar dari periode perkawinan."
+        :record="data_get($female, 'tag_number')"
+        mode="Keluar Periode"
+    />
+
     <div class="admin-form-shell">
-        <x-panel title="Keluarkan Betina dari Periode">
+        <form class="admin-form" method="post" action="{{ route('admin.breeding-females.exit.store', ['id' => $id]) }}" data-skeleton-target="table">
+            @csrf
+            <x-panel>
             @if ($errors->any())
                 <div class="admin-alert admin-alert-danger">
                     <p class="font-semibold">Gagal</p>
@@ -60,9 +71,7 @@
                 </div>
             </div>
 
-            <form class="mt-6 grid gap-5" method="post" action="{{ route('admin.breeding-females.exit.store', ['id' => $id]) }}" data-skeleton-target="table">
-                @csrf
-
+            <div class="mt-6 grid gap-5">
                 <div class="grid gap-4 md:grid-cols-2">
                     <label>
                         <span class="ui-label">Tanggal Keluar</span>
@@ -100,19 +109,20 @@
                     </label>
                 </div>
 
-                <div class="flex flex-col-reverse gap-3 border-t pt-5 sm:flex-row sm:justify-end" style="border-color: var(--app-border);">
-                    <a class="ui-btn ui-btn-soft" href="{{ route('admin.breeding-females') }}">
-                        <x-icons name="x" class="h-4 w-4" />
-                        Batal
-                    </a>
-                    @unless (data_get($record, 'exit_date'))
-                        <button class="ui-btn ui-btn-primary" type="submit">
-                            <x-icons name="logout" class="h-4 w-4" />
-                            Keluarkan
-                        </button>
-                    @endunless
-                </div>
-            </form>
-        </x-panel>
+            </div>
+            </x-panel>
+            <div class="admin-form-actions">
+                @unless (data_get($record, 'exit_date'))
+                    <button class="ui-btn ui-btn-primary" type="submit">
+                        <x-icons name="logout" class="h-4 w-4" />
+                        Keluarkan
+                    </button>
+                @endunless
+                <a class="ui-btn ui-btn-soft" href="{{ route('admin.breeding-females') }}">
+                    <x-icons name="x" class="h-4 w-4" />
+                    Batal
+                </a>
+            </div>
+        </form>
     </div>
 </x-layouts.admin>

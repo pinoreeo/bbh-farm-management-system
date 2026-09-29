@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Support\BbhApiClient;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -78,5 +79,38 @@ class BbhApiClientTest extends TestCase
         $this->assertSame(['26-001'], array_column($result['animals']['data'], 'tag_number'));
         $this->assertSame(['2026-08-01', '2026-08-02'], array_column($result['birthEvents']['data'], 'birth_date'));
         Http::assertSentCount(3);
+    }
+
+    public function test_malformed_follow_up_page_is_not_reported_as_complete(): void
+    {
+        Http::fake(function (Request $request) {
+            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+            $page = (int) ($query['page'] ?? 1);
+
+            return Http::response([
+                'current_page' => $page,
+                'last_page' => 2,
+                'data' => $page === 1 ? [['id' => 1]] : 'invalid',
+            ]);
+        });
+
+        $single = app(BbhApiClient::class)->paginatedData('animals', [], 'token');
+        $batch = app(BbhApiClient::class)->paginatedBatchData(['animals' => ['path' => 'animals']], 'token');
+
+        $this->assertFalse($single['ok']);
+        $this->assertSame([], $single['data']);
+        $this->assertFalse($batch['animals']['ok']);
+        $this->assertSame([], $batch['animals']['data']);
+    }
+
+    public function test_missing_data_key_is_not_treated_as_an_empty_page(): void
+    {
+        Http::fake(['*' => Http::response(['current_page' => 1, 'last_page' => 1])]);
+
+        $single = app(BbhApiClient::class)->paginatedData('animals', [], 'token');
+        $batch = app(BbhApiClient::class)->paginatedBatchData(['animals' => ['path' => 'animals']], 'token');
+
+        $this->assertFalse($single['ok']);
+        $this->assertFalse($batch['animals']['ok']);
     }
 }

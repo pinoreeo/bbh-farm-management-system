@@ -50,7 +50,7 @@ export const initSortableTables = () => {
         const tbody = table.tBodies[0];
         const headers = Array.from(table.tHead?.rows[0]?.cells || []);
 
-        if (!tbody || headers.length === 0 || table.dataset.sortReady === 'true') {
+        if (!tbody || headers.length === 0 || table.dataset.sortReady === 'true' || table.hasAttribute('data-server-sort')) {
             return;
         }
 

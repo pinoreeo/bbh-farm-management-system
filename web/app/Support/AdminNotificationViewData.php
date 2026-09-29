@@ -12,15 +12,16 @@ class AdminNotificationViewData
     public function __construct(private readonly BbhApiClient $api) {}
 
     /**
-     * @return array<int, array<string, string>>
+     * @param  array<int, string>  $readIds
+     * @return array<int, array<string, mixed>>
      */
-    public function items(?string $token): array
+    public function items(?string $token, array $readIds = []): array
     {
         if (! is_string($token) || $token === '') {
             return [];
         }
 
-        return Cache::remember('bbh_admin_notifications:'.hash('sha256', $token), now()->addSeconds(30), function () use ($token): array {
+        $items = Cache::remember('bbh_admin_notifications:'.hash('sha256', $token), now()->addSeconds(30), function () use ($token): array {
             $apiItems = $this->apiItemsBatch([
                 'breedingFemales' => ['path' => 'breeding-females'],
                 'healthTreatments' => ['path' => 'health-treatments'],
@@ -37,13 +38,31 @@ class AdminNotificationViewData
                 return [$a['priority'] ?? 99, $a['date'] ?? '9999-12-31'] <=> [$b['priority'] ?? 99, $b['date'] ?? '9999-12-31'];
             });
 
-            return array_slice(array_map(fn (array $item) => [
+            return array_slice($items, 0, 20);
+        });
+
+        return array_map(function (array $item) use ($readIds): array {
+            $id = sha1(implode('|', [
+                $item['title'] ?? '',
+                $item['body'] ?? '',
+                $item['date'] ?? '',
+                $item['url'] ?? '',
+            ]));
+
+            return [
+                'id' => $id,
                 'title' => $item['title'],
                 'body' => $item['body'],
                 'time' => $this->timeLabel($item['date'] ?? null),
                 'url' => $item['url'],
-            ], $items), 0, 8);
-        });
+                'tone' => match ((int) ($item['priority'] ?? 2)) {
+                    0 => 'urgent',
+                    1 => 'warning',
+                    default => 'info',
+                },
+                'is_read' => in_array($id, $readIds, true),
+            ];
+        }, $items);
     }
 
     /**
@@ -116,7 +135,7 @@ class AdminNotificationViewData
                     'priority' => 2,
                     'date' => $this->value($row, 'entry_date'),
                     'title' => 'Tanggal kawin belum dicatat',
-                    'body' => "{$tag} masih aktif pada periode {$period}.",
+                    'body' => "Tanggal kawin {$tag} pada periode {$period} belum dicatat.",
                     'url' => route('admin.breeding-females.mating', ['id' => $id]),
                 ];
             }
@@ -136,8 +155,8 @@ class AdminNotificationViewData
                 $items[] = [
                     'priority' => 0,
                     'date' => $due->toDateString(),
-                    'title' => 'Perkiraan lahir terlewat',
-                    'body' => "{$tag} melewati perkiraan lahir. Periksa kondisi induk dan catat kelahiran bila sudah terjadi.",
+                    'title' => 'Perkiraan kelahiran terlewat',
+                    'body' => "Perkiraan tanggal melahirkan {$tag} sudah lewat. Perbarui catatan sesuai kondisi terakhir.",
                     'url' => route('admin.resource.create', ['resource' => 'birth-events']),
                 ];
             } elseif ($due->betweenIncluded($today, now()->addDays(14)->endOfDay())) {
@@ -145,7 +164,7 @@ class AdminNotificationViewData
                     'priority' => 1,
                     'date' => $due->toDateString(),
                     'title' => 'Persiapan kelahiran',
-                    'body' => "{$tag} diperkirakan lahir pada {$due->translatedFormat('d F Y')}.",
+                    'body' => "Perkiraan tanggal melahirkan {$tag}: {$due->translatedFormat('d F Y')}.",
                     'url' => route('admin.resource.show', ['resource' => 'breeding-females', 'id' => $id]),
                 ];
             }
@@ -175,13 +194,14 @@ class AdminNotificationViewData
             }
 
             $tag = $this->value($row, 'animal.tag_number');
-            $group = $this->value($row, 'treatment_group');
 
             $items[] = [
                 'priority' => $due->lessThan($today) ? 0 : 1,
                 'date' => $due->toDateString(),
-                'title' => $due->lessThan($today) ? 'Kontrol kesehatan terlewat' : 'Kontrol kesehatan perlu ditinjau',
-                'body' => "{$tag} - {$group}.",
+                'title' => $due->lessThan($today) ? 'Tanggal kontrol terlewat' : 'Jadwal kontrol',
+                'body' => $due->lessThan($today)
+                    ? "Tanggal kontrol {$tag} sudah lewat. Perbarui catatan jika kontrol telah dilakukan."
+                    : "Jadwal kontrol {$tag} tercatat pada {$due->translatedFormat('d F Y')}.",
                 'url' => route('admin.resource.edit', ['resource' => 'health-treatments', 'id' => $this->value($row, 'id')]),
             ];
         }
@@ -205,7 +225,7 @@ class AdminNotificationViewData
             'priority' => 0,
             'date' => now()->toDateString(),
             'title' => 'RSA Key aktif belum tersedia',
-            'body' => 'Buat atau aktifkan RSA Key sebelum menerbitkan sertifikat elektronik.',
+            'body' => 'Buat atau aktifkan RSA Key untuk menerbitkan sertifikat.',
             'url' => route('admin.rsa-keys'),
         ]];
     }

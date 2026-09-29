@@ -107,6 +107,36 @@
             </div>
         </div>
 
+        <div data-skeleton-variant="cards" @if ($type !== 'cards') hidden @endif>
+            <div class="mt-6 admin-list-toolbar">
+                <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div class="skeleton-line h-9 w-full lg:max-w-md"></div>
+                    <div class="flex gap-2">
+                        <div class="skeleton-line h-9 w-24"></div>
+                        <div class="skeleton-line h-9 w-28"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                @for ($index = 0; $index < 6; $index++)
+                    <div class="skeleton-panel">
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="space-y-3">
+                                <div class="skeleton-line h-3 w-20"></div>
+                                <div class="skeleton-line h-5 w-32"></div>
+                                <div class="skeleton-line h-3 w-40"></div>
+                            </div>
+                            <div class="skeleton-line h-6 w-16"></div>
+                        </div>
+                        <div class="mt-6 grid grid-cols-2 gap-4">
+                            <div class="skeleton-line h-9 w-full"></div>
+                            <div class="skeleton-line h-9 w-full"></div>
+                        </div>
+                    </div>
+                @endfor
+            </div>
+        </div>
+
         <div data-skeleton-variant="table" @if ($type !== 'table') hidden @endif>
             <div class="mt-6 admin-list-toolbar">
                 <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">

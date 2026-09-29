@@ -1,22 +1,18 @@
-<x-layouts.admin title="RSA Key" skeleton="table">
-    @php($rows = collect($records ?? []))
+<x-layouts.admin title="RSA Key" skeleton="cards" :page-header="false">
+    @php($rows = $records instanceof \Illuminate\Pagination\LengthAwarePaginator ? $records->getCollection() : collect($records ?? []))
     @php($hasRecords = $rows->isNotEmpty())
     @php($isSuperAdmin = (session('bbh_admin_user.role') ?? null) === 'super_admin')
     @php($shortFingerprint = fn ($value) => strlen((string) $value) > 14 ? substr((string) $value, 0, 5) . '....' . substr((string) $value, -5) : (string) $value)
 
-    @if (session('formMessage') || $errors->any())
-        <div class="admin-alert {{ $errors->any() ? 'admin-alert-danger' : 'admin-alert-success' }}">
-            <p class="font-semibold">{{ $errors->any() ? 'Gagal' : 'Sukses' }}</p>
-            @if ($errors->any())
-                <p class="mt-1 theme-muted">Periksa kembali konfigurasi kunci digital sebelum melanjutkan.</p>
-                <ul class="mt-2 list-disc space-y-1 pl-5">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            @else
-                <p class="mt-1">{{ session('formMessage') }}</p>
-            @endif
+    @if ($errors->any())
+        <div class="admin-alert admin-alert-danger">
+            <p class="font-semibold">Gagal</p>
+            <p class="mt-1 theme-muted">Periksa kembali data RSA Key sebelum melanjutkan.</p>
+            <ul class="mt-2 list-disc space-y-1 pl-5">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
         </div>
     @endif
 
@@ -25,95 +21,123 @@
             <p class="font-semibold">Data Tidak Dapat Dimuat</p>
             <p class="mt-1 theme-muted">{{ $apiFailureMessage }}</p>
         </div>
+    @elseif (! empty($dataTruncated))
+        <div class="admin-alert admin-alert-warning">
+            <p class="font-semibold">Sebagian Data Belum Ditampilkan</p>
+            <p class="mt-1 theme-muted">Jumlah catatan melebihi batas tampilan. Hubungi pengelola sistem bila data yang dicari belum terlihat.</p>
+        </div>
     @endif
 
-    <x-panel title="Manajemen RSA Key">
-        <x-slot:actions>
-            <a class="ui-btn ui-btn-primary" href="{{ route('admin.resource.create', ['resource' => 'rsa-keys']) }}">
-                <x-icons name="plus" class="h-4 w-4" />
-                {{ $hasRecords ? 'Rotasi RSA Key' : 'Generate RSA Key' }}
-            </a>
-        </x-slot:actions>
+    <header class="admin-resource-page-header">
+        <div>
+            <nav class="admin-resource-breadcrumb" aria-label="Breadcrumb">
+                <a href="{{ route('admin.dashboard') }}">Dashboard</a>
+                <span>/</span>
+                <span>RSA Key</span>
+            </nav>
+            <h1>RSA Key</h1>
+            <p>Kelola kunci digital untuk sertifikat.</p>
+        </div>
 
-        @if ($isSuperAdmin)
-            <section class="admin-list-toolbar mb-5">
-                <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <form class="w-full lg:max-w-md" method="get">
-                        <label class="relative block">
-                            <x-icons name="search" class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
-                            <input class="ui-input pl-10" type="search" name="search" value="{{ request('search') }}" placeholder="Cari RSA Key...">
-                        </label>
-                    </form>
+        <a class="ui-btn ui-btn-primary" href="{{ route('admin.resource.create', ['resource' => 'rsa-keys']) }}">
+            <x-icons name="plus" class="h-4 w-4" />
+            {{ $hasRecords ? 'Rotasi RSA Key' : 'Generate RSA Key' }}
+        </a>
+    </header>
 
-                    @if (request()->filled('search'))
-                        <a class="ui-btn ui-btn-soft" href="{{ url()->current() }}">Reset</a>
-                    @endif
-                </div>
-            </section>
-        @endif
+    @if ($isSuperAdmin)
+        <section class="admin-list-toolbar">
+            <div class="admin-list-toolbar-controls">
+                <form class="w-full sm:max-w-md" method="get">
+                    <label class="relative block">
+                        <x-icons name="search" class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+                        <input class="ui-input pl-10" type="search" name="search" value="{{ request('search') }}" placeholder="Cari RSA Key...">
+                    </label>
+                </form>
 
-        @if ($hasRecords)
-            <div class="overflow-hidden rounded-[18px] border border-[var(--app-border)]">
-                <table class="min-w-full divide-y divide-[var(--app-border)] text-left text-sm">
-                    <thead class="bg-[var(--app-surface-soft)] text-xs text-[var(--app-muted)]">
-                        <tr>
-                            <th class="px-5 py-4 font-medium">Key Identifier</th>
-                            <th class="px-5 py-4 font-medium">Pemilik</th>
-                            <th class="px-5 py-4 font-medium">Fingerprint</th>
-                            <th class="px-5 py-4 font-medium">Dibuat</th>
-                            <th class="px-5 py-4 font-medium">Status</th>
-                            <th class="px-5 py-4 text-right font-medium">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-[var(--app-border)] bg-[var(--app-surface)]">
-                        @foreach ($rows as $record)
-                            @php($cells = $record['cells'] ?? [])
-                            @php($raw = $record['raw'] ?? [])
-                            @php($status = $cells[5] ?? '-')
-                            @php($isActive = $status === 'Aktif')
-                            @php($isDisabled = $status === 'Dinonaktifkan')
-                            <tr>
-                                <td class="px-5 py-4">
-                                    <div class="font-medium text-[var(--app-text)]">{{ $cells[0] ?? '-' }}</div>
-                                </td>
-                                <td class="max-w-[260px] px-5 py-4 text-[var(--app-muted)]">{{ $cells[1] ?? '-' }}</td>
-                                <td class="px-5 py-4 font-mono text-xs text-[var(--app-muted)]" title="{{ $cells[4] ?? '-' }}">{{ $shortFingerprint($cells[4] ?? '-') }}</td>
-                                <td class="px-5 py-4 text-[var(--app-muted)]">{{ isset($raw['created_at']) ? substr((string) $raw['created_at'], 0, 10) : '-' }}</td>
-                                <td class="px-5 py-4">
-                                    <span class="audit-badge {{ $isActive ? 'audit-badge-success' : ($isDisabled ? 'audit-badge-danger' : 'audit-badge-neutral') }}">
-                                        {{ $status }}
-                                    </span>
-                                </td>
-                                <td class="px-5 py-4 text-right">
+                @if (request()->filled('search'))
+                    <a class="ui-btn ui-btn-soft" href="{{ url()->current() }}">Reset</a>
+                @endif
+            </div>
+        </section>
+    @endif
+
+    @if (empty($apiFailureMessage) && $hasRecords)
+        <section class="admin-rsa-key-grid">
+            @foreach ($rows as $record)
+                @php($cells = $record['cells'] ?? [])
+                @php($raw = $record['raw'] ?? [])
+                @php($status = $cells[5] ?? '-')
+                @php($isActive = $status === 'Aktif')
+                @php($isDisabled = $status === 'Dinonaktifkan')
+                <article class="admin-rsa-key-card">
+                    <header class="admin-rsa-key-card-header">
+                        <div class="min-w-0">
+                            <p class="admin-resource-card-eyebrow">
+                                <x-icons name="key" class="h-4 w-4" />
+                                Kunci digital
+                            </p>
+                            <h2>{{ $cells[0] ?? '-' }}</h2>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <span class="admin-resource-card-status" data-tone="{{ $isActive ? 'positive' : ($isDisabled ? 'negative' : 'neutral') }}">{{ $status }}</span>
+                            <details class="admin-row-menu" data-row-menu>
+                                <summary aria-label="Buka aksi RSA Key" title="Aksi">
+                                    <x-icons name="more" class="h-4 w-4" />
+                                </summary>
+                                <div class="admin-row-menu-panel">
                                     @if ($isActive)
                                         <form method="POST" action="{{ route('admin.resource.action', ['resource' => 'rsa-keys', 'id' => $record['id'], 'action' => 'deactivate']) }}" data-skeleton-target="table" onsubmit="return confirm('Nonaktifkan RSA Key ini? Key tidak akan digunakan untuk penerbitan sertifikat baru.');">
                                             @csrf
-                                            <button type="submit" class="ui-btn ui-btn-danger-soft">
-                                                Nonaktifkan
+                                            <button type="submit" class="admin-row-menu-action is-danger">
+                                                <x-icons name="circle-x" class="h-4 w-4" />
+                                                Nonaktifkan key
                                             </button>
                                         </form>
-                                    @elseif ($isDisabled)
-                                        <span class="text-xs font-medium text-[var(--app-muted)]">Tidak tersedia</span>
+                                    @elseif (! $isDisabled)
+                                        <form method="POST" action="{{ route('admin.resource.action', ['resource' => 'rsa-keys', 'id' => $record['id'], 'action' => 'activate']) }}" data-skeleton-target="table">
+                                            @csrf
+                                            <button type="submit" class="admin-row-menu-action">
+                                                <x-icons name="check" class="h-4 w-4" />
+                                                Aktifkan key
+                                            </button>
+                                        </form>
                                     @else
-                                        <div class="flex justify-end gap-2">
-                                            <form method="POST" action="{{ route('admin.resource.action', ['resource' => 'rsa-keys', 'id' => $record['id'], 'action' => 'activate']) }}" data-skeleton-target="table">
-                                                @csrf
-                                                <button type="submit" class="ui-btn ui-btn-soft">
-                                                    Aktifkan
-                                                </button>
-                                            </form>
-                                        </div>
+                                        <span class="admin-row-menu-empty">Tidak ada aksi tersedia</span>
                                     @endif
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @else
-            <div class="admin-detail-item text-center text-sm text-[var(--app-muted)]">
-                {{ request()->filled('search') ? 'RSA Key tidak ditemukan.' : 'Belum ada RSA Key yang tersedia. Generate kunci terlebih dahulu agar sertifikat dapat ditandatangani secara digital.' }}
-            </div>
-        @endif
-    </x-panel>
+                                </div>
+                            </details>
+                        </div>
+                    </header>
+
+                    <dl class="admin-rsa-key-fields">
+                        <div>
+                            <dt>Pemilik</dt>
+                            <dd>{{ $cells[1] ?? '-' }}</dd>
+                        </div>
+                        <div>
+                            <dt>Algoritma</dt>
+                            <dd>{{ $cells[2] ?? '-' }} - {{ $cells[3] ?? '-' }} bit</dd>
+                        </div>
+                        <div class="admin-rsa-key-fingerprint">
+                            <dt>Fingerprint SHA-256</dt>
+                            <dd title="{{ $cells[4] ?? '-' }}">{{ $shortFingerprint($cells[4] ?? '-') }}</dd>
+                        </div>
+                        <div>
+                            <dt>Dibuat</dt>
+                            <dd>{{ isset($raw['created_at']) ? substr((string) $raw['created_at'], 0, 10) : '-' }}</dd>
+                        </div>
+                    </dl>
+                </article>
+            @endforeach
+        </section>
+    @elseif (empty($apiFailureMessage))
+        <div class="admin-resource-card-empty">
+            {{ request()->filled('search') ? 'RSA Key tidak ditemukan.' : 'Belum ada RSA Key. Buat RSA Key untuk penerbitan sertifikat.' }}
+        </div>
+    @endif
+
+    @if (empty($apiFailureMessage) && $hasRecords && $records instanceof \Illuminate\Pagination\LengthAwarePaginator)
+        <x-admin.pagination :paginator="$records" />
+    @endif
 </x-layouts.admin>

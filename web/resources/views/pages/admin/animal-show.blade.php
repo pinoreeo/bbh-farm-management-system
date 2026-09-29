@@ -1,16 +1,20 @@
-<x-layouts.admin title="Detail Kambing" skeleton="detail">
-    <div class="admin-page-actions">
-        <a class="ui-btn ui-btn-soft" href="{{ route('admin.animals') }}">
-            <x-icons name="arrow-left" class="h-4 w-4" />
-            Kembali
-        </a>
-        <div class="admin-inline-actions">
-            <a class="ui-btn ui-btn-primary" href="{{ route('admin.resource.edit', ['resource' => 'animals', 'id' => $id]) }}">
-                <x-icons name="edit" class="h-4 w-4" />
-                Edit
-            </a>
-        </div>
-    </div>
+@php
+    $recordTitle = data_get($animal, 'tag_number', 'Kambing');
+    $animalSubtitle = collect([
+        data_get($animal, 'breed.breed_name'),
+        data_get($animal, 'sex') === 'male' ? 'Jantan' : 'Betina',
+    ])->filter()->join(' - ');
+@endphp
+
+<x-layouts.admin :title="$recordTitle" skeleton="detail" :page-header="false">
+    <x-admin.record-page-header
+        collection="Data Kambing"
+        :collection-route="route('admin.animals')"
+        :title="$recordTitle"
+        :subtitle="$animalSubtitle"
+        :record="$recordTitle"
+        :edit-route="route('admin.animals.edit', ['tag' => data_get($animal, 'tag_number')])"
+    />
 
     <div class="grid gap-4 xl:grid-cols-[320px_1fr]">
         <x-panel title="Identitas">
@@ -60,7 +64,7 @@
 
             @foreach ($sections as $title => [$items, $columns])
                 <x-panel :title="$title">
-                    <div class="overflow-x-auto">
+                    <div class="animal-history-table-wrap" role="region" aria-label="{{ $title }}" tabindex="0">
                         <table class="ui-table">
                             <thead>
                                 <tr>
@@ -78,14 +82,14 @@
                                                 @if ($key === 'is_pregnant')
                                                     {{ $value ? 'Bunting' : 'Tidak Bunting' }}
                                                 @else
-                                                    {{ is_string($value) ? substr($value, 0, 30) : ($value ?? '-') }}
+                                                    {{ $value ?? '-' }}
                                                 @endif
                                             </td>
                                         @endforeach
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="{{ count($columns) }}" class="text-center theme-muted">Belum ada data.</td>
+                                        <td colspan="{{ count($columns) }}" class="text-center theme-muted">Belum ada data yang dicatat.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -95,4 +99,10 @@
             @endforeach
         </div>
     </div>
+
+    @if (count($history) > 0)
+        <div class="mt-5">
+            <x-admin.record-history :history="$history" collection="Data Kambing" />
+        </div>
+    @endif
 </x-layouts.admin>

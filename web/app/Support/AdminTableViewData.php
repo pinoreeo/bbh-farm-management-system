@@ -11,6 +11,8 @@ class AdminTableViewData
 {
     private ?string $failureMessage = null;
 
+    private bool $truncated = false;
+
     public function __construct(private readonly BbhApiClient $api) {}
 
     public function failureMessage(): ?string
@@ -18,11 +20,16 @@ class AdminTableViewData
         return $this->failureMessage;
     }
 
+    public function isTruncated(): bool
+    {
+        return $this->truncated;
+    }
+
     /**
      * @param  array<int, array<int, string>>  $fallbackRows
      * @return array<int, array<int, string>>
      */
-    public function rows(string $slug, array $fallbackRows, ?string $token, int $maxPages = 50, array $extraQuery = []): array
+    public function rows(string $slug, array $fallbackRows, ?string $token, int $maxPages = PHP_INT_MAX, array $extraQuery = []): array
     {
         return array_map(fn ($record) => $record['cells'], $this->records($slug, $fallbackRows, $token, $maxPages, $extraQuery));
     }
@@ -31,7 +38,7 @@ class AdminTableViewData
      * @param  array<int, array<int, string>>  $fallbackRows
      * @return array<int, array{id:int, cells:array<int, string>, raw:array<string, mixed>}>
      */
-    public function records(string $slug, array $fallbackRows, ?string $token, int $maxPages = 50, array $extraQuery = []): array
+    public function records(string $slug, array $fallbackRows, ?string $token, int $maxPages = PHP_INT_MAX, array $extraQuery = []): array
     {
         if (! is_string($token) || $token === '') {
             return $this->fallbackRecords($fallbackRows);
@@ -43,19 +50,25 @@ class AdminTableViewData
         }
 
         try {
-            $result = $this->api->paginatedData($endpoint, $this->queryFor($slug, $extraQuery), $token, $maxPages);
+            $result = $this->api->paginatedBatchData([
+                $slug => ['path' => $endpoint, 'query' => $this->queryFor($slug, $extraQuery)],
+            ], $token, $maxPages)[$slug];
         } catch (Throwable) {
-            $this->failureMessage = 'Gagal: Layanan API tidak merespons. Data tidak dapat dimuat saat ini.';
+            $this->failureMessage = 'Data belum dapat ditampilkan. Silakan coba lagi.';
 
             return [];
         }
 
         $response = $result['response'];
-        if (! $result['ok'] && $response instanceof Response) {
-            $this->failureMessage = $this->apiFailureMessage($response);
+        if (! $result['ok']) {
+            $this->failureMessage = $response instanceof Response
+                ? $this->apiFailureMessage($response)
+                : 'Data belum dapat ditampilkan. Silakan coba lagi.';
 
             return [];
         }
+
+        $this->truncated = $this->truncated || $result['truncated'];
 
         $items = $result['data'];
 
@@ -69,6 +82,55 @@ class AdminTableViewData
         )));
 
         return $rows;
+    }
+
+    /**
+     * @param  array<string, array<int, array<int, string>>>  $fallbackRowsBySlug
+     * @return array<string, array<int, array{id:int, cells:array<int, string>, raw:array<string, mixed>}>>
+     */
+    public function recordsBatch(array $fallbackRowsBySlug, ?string $token, int $maxPages = PHP_INT_MAX): array
+    {
+        if (! is_string($token) || $token === '') {
+            return array_map($this->fallbackRecords(...), $fallbackRowsBySlug);
+        }
+
+        $requests = [];
+        foreach ($fallbackRowsBySlug as $slug => $fallbackRows) {
+            $endpoint = $this->endpoint($slug);
+            if ($endpoint !== null) {
+                $requests[$slug] = ['path' => $endpoint, 'query' => $this->queryFor($slug)];
+            }
+        }
+
+        try {
+            $results = $this->api->paginatedBatchData($requests, $token, $maxPages);
+        } catch (Throwable) {
+            $this->failureMessage = 'Data belum dapat ditampilkan. Silakan coba lagi.';
+
+            return array_fill_keys(array_keys($fallbackRowsBySlug), []);
+        }
+
+        $records = [];
+        foreach ($fallbackRowsBySlug as $slug => $fallbackRows) {
+            $result = $results[$slug] ?? null;
+            if ($result === null || ! $result['ok']) {
+                $response = $result['response'] ?? null;
+                $this->failureMessage = $response instanceof Response
+                    ? $this->apiFailureMessage($response)
+                    : 'Data belum dapat ditampilkan. Silakan coba lagi.';
+                $records[$slug] = [];
+
+                continue;
+            }
+
+            $this->truncated = $this->truncated || $result['truncated'];
+            $records[$slug] = array_values(array_map(
+                fn (array $item) => $this->recordFromItem($slug, $item),
+                array_filter($result['data'], 'is_array')
+            ));
+        }
+
+        return $records;
     }
 
     /**
@@ -91,8 +153,8 @@ class AdminTableViewData
         return match (true) {
             $response->status() === 401 => 'Sesi Berakhir: Silakan masuk kembali sebelum melihat data admin.',
             $response->status() === 403 => $message ?: 'Gagal: Akun Anda tidak memiliki izin untuk melihat data ini.',
-            $response->serverError() => 'Gagal: Layanan API sedang bermasalah. Data tidak dapat dimuat saat ini.',
-            default => $message ?: 'Gagal: Data tidak dapat dimuat dari API. Silakan coba muat ulang halaman.',
+            $response->serverError() => 'Data belum dapat ditampilkan. Silakan coba lagi.',
+            default => $message ?: 'Data belum dapat ditampilkan. Silakan coba lagi.',
         };
     }
 
@@ -162,7 +224,6 @@ class AdminTableViewData
         return match ($slug) {
             'users' => [
                 $this->value($item, 'name'),
-                $this->value($item, 'email'),
                 $this->roleLabel($this->value($item, 'role')),
                 ((bool) ($item['is_active'] ?? true)) ? 'Aktif' : 'Nonaktif',
                 $this->date($this->value($item, 'last_login_at')),

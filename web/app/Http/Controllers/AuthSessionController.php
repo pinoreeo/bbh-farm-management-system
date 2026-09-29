@@ -24,8 +24,8 @@ class AuthSessionController extends Controller
         $data = $request->validate([
             'email' => ['required', 'email'],
         ], [
-            'email.required' => 'Peringatan: Kolom email wajib diisi.',
-            'email.email' => 'Peringatan: Kolom email harus menggunakan format email yang valid.',
+            'email.required' => 'Peringatan: Email wajib diisi.',
+            'email.email' => 'Peringatan: Masukkan alamat email yang benar.',
         ]);
 
         try {
@@ -34,17 +34,17 @@ class AuthSessionController extends Controller
             ]);
         } catch (ConnectionException) {
             throw ValidationException::withMessages([
-                'email' => 'Gagal: Layanan API Bumiku Bumimu Hijau Farm tidak merespons. Silakan coba lagi nanti.',
+                'email' => 'Gagal: Layanan belum dapat diakses. Silakan coba lagi.',
             ]);
         }
 
         if (! $response->successful()) {
             throw ValidationException::withMessages([
-                'email' => 'Gagal: Email tidak terdaftar. Periksa kembali email Anda dan coba lagi.',
+                'email' => 'Gagal: Tautan reset password belum dapat dikirim. Silakan coba lagi.',
             ]);
         }
 
-        return back()->with('status', "Info: Jika email terdaftar di sistem, tautan reset kata sandi akan dikirim ke {$data['email']}.");
+        return back()->with('status', 'Info: Jika email terdaftar, tautan reset password akan dikirim ke email tersebut.');
     }
 
     public function resetPassword(string $token, Request $request)
@@ -62,12 +62,12 @@ class AuthSessionController extends Controller
             'token' => ['required', 'string'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ], [
-            'email.required' => 'Peringatan: Kolom email wajib diisi.',
-            'email.email' => 'Peringatan: Kolom email harus menggunakan format email yang valid.',
-            'token.required' => 'Gagal: Data pengajuan reset kata sandi tidak valid.',
-            'password.required' => 'Peringatan: Kolom kata sandi baru wajib diisi.',
-            'password.min' => 'Peringatan: Nilai kolom kata sandi baru di bawah batas minimum yang ditentukan.',
-            'password.confirmed' => 'Peringatan: Konfirmasi kata sandi tidak cocok. Pastikan nilai sama dengan kolom sebelumnya.',
+            'email.required' => 'Peringatan: Email wajib diisi.',
+            'email.email' => 'Peringatan: Masukkan alamat email yang benar.',
+            'token.required' => 'Gagal: Tautan reset password tidak valid atau sudah kedaluwarsa. Ajukan reset password kembali.',
+            'password.required' => 'Peringatan: Password baru wajib diisi.',
+            'password.min' => 'Peringatan: Password minimal 8 karakter.',
+            'password.confirmed' => 'Peringatan: Konfirmasi password harus sama dengan password baru.',
         ]);
 
         try {
@@ -77,12 +77,18 @@ class AuthSessionController extends Controller
             ]);
         } catch (ConnectionException) {
             throw ValidationException::withMessages([
-                'email' => 'Gagal: Layanan API Bumiku Bumimu Hijau Farm tidak merespons. Silakan coba lagi nanti.',
+                'email' => 'Gagal: Layanan belum dapat diakses. Silakan coba lagi.',
             ]);
         }
 
         if (! $response->successful()) {
-            $message = $response->json('message') ?: 'Gagal: Data pengajuan reset kata sandi tidak valid.';
+            if ($response->serverError()) {
+                throw ValidationException::withMessages([
+                    'email' => 'Gagal: Layanan belum dapat diakses. Silakan coba lagi.',
+                ]);
+            }
+
+            $message = $response->json('message') ?: 'Gagal: Password belum berhasil diperbarui. Silakan coba lagi.';
             $errors = $response->json('errors');
 
             if (is_array($errors)) {
@@ -95,7 +101,7 @@ class AuthSessionController extends Controller
             ]);
         }
 
-        return redirect()->route('login')->with('status', 'Sukses: Kata sandi berhasil diperbarui. Silakan masuk dengan kata sandi baru.');
+        return redirect()->route('login')->with('status', 'Sukses: Password berhasil diperbarui. Silakan login dengan password baru.');
     }
 
     public function store(Request $request, BbhApiClient $api)
@@ -104,9 +110,9 @@ class AuthSessionController extends Controller
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
         ], [
-            'email.required' => 'Peringatan: Kolom email wajib diisi.',
-            'email.email' => 'Peringatan: Kolom email harus menggunakan format email yang valid.',
-            'password.required' => 'Peringatan: Kolom kata sandi wajib diisi.',
+            'email.required' => 'Peringatan: Email wajib diisi.',
+            'email.email' => 'Peringatan: Masukkan alamat email yang benar.',
+            'password.required' => 'Peringatan: Password wajib diisi.',
         ]);
 
         try {
@@ -117,14 +123,14 @@ class AuthSessionController extends Controller
             ]);
         } catch (ConnectionException) {
             throw ValidationException::withMessages([
-                'email' => 'Gagal Masuk: Layanan API Bumiku Bumimu Hijau Farm tidak merespons. Silakan coba lagi nanti.',
+                'email' => 'Gagal: Layanan belum dapat diakses. Silakan coba lagi.',
             ]);
         }
 
         if (! $response->successful()) {
-            if ($response->notFound()) {
+            if ($response->notFound() || $response->serverError()) {
                 throw ValidationException::withMessages([
-                    'email' => 'Gagal Masuk: Endpoint API tidak ditemukan. Pastikan backend API berjalan di port 8000 dan web berjalan di port 8001.',
+                    'email' => 'Gagal: Layanan belum dapat diakses. Silakan coba lagi.',
                 ]);
             }
 
@@ -137,11 +143,12 @@ class AuthSessionController extends Controller
             }
 
             throw ValidationException::withMessages([
-                'email' => is_string($message) && $message !== '' ? $message : 'Gagal Masuk: Email atau kata sandi tidak sesuai.',
+                'email' => is_string($message) && $message !== '' ? $message : 'Gagal: Login belum berhasil. Silakan coba lagi.',
             ]);
         }
 
-        session([
+        $request->session()->regenerate();
+        $request->session()->put([
             'bbh_api_token' => $response->json('access_token'),
             'bbh_admin_user' => $response->json('user'),
         ]);
@@ -149,9 +156,9 @@ class AuthSessionController extends Controller
         return redirect()->route('admin.dashboard');
     }
 
-    public function destroy(BbhApiClient $api)
+    public function destroy(Request $request, BbhApiClient $api)
     {
-        $token = session('bbh_api_token');
+        $token = $request->session()->get('bbh_api_token');
 
         try {
             if (is_string($token) && $token !== '') {
@@ -161,7 +168,8 @@ class AuthSessionController extends Controller
             // Session lokal tetap diakhiri walaupun API sedang tidak dapat dihubungi.
         }
 
-        session()->forget(['bbh_api_token', 'bbh_admin_user']);
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return redirect()->route('login');
     }

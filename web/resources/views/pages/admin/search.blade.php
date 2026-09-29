@@ -2,14 +2,13 @@
     @php($searchTitle = $query !== '' ? 'Hasil data untuk "'.$query.'"' : 'Cari Data')
 
     <div class="grid gap-4">
-        <x-panel title="Pencarian Data">
+        <x-panel>
             <form class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]" method="get" action="{{ route('admin.search') }}" data-skeleton-target="table">
                 <label>
                     <span class="sr-only">Cari data peternakan</span>
                     <input class="ui-input" type="search" name="q" value="{{ $query }}" placeholder="Cari eartag, nomor sertifikat, kandang, vaksinasi...">
                 </label>
                 <button class="ui-btn ui-btn-primary" type="submit">
-                    <x-icons name="search" class="h-4 w-4" />
                     Cari
                 </button>
             </form>
@@ -18,7 +17,14 @@
         @if (! empty($failureMessage))
             <div class="admin-alert admin-alert-danger">
                 <p class="font-semibold">Sebagian Data Tidak Dapat Dimuat</p>
-                <p class="mt-1 theme-muted">{{ $failureMessage }}</p>
+                <p class="mt-1 theme-muted">{{ $failureMessage === 'Data belum dapat ditampilkan. Silakan coba lagi.' ? 'Sebagian data belum dapat ditampilkan. Silakan coba lagi.' : $failureMessage }}</p>
+            </div>
+        @endif
+
+        @if (! empty($dataTruncated))
+            <div class="admin-alert admin-alert-warning">
+                <p class="font-semibold">Pencarian Belum Mencakup Semua Data</p>
+                <p class="mt-1 theme-muted">Jumlah catatan melebihi batas pencarian. Hubungi pengelola sistem bila data yang dicari belum terlihat.</p>
             </div>
         @endif
 
@@ -48,17 +54,21 @@
                                 Lihat Daftar
                             </a>
                             <a class="ui-btn ui-btn-primary" href="{{ $item['detailRoute'] }}" data-skeleton-target="detail">
+                                <x-icons name="eye" class="h-4 w-4" />
                                 Lihat Detail
                             </a>
                         </div>
                     </div>
                 @empty
                     <div class="py-8 text-center">
-                        <p class="text-sm font-medium text-[var(--app-text)]">{{ $query === '' ? 'Masukkan kata kunci untuk mencari data.' : 'Tidak ada data yang cocok.' }}</p>
+                        <p class="text-sm font-medium text-[var(--app-text)]">{{ $query === '' ? 'Masukkan kata kunci untuk mencari data.' : ((! empty($failureMessage) || ! empty($dataTruncated)) ? 'Data yang dicari belum ditemukan dalam catatan yang berhasil dimuat.' : 'Tidak ada data yang sesuai dengan pencarian.') }}</p>
                         <p class="mt-1 text-sm text-[var(--app-muted)]">Coba cari eartag, nomor sertifikat, kode kandang, nama koloni, tanggal, atau status data.</p>
                     </div>
                 @endforelse
             </div>
         </x-panel>
+        @if ($results->total() > 0)
+            <x-admin.pagination :paginator="$results" />
+        @endif
     </div>
 </x-layouts.admin>

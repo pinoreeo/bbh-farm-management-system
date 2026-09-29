@@ -1,6 +1,6 @@
 @php($copy = $publicCopy ?? \App\Support\PublicSiteCopy::current())
 
-<section id="verifikasi" class="relative scroll-mt-[72px] overflow-hidden bg-white px-6 py-12 text-[var(--bbh-text)] sm:px-8 lg:scroll-mt-[84px] lg:px-10 lg:py-16">
+<section id="verifikasi" class="relative scroll-mt-[72px] overflow-hidden px-6 py-12 text-[var(--bbh-text)] sm:px-8 lg:scroll-mt-[84px] lg:px-10 lg:py-16">
     <div class="mx-auto w-full max-w-[860px] text-center">
         <h2 class="bbh-heading">{{ $copy['verification']['title'] }}</h2>
         <p class="mx-auto mt-4 max-w-xl bbh-text text-[var(--bbh-muted)]">{{ $copy['verification']['copy'] }}</p>

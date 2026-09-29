@@ -1,100 +1,115 @@
-<x-layouts.admin title="Profil Farm" skeleton="form">
-    <div class="grid gap-4 xl:grid-cols-2">
-        <x-panel title="Profil Farm">
-            <form class="space-y-4" method="post" action="{{ route('admin.profile.update') }}" data-skeleton-target="form">
-                @csrf
-                @method('put')
+<x-layouts.admin title="Pengaturan" skeleton="form">
+    <div class="admin-settings-layout grid gap-8 xl:grid-cols-[180px_minmax(0,560px)] xl:gap-10" data-settings-tabs>
+        <nav class="admin-settings-nav flex h-fit gap-1 overflow-x-auto border-b pb-3 xl:block xl:border-b-0 xl:border-r xl:pb-0 xl:pr-6" aria-label="Navigasi pengaturan" role="tablist">
+            <button class="admin-settings-tab is-active block shrink-0 rounded-md px-3 py-2 text-left text-sm" type="button" data-settings-tab="profile" role="tab" aria-controls="profil-pengguna" aria-selected="true">Profil pengguna</button>
+            <button class="admin-settings-tab block shrink-0 rounded-md px-3 py-2 text-left text-sm" type="button" data-settings-tab="password" role="tab" aria-controls="keamanan-akun" aria-selected="false">Password</button>
+        </nav>
 
-                @if ($profileMessage)
-                    <div class="admin-alert admin-alert-success">
-                        <p class="font-semibold">Sukses</p>
-                        <p class="mt-1">{{ $profileMessage }}</p>
+        <div class="min-w-0">
+            <section id="profil-pengguna" class="scroll-mt-24" data-settings-panel="profile" role="tabpanel">
+                <div class="mb-6">
+                    <h2 class="admin-section-title">Profil pengguna</h2>
+                    <p class="mt-1 text-sm text-[var(--app-muted)]">Kelola nama dan nomor telepon akun Anda.</p>
+                </div>
+
+                <form class="space-y-5" method="post" action="{{ route('admin.profile.user') }}" data-skeleton-target="form">
+                    @csrf
+                    @method('put')
+
+                    @if ($userProfileMessage)
+                        <div class="admin-alert admin-alert-success">
+                            <p class="font-semibold">Sukses</p>
+                            <p class="mt-1">{{ $userProfileMessage }}</p>
+                        </div>
+                    @endif
+
+                    @if ($errors->has('user_name'))
+                        <div class="admin-alert admin-alert-danger">
+                            <p class="font-semibold">Gagal</p>
+                            <p class="mt-1">{{ $errors->first('user_name') }}</p>
+                        </div>
+                    @endif
+
+                    <div class="grid gap-5 sm:grid-cols-2">
+                        <label class="block">
+                            <span class="ui-label">Nama lengkap</span>
+                            <input class="ui-input" name="user_name" value="{{ old('user_name', $user['name'] ?? '') }}" required>
+                            @error('user_name')
+                                <p class="mt-1 text-sm text-red-700">{{ $message }}</p>
+                            @enderror
+                        </label>
+
+                        <label class="block">
+                            <span class="ui-label">Nomor telepon</span>
+                            <input class="ui-input" type="tel" name="phone" value="{{ old('phone', $user['phone'] ?? '') }}" placeholder="Contoh: 081234567890">
+                            @error('phone')
+                                <p class="mt-1 text-sm text-red-700">{{ $message }}</p>
+                            @enderror
+                        </label>
                     </div>
-                @endif
-
-                @if ($errors->any())
-                    <div class="admin-alert admin-alert-danger">
-                        <p class="font-semibold">Gagal</p>
-                        <p class="mt-1 theme-muted">Periksa kembali informasi profil peternakan sebelum menyimpan.</p>
-                        <ul class="mt-2 list-disc space-y-1 pl-5">
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
-
-                <label class="block">
-                    <span class="ui-label">Nama Farm</span>
-                    <input class="ui-input" name="farm_name" value="{{ old('farm_name', $farm['farm_name'] ?? 'BBH Farm') }}" required>
-                </label>
-
-                <label class="block">
-                    <span class="ui-label">Alamat</span>
-                    <textarea class="ui-input min-h-28 py-3" name="address">{{ old('address', $farm['address'] ?? '') }}</textarea>
-                </label>
-
-                <div class="grid gap-4 md:grid-cols-2">
-                    <label class="block">
-                        <span class="ui-label">Telepon</span>
-                        <input class="ui-input" name="phone" value="{{ old('phone', $farm['phone'] ?? '') }}">
-                    </label>
 
                     <label class="block">
                         <span class="ui-label">Email</span>
-                        <input class="ui-input" type="email" name="email" value="{{ old('email', $farm['email'] ?? '') }}">
+                        <input class="ui-input bg-[var(--app-surface-soft)]" type="email" value="{{ $user['email'] ?? '' }}" readonly>
+                        <p class="mt-1 text-sm text-[var(--app-muted)]">Email digunakan untuk login dan tidak dapat diubah.</p>
                     </label>
-                </div>
 
-                <div class="flex flex-col-reverse gap-3 border-t pt-5 sm:flex-row sm:justify-end" style="border-color: var(--app-border);">
-                    <a class="ui-btn ui-btn-soft" href="{{ route('admin.dashboard') }}">
-                        <x-icons name="arrow-left" class="h-4 w-4" />
-                        Kembali
-                    </a>
-                    <button class="ui-btn ui-btn-primary" type="submit">
-                        <x-icons name="save" class="h-4 w-4" />
-                        Simpan Profil
-                    </button>
-                </div>
-            </form>
-        </x-panel>
+                    <label class="block">
+                        <span class="ui-label">Role</span>
+                        <input class="ui-input bg-[var(--app-surface-soft)]" value="{{ \Illuminate\Support\Str::headline($user['role'] ?? 'admin') }}" readonly>
+                    </label>
 
-        <x-panel title="Ubah Password">
-            <form class="space-y-4" method="post" action="{{ route('admin.profile.password') }}" data-skeleton-target="form">
-                @csrf
-                @method('put')
-
-                @if ($passwordMessage)
-                    <div class="admin-alert admin-alert-success">
-                        <p class="font-semibold">Sukses</p>
-                        <p class="mt-1">{{ $passwordMessage }}</p>
+                    <div class="flex justify-end pt-1">
+                        <button class="ui-btn ui-btn-primary" type="submit">
+                            <x-icons name="save" class="h-4 w-4" />
+                            Simpan perubahan
+                        </button>
                     </div>
-                @endif
+                </form>
+            </section>
 
-                <label class="block">
-                    <span class="ui-label">Password Saat Ini</span>
-                    <input class="ui-input" type="password" name="current_password" required>
-                </label>
-
-                <div class="grid gap-4 md:grid-cols-2">
-                    <label class="block">
-                        <span class="ui-label">Password Baru</span>
-                        <input class="ui-input" type="password" name="password" required>
-                    </label>
-
-                    <label class="block">
-                        <span class="ui-label">Konfirmasi Password Baru</span>
-                        <input class="ui-input" type="password" name="password_confirmation" required>
-                    </label>
+            <section id="keamanan-akun" class="scroll-mt-24" data-settings-panel="password" role="tabpanel" hidden>
+                <div class="mb-6">
+                    <h2 class="admin-section-title">Password</h2>
+                    <p class="mt-1 text-sm text-[var(--app-muted)]">Perbarui password akun Anda.</p>
                 </div>
 
-                <div class="flex justify-end border-t pt-5" style="border-color: var(--app-border);">
-                    <button class="ui-btn ui-btn-primary" type="submit">
-                        <x-icons name="save" class="h-4 w-4" />
-                        Simpan Password
-                    </button>
-                </div>
-            </form>
-        </x-panel>
+                <form class="space-y-5" method="post" action="{{ route('admin.profile.password') }}" data-skeleton-target="form">
+                    @csrf
+                    @method('put')
+
+                    @if ($passwordMessage)
+                        <div class="admin-alert admin-alert-success">
+                            <p class="font-semibold">Sukses</p>
+                            <p class="mt-1">{{ $passwordMessage }}</p>
+                        </div>
+                    @endif
+
+                    <label class="block">
+                        <span class="ui-label">Password saat ini</span>
+                        <input class="ui-input" type="password" name="current_password" required>
+                    </label>
+
+                    <div class="grid gap-5 sm:grid-cols-2">
+                        <label class="block">
+                            <span class="ui-label">Password baru</span>
+                            <input class="ui-input" type="password" name="password" required>
+                        </label>
+
+                        <label class="block">
+                            <span class="ui-label">Konfirmasi password baru</span>
+                            <input class="ui-input" type="password" name="password_confirmation" required>
+                        </label>
+                    </div>
+
+                    <div class="flex justify-end pt-1">
+                        <button class="ui-btn ui-btn-primary" type="submit">
+                            <x-icons name="save" class="h-4 w-4" />
+                            Simpan password
+                        </button>
+                    </div>
+                </form>
+            </section>
+        </div>
     </div>
 </x-layouts.admin>
