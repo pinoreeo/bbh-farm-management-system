@@ -164,7 +164,7 @@ class AdminNotificationViewData
                     'priority' => 1,
                     'date' => $due->toDateString(),
                     'title' => 'Persiapan kelahiran',
-                    'body' => "Perkiraan tanggal melahirkan {$tag}: {$due->translatedFormat('d F Y')}.",
+                    'body' => "Perkiraan tanggal melahirkan {$tag}: {$due->locale('id')->translatedFormat('d F Y')}.",
                     'url' => route('admin.resource.show', ['resource' => 'breeding-females', 'id' => $id]),
                 ];
             }
@@ -201,7 +201,7 @@ class AdminNotificationViewData
                 'title' => $due->lessThan($today) ? 'Tanggal kontrol terlewat' : 'Jadwal kontrol',
                 'body' => $due->lessThan($today)
                     ? "Tanggal kontrol {$tag} sudah lewat. Perbarui catatan jika kontrol telah dilakukan."
-                    : "Jadwal kontrol {$tag} tercatat pada {$due->translatedFormat('d F Y')}.",
+                    : "Jadwal kontrol {$tag} tercatat pada {$due->locale('id')->translatedFormat('d F Y')}.",
                 'url' => route('admin.resource.edit', ['resource' => 'health-treatments', 'id' => $this->value($row, 'id')]),
             ];
         }
@@ -256,6 +256,6 @@ class AdminNotificationViewData
             return 'Lewat tenggat';
         }
 
-        return $day->translatedFormat('d F Y');
+        return $day->locale('id')->translatedFormat('d F Y');
     }
 }

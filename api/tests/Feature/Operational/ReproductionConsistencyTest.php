@@ -193,4 +193,37 @@ class ReproductionConsistencyTest extends ApiTestCase
         $this->assertSame(2, $birth->offspringBirths()->count());
         $this->assertDatabaseMissing('animals', ['tag_number' => 'EXTRA-CHILD']);
     }
+
+    public function test_existing_animal_cannot_be_a_parent_or_have_an_unknown_birth_date(): void
+    {
+        $this->actingAsAdmin();
+        $workflow = $this->createBirthWorkflow();
+        $birth = $workflow['birthEvent'];
+        $birth->update(['offspring_count' => 3]);
+        $workflow['dam']->update(['birth_date' => null]);
+        $workflow['sire']->update(['birth_date' => '2026-05-17']);
+
+        foreach ([$workflow['dam'], $workflow['sire']] as $parent) {
+            $this->postJson('/api/v1/offspring-births', [
+                'birth_event_id' => $birth->id,
+                'offspring_animal_id' => $parent->id,
+                'birth_weight_kg' => 3,
+            ])->assertUnprocessable();
+        }
+
+        $unknownBirth = $this->createAnimal(['birth_date' => null]);
+        $this->postJson('/api/v1/offspring-births', [
+            'birth_event_id' => $birth->id,
+            'offspring_animal_id' => $unknownBirth->id,
+            'birth_weight_kg' => 3,
+        ])->assertUnprocessable();
+
+        $validChild = $this->createAnimal(['birth_date' => '2026-05-17']);
+        $this->postJson('/api/v1/offspring-births', [
+            'birth_event_id' => $birth->id,
+            'offspring_animal_id' => $validChild->id,
+            'birth_weight_kg' => 3,
+        ])->assertCreated();
+        $this->assertSame(2, $birth->offspringBirths()->count());
+    }
 }

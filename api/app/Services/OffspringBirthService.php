@@ -161,6 +161,10 @@ class OffspringBirthService
         $offspringAnimalId = TypeValue::int($data['offspring_animal_id'] ?? null);
         $birthEventId = TypeValue::int($data['birth_event_id'] ?? null);
 
+        if ($offspringAnimalId === (int) $birthEvent->dam_id || $offspringAnimalId === (int) $birthEvent->sire_id) {
+            return $this->error('Peringatan: Induk atau pejantan pada data kelahiran tidak dapat dicatat sebagai anak.');
+        }
+
         if (OffspringBirth::query()->where('offspring_animal_id', $offspringAnimalId)->exists()) {
             return $this->error("Peringatan: Kambing dengan tag {$animal->tag_number} sudah tercatat pada data kelahiran lain.");
         }
@@ -172,7 +176,8 @@ class OffspringBirthService
             return $this->error("Peringatan: Kambing dengan tag {$animal->tag_number} sudah tercatat sebagai anak pada data kelahiran ini.");
         }
 
-        if ($animal->birth_date && $birthEvent->birth_date && $animal->birth_date->toDateString() !== $birthEvent->birth_date->toDateString()) {
+        if (! $animal->birth_date || ! $birthEvent->birth_date
+            || $animal->birth_date->toDateString() !== $birthEvent->birth_date->toDateString()) {
             return $this->error("Peringatan: Tanggal lahir kambing {$animal->tag_number} harus sama dengan tanggal pada data kelahiran yang dipilih.");
         }
 

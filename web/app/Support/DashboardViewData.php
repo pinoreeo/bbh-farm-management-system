@@ -184,7 +184,7 @@ class DashboardViewData
                         'tone' => $due->isSameDay($today) ? 'danger' : 'warning',
                         'status' => $due->isSameDay($today) ? 'Hari ini' : 'Segera',
                         'title' => 'Persiapan kelahiran',
-                        'note' => "Perkiraan tanggal melahirkan {$tag}: {$due->translatedFormat('d F Y')}.",
+                        'note' => "Perkiraan tanggal melahirkan {$tag}: {$due->locale('id')->translatedFormat('d F Y')}.",
                         'date' => $due->toDateString(),
                         'action_label' => 'Lihat betina',
                         'action_url' => route('admin.resource.show', ['resource' => 'breeding-females', 'id' => $this->value($row, 'id')]),
@@ -208,7 +208,7 @@ class DashboardViewData
                     'title' => $overdue ? 'Tanggal kontrol terlewat' : 'Jadwal kontrol',
                     'note' => $overdue
                         ? 'Tanggal kontrol '.$this->value($row, 'animal.tag_number').' sudah lewat. Perbarui catatan jika kontrol telah dilakukan.'
-                        : 'Jadwal kontrol '.$this->value($row, 'animal.tag_number').' tercatat pada '.$due->translatedFormat('d F Y').'.',
+                    : 'Jadwal kontrol '.$this->value($row, 'animal.tag_number').' tercatat pada '.$due->locale('id')->translatedFormat('d F Y').'.',
                     'date' => $due->toDateString(),
                     'action_label' => 'Buka catatan',
                     'action_url' => route('admin.resource.edit', ['resource' => 'health-treatments', 'id' => $this->value($row, 'id')]),
@@ -216,7 +216,14 @@ class DashboardViewData
             }
         }
 
-        usort($items, fn ($a, $b) => strcmp($a['date'], $b['date']));
+        $priority = ['Hari ini' => 0, 'Lewat tenggat' => 1, 'Segera' => 2, 'Terjadwal' => 2, 'Perlu dicatat' => 3];
+        usort($items, function ($a, $b) use ($priority) {
+            $rank = ($priority[$a['status']] ?? 4) <=> ($priority[$b['status']] ?? 4);
+
+            return $rank ?: ($a['status'] === 'Lewat tenggat'
+                ? strcmp($b['date'], $a['date'])
+                : strcmp($a['date'], $b['date']));
+        });
 
         return array_slice($items, 0, 12);
     }

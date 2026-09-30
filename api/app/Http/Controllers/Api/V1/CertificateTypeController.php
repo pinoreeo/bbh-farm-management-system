@@ -15,7 +15,7 @@ class CertificateTypeController extends Controller
         $q = CertificateType::query();
 
         if ($request->filled('is_active')) {
-            $q->where('is_active', (bool) $request->query('is_active'));
+            $q->where('is_active', $request->boolean('is_active'));
         } elseif (! (int) $request->query('include_inactive', 0)) {
             $q->where('is_active', true);
         }

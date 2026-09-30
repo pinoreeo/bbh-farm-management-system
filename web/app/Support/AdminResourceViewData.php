@@ -5,6 +5,7 @@ namespace App\Support;
 use Illuminate\Http\Client\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 
 class AdminResourceViewData
 {
@@ -66,7 +67,9 @@ class AdminResourceViewData
                 return $field;
             }
 
-            $options = $this->optionsFor($slug, (string) ($field['name'] ?? ''), $token);
+            $options = $slug === 'certificates' && ($field['name'] ?? '') === 'certificate_type_id'
+                ? $this->certificateTypeOptions($token, (int) data_get($values, 'certificate_type_id'))
+                : $this->optionsFor($slug, (string) ($field['name'] ?? ''), $token);
             if ($options !== null) {
                 $field['options'] = $options;
             }
@@ -159,6 +162,17 @@ class AdminResourceViewData
     /**
      * @return array<string, string>
      */
+    private function certificateTypeOptions(string $token, int $currentId): array
+    {
+        return collect($this->items('certificate-types', $token))
+            ->filter(fn ($item) => (bool) Arr::get($item, 'is_active') || (int) Arr::get($item, 'id') === $currentId)
+            ->mapWithKeys(fn ($item) => [(string) $item['id'] => (string) Arr::get($item, 'type_name', $item['id'])])
+            ->all();
+    }
+
+    /**
+     * @return array<string, string>
+     */
     private function animalOptions(string $token, ?string $sex = null): array
     {
         $items = $this->items('animals', $token);
@@ -218,10 +232,7 @@ class AdminResourceViewData
      */
     private function pregnantDamOptions(string $token): array
     {
-        return collect($this->items('pregnancy-checks', $token))
-            ->filter(fn ($item) => (bool) Arr::get($item, 'is_pregnant') && Arr::get($item, 'outcome_status') !== 'born')
-            ->sortByDesc('check_date')
-            ->unique('female_animal_id')
+        return $this->eligiblePregnancyChecks($token)
             ->mapWithKeys(fn ($item) => [
                 (string) Arr::get($item, 'female_animal_id') => (string) Arr::get($item, 'female_animal.tag_number', Arr::get($item, 'female_animal_id')),
             ])
@@ -233,14 +244,28 @@ class AdminResourceViewData
      */
     private function pregnantDamSireMap(string $token): array
     {
-        return collect($this->items('pregnancy-checks', $token))
-            ->filter(fn ($item) => (bool) Arr::get($item, 'is_pregnant') && Arr::get($item, 'outcome_status') !== 'born')
-            ->sortByDesc('check_date')
-            ->unique('female_animal_id')
-            ->mapWithKeys(fn ($item) => [
-                (string) Arr::get($item, 'breeding_period.male_animal_id') => (string) Arr::get($item, 'female_animal_id'),
-            ])
+        return $this->eligiblePregnancyChecks($token)
+            ->filter(fn ($item) => Arr::get($item, 'breeding_period.male_animal_id') !== null)
+            ->groupBy(fn ($item) => (string) Arr::get($item, 'breeding_period.male_animal_id'))
+            ->map(fn ($checks) => $checks->pluck('female_animal_id')->implode(','))
             ->all();
+    }
+
+    /** @return Collection<int, array<string, mixed>> */
+    private function eligiblePregnancyChecks(string $token): Collection
+    {
+        $checks = collect($this->items('pregnancy-checks', $token));
+        $completed = $checks->where('outcome_status', 'born')->pluck('breeding_female_id')
+            ->merge(collect($this->items('birth-events', $token))->pluck('breeding_female_id'))
+            ->filter()->map(fn ($id) => (string) $id)->all();
+
+        return $checks
+            ->sort(fn ($a, $b) => strcmp((string) Arr::get($b, 'check_date'), (string) Arr::get($a, 'check_date'))
+                ?: ((int) Arr::get($b, 'id') <=> (int) Arr::get($a, 'id')))
+            ->unique('female_animal_id')
+            ->filter(fn ($item) => (bool) Arr::get($item, 'is_pregnant')
+                && ! in_array((string) Arr::get($item, 'breeding_female_id'), $completed, true))
+            ->values();
     }
 
     /**

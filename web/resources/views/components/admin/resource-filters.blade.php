@@ -74,7 +74,7 @@
                     <select class="ui-input" name="month">
                         <option value="">Semua bulan</option>
                         @foreach ($filterMonths as $month)
-                            <option value="{{ $month }}" @selected((string) request('month') === (string) $month)>{{ \Illuminate\Support\Carbon::create()->month($month)->translatedFormat('F') }}</option>
+                            <option value="{{ $month }}" @selected((string) request('month') === (string) $month)>{{ \Illuminate\Support\Carbon::create()->month($month)->locale('id')->translatedFormat('F') }}</option>
                         @endforeach
                     </select>
                 </label>

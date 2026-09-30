@@ -84,23 +84,21 @@ class AdminDashboardSummaryController extends Controller
 
         $today = now()->toDateString();
         $inFortyFiveDays = now()->addDays(45)->toDateString();
-        $inFourteenDays = now()->addDays(14)->toDateString();
-        $inSevenDays = now()->addDays(7)->toDateString();
         $femaleRelations = ['femaleAnimal:id,tag_number,reproductive_status', 'breedingPeriod:id,period_code'];
         $unmatedFemales = BreedingFemale::query()->with($femaleRelations)->whereNull('exit_date')
             ->whereNull('mating_date')->orderBy('entry_date')->limit(12)->get();
-        $nearDueFemales = BreedingFemale::query()->with($femaleRelations)->whereNull('exit_date')
-            ->whereNotNull('expected_birth_date')->whereDate('expected_birth_date', '<=', $inFourteenDays)
-            ->orderBy('expected_birth_date')->limit(12)->get();
+        $overdueFemales = BreedingFemale::query()->with($femaleRelations)->whereNull('exit_date')
+            ->whereDate('expected_birth_date', '<', $today)
+            ->orderByDesc('expected_birth_date')->limit(12)->get();
         $upcomingFemales = BreedingFemale::query()->with($femaleRelations)->whereNull('exit_date')
             ->whereBetween('expected_birth_date', [$today, $inFortyFiveDays])
             ->orderBy('expected_birth_date')->limit(12)->get();
-        $breedingFemales = $unmatedFemales->concat($nearDueFemales)->concat($upcomingFemales)
+        $breedingFemales = $unmatedFemales->concat($overdueFemales)->concat($upcomingFemales)
             ->unique('id')->values()->toArray();
 
         $healthRelations = ['animal:id,tag_number'];
         $overdueHealth = HealthTreatment::query()->with($healthRelations)->whereNotNull('next_control_date')
-            ->whereDate('next_control_date', '<', $today)->orderBy('next_control_date')->limit(12)->get();
+            ->whereDate('next_control_date', '<', $today)->orderByDesc('next_control_date')->limit(12)->get();
         $upcomingHealth = HealthTreatment::query()->with($healthRelations)
             ->whereBetween('next_control_date', [$today, $inFortyFiveDays])
             ->orderBy('next_control_date')->limit(12)->get();

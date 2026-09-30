@@ -3,6 +3,8 @@
 namespace Tests\Feature\Operational;
 
 use App\Models\BirthEvent;
+use App\Models\HealthTreatment;
+use Illuminate\Support\Carbon;
 use Tests\Feature\Support\ApiTestCase;
 
 class AdminDashboardSummaryTest extends ApiTestCase
@@ -31,5 +33,53 @@ class AdminDashboardSummaryTest extends ApiTestCase
 
         $this->getJson('/api/v1/admin/dashboard-summary?year=9999')
             ->assertOk()->assertJsonPath('selected_birth_year', 2026);
+    }
+
+    public function test_recent_overdue_and_today_reminders_remain_in_the_summary(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-30'));
+        $this->actingAsAdmin();
+        $period = $this->createBreedingPeriod();
+        $animal = $this->createAnimal();
+        $oldestFemaleId = null;
+        $oldestTreatmentId = null;
+
+        foreach (range(1, 13) as $day) {
+            $date = sprintf('2026-09-%02d', $day);
+            $female = $this->createBreedingFemale($period, overrides: [
+                'mating_date' => '2026-05-18',
+                'expected_birth_date' => $date,
+            ]);
+            $treatment = HealthTreatment::query()->create([
+                'animal_id' => $animal->id,
+                'treatment_group' => 'Pemeriksaan',
+                'product_name' => 'Produk-'.$day,
+                'treatment_date' => '2026-08-01',
+                'next_control_date' => $date,
+            ]);
+            $oldestFemaleId ??= $female->id;
+            $oldestTreatmentId ??= $treatment->id;
+        }
+
+        $todayFemale = $this->createBreedingFemale($period, overrides: [
+            'mating_date' => '2026-05-18',
+            'expected_birth_date' => '2026-09-30',
+        ]);
+        $todayTreatment = HealthTreatment::query()->create([
+            'animal_id' => $animal->id,
+            'treatment_group' => 'Pemeriksaan',
+            'product_name' => 'Produk-hari-ini',
+            'treatment_date' => '2026-08-01',
+            'next_control_date' => '2026-09-30',
+        ]);
+
+        $summary = $this->getJson('/api/v1/admin/dashboard-summary')->assertOk()->json();
+
+        $femaleIds = array_column($summary['breeding_females'], 'id');
+        $treatmentIds = array_column($summary['health_treatments'], 'id');
+        $this->assertContains($todayFemale->id, $femaleIds);
+        $this->assertContains($todayTreatment->id, $treatmentIds);
+        $this->assertNotContains($oldestFemaleId, $femaleIds);
+        $this->assertNotContains($oldestTreatmentId, $treatmentIds);
     }
 }

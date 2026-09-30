@@ -20,7 +20,7 @@ class UpdateUserRequest extends ApiRequest
             'password' => ['prohibited'],
             'password_confirmation' => ['prohibited'],
             'role' => ['prohibited'],
-            'is_active' => ['nullable', 'boolean'],
+            'is_active' => ['sometimes', 'required', 'boolean'],
         ];
     }
 }

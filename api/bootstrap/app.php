@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'isAdmin' => IsAdmin::class,
             'isSuperAdmin' => IsSuperAdmin::class,
         ]);
+        $middleware->redirectGuestsTo(fn () => null);
     })
 
     ->withExceptions(function (Exceptions $exceptions) {

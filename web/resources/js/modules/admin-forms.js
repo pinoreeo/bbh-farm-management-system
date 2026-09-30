@@ -133,7 +133,7 @@ const initFilteredSelects = () => {
 
             [...select.options].forEach((option) => {
                 const parentValue = option.dataset.parentValue;
-                const visible = !parentValue || parentValue === selectedParent;
+                const visible = !parentValue || parentValue.split(',').includes(selectedParent);
                 option.hidden = !visible;
                 option.disabled = !visible;
                 if (visible && option.selected) hasVisibleSelection = true;

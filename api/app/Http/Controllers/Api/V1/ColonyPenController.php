@@ -94,7 +94,7 @@ class ColonyPenController extends Controller
             'colony_phase' => ['sometimes', Rule::in(self::COLONY_PHASES)],
             'location' => ['nullable', 'string', 'max:255'],
             'capacity' => ['nullable', 'integer', 'min:0'],
-            'is_active' => ['nullable', 'boolean'],
+            'is_active' => ['sometimes', 'required', 'boolean'],
         ]);
 
         if (isset($data['colony_phase']) && $data['colony_phase'] === 'koloni_laktasi_kosong') {
