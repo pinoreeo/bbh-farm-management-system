@@ -25,10 +25,8 @@ return [
         'users' => [
             ['name' => 'first_name', 'label' => 'Nama Depan', 'type' => 'text', 'placeholder' => 'Nama depan', 'required' => true],
             ['name' => 'last_name', 'label' => 'Nama Belakang', 'type' => 'text', 'placeholder' => 'Nama belakang'],
-            ['name' => 'phone', 'label' => 'Nomor Telepon untuk Verifikasi SMS', 'type' => 'tel', 'placeholder' => 'Contoh: 081234567890', 'required' => true],
+            ['name' => 'phone', 'label' => 'Nomor Telepon', 'type' => 'tel', 'placeholder' => 'Contoh: 081234567890'],
             ['name' => 'email', 'label' => 'Email', 'type' => 'email', 'placeholder' => 'email@farm.com', 'required' => true],
-            ['name' => 'password', 'label' => 'Password', 'type' => 'password', 'placeholder' => 'Minimal 8 karakter', 'required_on_create' => true],
-            ['name' => 'password_confirmation', 'label' => 'Konfirmasi Password', 'type' => 'password', 'placeholder' => 'Ulangi password', 'required_on_create' => true],
             ['name' => 'is_active', 'label' => 'Status Aktif', 'type' => 'radio', 'options' => ['true' => 'Aktif', 'false' => 'Nonaktif'], 'hide_on_create' => true],
         ],
         'animals' => [

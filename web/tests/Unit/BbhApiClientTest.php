@@ -3,12 +3,26 @@
 namespace Tests\Unit;
 
 use App\Support\BbhApiClient;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class BbhApiClientTest extends TestCase
 {
+    public function test_failed_pooled_requests_are_not_exposed_as_http_responses(): void
+    {
+        Http::shouldReceive('pool')->once()->andReturn([
+            'unavailable' => new ConnectionException('Connection failed.'),
+        ]);
+
+        $responses = app(BbhApiClient::class)->getMany([
+            'unavailable' => ['path' => 'animals'],
+        ], 'token');
+
+        $this->assertSame([], $responses);
+    }
+
     public function test_paginated_data_collects_all_pages(): void
     {
         config(['services.bbh_api.base_url' => 'http://api.test/api/v1']);

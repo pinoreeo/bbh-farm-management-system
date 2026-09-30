@@ -56,8 +56,8 @@ class AdminSearchController extends Controller
     }
 
     /**
-     * @param array<int, mixed> $pageConfig
-     * @param array<string, mixed> $item
+     * @param  array<int, mixed>  $pageConfig
+     * @param  array<string, mixed>  $item
      * @return array<string, mixed>
      */
     private function match(string $slug, array $pageConfig, array $item, string $query, AdminTableViewData $tableData): array

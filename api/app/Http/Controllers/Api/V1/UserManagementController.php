@@ -56,7 +56,7 @@ class UserManagementController extends Controller
             $user = User::query()->create([
                 'name' => $data['name'],
                 'first_name' => $data['first_name'],
-                'last_name' => $data['last_name'],
+                'last_name' => $data['last_name'] ?? null,
                 'email' => $data['email'],
                 'phone' => TypeValue::nullableString($data['phone'] ?? null),
                 'password' => Hash::make(Str::random(48)),
@@ -73,11 +73,6 @@ class UserManagementController extends Controller
             'message' => 'Sukses: Undangan untuk membuat password telah dikirim ke email admin.',
             'data' => $user,
         ], 201);
-    }
-
-    public function completeRegistration(Request $request): JsonResponse
-    {
-        abort(410, 'Alur verifikasi SMS sudah tidak digunakan.');
     }
 
     public function show(Request $request, User $user): JsonResponse

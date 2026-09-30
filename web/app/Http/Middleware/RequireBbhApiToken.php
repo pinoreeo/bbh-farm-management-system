@@ -23,7 +23,9 @@ class RequireBbhApiToken
         try {
             $response = $this->api->get('auth/me', [], $token);
         } catch (ConnectionException) {
-            session()->flash('adminApiStatus', 'Sebagian data belum dapat ditampilkan. Silakan coba lagi.');
+            if (! session()->has('adminApiStatus')) {
+                session()->flash('adminApiStatus', 'Sebagian data belum dapat ditampilkan. Silakan coba lagi.');
+            }
 
             return $next($request);
         }
@@ -36,7 +38,9 @@ class RequireBbhApiToken
         }
 
         if (! $response->successful()) {
-            session()->flash('adminApiStatus', 'Sebagian data belum dapat ditampilkan. Silakan coba lagi.');
+            if (! session()->has('adminApiStatus')) {
+                session()->flash('adminApiStatus', 'Sebagian data belum dapat ditampilkan. Silakan coba lagi.');
+            }
 
             return $next($request);
         }

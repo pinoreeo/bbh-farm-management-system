@@ -68,6 +68,27 @@ class AuthPasswordResetTest extends ApiTestCase
         $this->assertTrue(Hash::needsRehash((string) $row->token) === false);
     }
 
+    public function test_admin_invitation_uses_email_without_sms_or_required_phone(): void
+    {
+        Mail::fake();
+        $this->actingAsAdmin();
+
+        $this->postJson('/api/v1/users/complete-registration')->assertStatus(405);
+
+        $this->postJson('/api/v1/users', [
+            'first_name' => 'Admin',
+            'email' => 'new-admin@example.test',
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('sys_users', [
+            'email' => 'new-admin@example.test',
+            'phone' => null,
+            'is_active' => false,
+        ]);
+        $user = User::query()->where('email', 'new-admin@example.test')->firstOrFail();
+        $this->assertDatabaseHas('sys_admin_invitations', ['user_id' => $user->id]);
+    }
+
     public function test_reset_password_covers_confirmation_token_expiry_role_and_success_branches(): void
     {
         $token = 'valid-reset-token';

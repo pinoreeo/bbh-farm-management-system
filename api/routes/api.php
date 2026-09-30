@@ -74,8 +74,6 @@ Route::prefix('v1')->group(function () {
 
         Route::get('farm', [FarmProfileController::class, 'show'])->middleware(IsSuperAdmin::class);
         Route::put('farm', [FarmProfileController::class, 'update'])->middleware(IsSuperAdmin::class);
-        Route::post('users/complete-registration', [UserManagementController::class, 'completeRegistration'])
-            ->middleware(IsSuperAdmin::class);
         Route::post('users/{user}/send-password-reset', [UserManagementController::class, 'sendPasswordResetLink'])
             ->middleware([IsSuperAdmin::class, 'throttle:3,1']);
         Route::apiResource('users', UserManagementController::class)

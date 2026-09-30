@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\BranchCoverage;
 
+use App\Models\Certificate;
 use App\Models\CertificateSignature;
 use Carbon\Carbon;
 use Tests\Feature\Support\ApiTestCase;
@@ -120,8 +121,8 @@ class CertificateIssuanceBranchCoverageTest extends ApiTestCase
             'auto_sign' => false,
         ])->assertUnprocessable();
 
-        $this->assertSame('revoked', \App\Models\Certificate::query()->findOrFail($birthCertificateId)->status);
-        $this->assertSame('active', \App\Models\Certificate::query()->findOrFail($replacement->json('data.id'))->status);
+        $this->assertSame('revoked', Certificate::query()->findOrFail($birthCertificateId)->status);
+        $this->assertSame('active', Certificate::query()->findOrFail($replacement->json('data.id'))->status);
 
         $this->postJson('/api/v1/certificates', [
             'animal_id' => $this->createAnimal(['life_status' => 'alive'])->id,

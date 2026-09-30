@@ -50,7 +50,7 @@ This application lives inside the `api` directory of the BBH Farm monorepo. It i
 ## Tech Stack
 
 - PHP 8.2+
-- Laravel 11
+- Laravel 12
 - Laravel Sanctum
 - MySQL or another Laravel-supported relational database
 - OpenSSL
@@ -76,48 +76,72 @@ Make sure the following tools are installed:
 
 ## Installation
 
-Clone the monorepo and enter the API application:
+From the monorepo root, enter the API application:
 
-```bash
-git clone https://github.com/USERNAME/bbh-farm-v3.git
-cd bbh-farm-v3/api
+```powershell
+cd api
 ```
 
 Install dependencies:
 
-```bash
+```powershell
 composer install
 ```
 
 Create the environment file:
 
-```bash
-cp .env.example .env
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
 Generate the application key:
 
-```bash
+```powershell
 php artisan key:generate
 ```
 
-Configure your database in `.env`, then run migrations and seeders:
+The example environment is configured for production and has no admin password. For local use, set `APP_ENV=local`, `APP_DEBUG=true`, `APP_URL=http://127.0.0.1:8000`, MySQL details for an existing `bbh_farm` database, `BBH_ADMIN_PASSWORD`, and `BBH_PUBLIC_WEB_URL=http://127.0.0.1:8001`. Configure SMTP credentials and `MAIL_FROM_ADDRESS` for email invitations and password reset; never commit `.env`.
 
-```bash
+Run migrations and the default seeders:
+
+```powershell
 php artisan migrate --seed
+```
+
+This creates one super admin (`superadmin@bbhfarm.com` by default), two admins (`admin1@bbhfarm.com` and `admin2@bbhfarm.com`), and breed/certificate-type reference data. The super admin uses `BBH_ADMIN_PASSWORD`. The admins have unique random passwords that are not disclosed; they set their passwords through `/lupa-kata-sandi` in the web app. Use individual, accessible email inboxes for these accounts. Reset links are single-use and valid for 60 minutes; SMS OTP is not used.
+
+To reproduce an **account-only empty database**, first confirm that `DB_DATABASE` points to the intended MySQL database. Run the backup command on its own, check that it succeeds, and inspect the generated SQL file before continuing:
+
+```powershell
+php artisan bbh:backup-db
+```
+
+Only after verifying that backup, run the destructive reset below. It permanently drops all tables and records in the configured database, then recreates the schema with only the three accounts:
+
+```powershell
+php artisan migrate:fresh --seed --seeder=AccountSeeder
+```
+
+After an account-only reset, breed and certificate-type lists are empty. Populate them before creating animals or certificates:
+
+```powershell
+php artisan db:seed --class=BreedSeeder
+php artisan db:seed --class=CertificateTypeSeeder
 ```
 
 Start the local development server. Use port `8000` so the web application can point to `http://127.0.0.1:8000/api/v1`.
 
-```bash
+```powershell
 php artisan serve --port=8000
 ```
 
-Admin invitations are sent through the database queue after the user record is committed. Run a queue worker alongside the API server:
+With the default `QUEUE_CONNECTION=database`, admin invitations are queued after the user record is committed. Run a queue worker alongside the API server:
 
-```bash
+```powershell
 php artisan queue:work --tries=3
 ```
+
+The queue worker is required for invitation emails when `QUEUE_CONNECTION=database`. Password reset emails are sent directly by the API and require working SMTP settings. Do not send seed-account credentials by chat or reuse a shared default password.
 
 The API will be available at:
 
@@ -129,9 +153,11 @@ http://127.0.0.1:8000/api/v1
 
 Generate Swagger/OpenAPI documentation:
 
-```bash
+```powershell
 php artisan l5-swagger:generate
 ```
+
+Set `L5_SWAGGER_ENABLED=true` in the local API environment before opening the documentation page; leave it disabled unless intentionally exposed in other environments.
 
 Open the documentation page:
 
@@ -196,63 +222,43 @@ Controller responsibilities:
 
 ### Login
 
-```bash
-curl -X POST http://127.0.0.1:8000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "admin@farm.com",
-    "password": "admin",
-    "device_name": "local-client"
-  }'
+```powershell
+$body = @{ email = 'superadmin@bbhfarm.com'; password = '<your BBH_ADMIN_PASSWORD>'; device_name = 'local-client' } | ConvertTo-Json
+Invoke-RestMethod -Uri 'http://127.0.0.1:8000/api/v1/auth/login' -Method Post -ContentType 'application/json' -Body $body
 ```
 
-The response contains an access token. Use the token for protected admin endpoints:
+The response contains an access token. Keep it private and use it for protected admin endpoints:
 
-```bash
-curl http://127.0.0.1:8000/api/v1/auth/me \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```powershell
+Invoke-RestMethod -Uri 'http://127.0.0.1:8000/api/v1/auth/me' -Headers @{ Authorization = 'Bearer YOUR_ACCESS_TOKEN' }
 ```
 
 ### Create Animal
 
-```bash
-curl -X POST http://127.0.0.1:8000/api/v1/animals \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "tag_number": "BBH-001",
-    "breed_id": 1,
-    "sex": "female",
-    "generation": "F1",
-    "birth_date": "2024-01-01",
-    "birth_place": "Ajibarang",
-    "life_status": "alive",
-    "is_impor": false
-  }'
+```powershell
+$animal = @{ breed_id = 1; sex = 'female'; generation = 'F1'; birth_date = '2024-01-01'; life_status = 'alive' } | ConvertTo-Json
+Invoke-RestMethod -Uri 'http://127.0.0.1:8000/api/v1/animals' -Method Post -Headers @{ Authorization = 'Bearer YOUR_ACCESS_TOKEN' } -ContentType 'application/json' -Body $animal
 ```
+
+`breed_id` must refer to an existing breed. It will not exist immediately after an account-only reset.
 
 ### Verify Certificate by Number
 
-```bash
-curl -X POST http://127.0.0.1:8000/api/v1/public/certificates/verify \
-  -H "Content-Type: application/json" \
-  -d '{
-    "certificate_number": "BBH-SBU-2026-0001"
-  }'
+```powershell
+$body = @{ certificate_number = 'YOUR_CERTIFICATE_NUMBER' } | ConvertTo-Json
+Invoke-RestMethod -Uri 'http://127.0.0.1:8000/api/v1/public/certificates/verify' -Method Post -ContentType 'application/json' -Body $body
 ```
 
 ### Verify Certificate by Public Token
 
-```bash
-curl http://127.0.0.1:8000/api/v1/public/certificates/verify/YOUR_VERIFICATION_TOKEN
+```powershell
+Invoke-RestMethod -Uri 'http://127.0.0.1:8000/api/v1/public/certificates/verify/YOUR_VERIFICATION_TOKEN'
 ```
 
 ### Verify Certificate PDF
 
-```bash
-curl -X POST http://127.0.0.1:8000/api/v1/public/certificates/verify-pdf \
-  -F "certificate_number=BBH-SBU-2026-0001" \
-  -F "pdf=@certificate.pdf"
+```powershell
+curl.exe -X POST http://127.0.0.1:8000/api/v1/public/certificates/verify-pdf -F "certificate_number=YOUR_CERTIFICATE_NUMBER" -F "pdf=@certificate.pdf"
 ```
 
 ## Certificate Verification Flow
@@ -268,20 +274,20 @@ curl -X POST http://127.0.0.1:8000/api/v1/public/certificates/verify-pdf \
 
 Run the automated test suite:
 
-```bash
+```powershell
 php artisan test
 ```
 
 Run static analysis:
 
-```bash
-vendor/bin/phpstan analyse
+```powershell
+vendor/bin/phpstan analyse --no-progress
 ```
 
 Run Laravel Pint:
 
-```bash
-vendor/bin/pint
+```powershell
+vendor/bin/pint --test
 ```
 
 For real MySQL concurrency checks, create a separate, empty database named `bbh_farm_concurrency_test`, then run:

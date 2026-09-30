@@ -17,6 +17,8 @@ class ReportExportController extends Controller
         SimpleXlsxWriter $writer,
         ReportExportDataService $exports
     ): BinaryFileResponse {
+        abort_if($report === 'activity-logs' && $request->user()?->role !== 'super_admin', 403);
+
         [$title, $headers, $rows] = $exports->data($report, $request);
         $title = TypeValue::string($title);
         $headers = $this->headerRow($headers);

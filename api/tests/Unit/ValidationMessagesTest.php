@@ -8,6 +8,7 @@ use App\Support\ValidationMessages;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\PresenceVerifierInterface;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -50,7 +51,7 @@ class ValidationMessagesTest extends TestCase
 
     public function test_missing_selection_and_duplicate_eartag_have_specific_messages(): void
     {
-        $presence = \Mockery::mock(\Illuminate\Validation\PresenceVerifierInterface::class);
+        $presence = \Mockery::mock(PresenceVerifierInterface::class);
         $presence->shouldReceive('getCount')->with('animal_breeds', 'id', 999, null, null, [])->andReturn(0);
         $presence->shouldReceive('getCount')->with('animals', 'tag_number', 'BBH-001', null, null, [])->andReturn(1);
         Validator::setPresenceVerifier($presence);

@@ -5,7 +5,7 @@ return [
 
     'admin' => [
         'name' => env('BBH_ADMIN_NAME', 'Super Admin'),
-        'email' => env('BBH_ADMIN_EMAIL', 'superadmin@bbhfarm.domain'),
+        'email' => env('BBH_ADMIN_EMAIL', 'superadmin@bbhfarm.com'),
         'password' => env('BBH_ADMIN_PASSWORD'),
     ],
 

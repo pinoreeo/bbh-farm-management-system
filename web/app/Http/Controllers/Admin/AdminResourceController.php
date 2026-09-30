@@ -374,6 +374,8 @@ class AdminResourceController extends Controller
 
     public function downloadReport(Request $request, string $report, BbhApiClient $api, AdminDownloadResponse $downloads)
     {
+        abort_if($report === 'activity-logs' && ! $this->isSuperAdmin(), 403);
+
         $response = $api->get("reports/{$report}/xlsx", $request->only(['date_from', 'date_to']), $this->token());
 
         if (! $response->successful()) {
@@ -519,5 +521,4 @@ class AdminResourceController extends Controller
 
         return is_string($message) ? $message : $fallback;
     }
-
 }

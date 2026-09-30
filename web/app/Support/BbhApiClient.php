@@ -61,7 +61,7 @@ class BbhApiClient
             return $pooled;
         });
 
-        return $responses;
+        return array_filter($responses, fn ($response) => $response instanceof Response);
     }
 
     /**

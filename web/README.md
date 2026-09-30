@@ -28,48 +28,51 @@ This application is the user interface layer. It does not own the core farm data
 - PHP 8.3 or newer
 - Composer
 - Node.js and npm
-- MySQL or MariaDB for normal local/deployed usage
+- SQLite for a simple local setup, or a separate MySQL/MariaDB database
 - Running BBH Farm API application
 
 ## Installation
 
 From the monorepo root:
 
-```bash
+```powershell
 cd web
 composer install
 npm install
-cp .env.example .env
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 php artisan key:generate
 ```
 
-Configure at least these values in `web/.env`:
+For a local SQLite setup, set these values in `web/.env` and remove the copied `DB_DATABASE`, `DB_HOST`, `DB_PORT`, `DB_USERNAME`, and `DB_PASSWORD` lines so Laravel uses `database/database.sqlite`:
 
 ```env
 APP_ENV=local
 APP_DEBUG=true
 APP_URL=http://127.0.0.1:8001
-DB_DATABASE=bbh_farm_web
-DB_USERNAME=root
-DB_PASSWORD=
+DB_CONNECTION=sqlite
+SESSION_DRIVER=database
+CACHE_STORE=database
 BBH_API_BASE_URL=http://127.0.0.1:8000/api/v1
 ```
 
-Run local database migrations:
+Create the SQLite file only if it does not exist, then run web migrations:
 
-```bash
+```powershell
+if (-not (Test-Path database/database.sqlite)) { New-Item -ItemType File database/database.sqlite | Out-Null }
 php artisan migrate
 ```
 
+For MySQL/MariaDB instead, use `DB_CONNECTION=mysql` and configure `DB_DATABASE=bbh_farm_web`, `DB_HOST`, `DB_PORT`, `DB_USERNAME`, and `DB_PASSWORD` in `web/.env`. Create that database before migrating. The web database stores sessions and cache; livestock records live in the API database.
+
 Build frontend assets:
 
-```bash
+```powershell
 npm run build
 ```
 
 Start the web server:
 
-```bash
+```powershell
 php artisan serve --port=8001
 ```
 
@@ -77,30 +80,33 @@ Open:
 
 - Public site: `http://127.0.0.1:8001`
 - Admin login: `http://127.0.0.1:8001/login`
+- Password reset: `http://127.0.0.1:8001/lupa-kata-sandi`
+
+The API seeder creates one super admin and two admins. The two admins start with random passwords and must set their own through the email reset page. SMTP is configured in the API, not the web app; there is no SMS OTP step. See [../api/README.md](../api/README.md) for seeding details.
 
 ## Development
 
 Run the Vite dev server when actively editing CSS or JavaScript:
 
-```bash
+```powershell
 npm run dev
 ```
 
 Run tests:
 
-```bash
+```powershell
 php artisan test
 ```
 
 Check formatting:
 
-```bash
+```powershell
 vendor/bin/pint --test
 ```
 
 Apply formatting:
 
-```bash
+```powershell
 vendor/bin/pint
 ```
 
@@ -108,7 +114,7 @@ vendor/bin/pint
 
 Most admin pages require a valid API token and a reachable API service. For local development, run the API in another terminal:
 
-```bash
+```powershell
 cd ../api
 php artisan serve --port=8000
 ```
