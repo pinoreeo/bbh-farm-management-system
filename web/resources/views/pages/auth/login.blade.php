@@ -52,9 +52,6 @@
                         Lupa password?
                     </a>
 
-                    <a href="{{ route('admin-account.activate') }}" class="auth-link text-center">
-                        Sudah menerima kode SMS? Aktifkan akun
-                    </a>
                 </form>
             </div>
         </section>

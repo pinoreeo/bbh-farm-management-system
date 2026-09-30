@@ -481,18 +481,6 @@ class AdminResourceViewData
         ];
     }
 
-    /**
-     * @return array<string, int>
-     */
-    public function breedingFemaleCounts(string $token): array
-    {
-        return collect($this->items('breeding-females', $token))
-            ->filter(fn ($item) => is_array($item) && Arr::get($item, 'breeding_period_id') !== null)
-            ->countBy(fn ($item) => (string) Arr::get($item, 'breeding_period_id'))
-            ->map(fn ($count) => (int) $count)
-            ->all();
-    }
-
     private function pregnancyStatus(array $check): string
     {
         if (Arr::get($check, 'outcome_status') === 'born') {

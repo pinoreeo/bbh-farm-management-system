@@ -548,6 +548,12 @@
     visibility: hidden;
 }
 
+@media (max-width: 640px) {
+    html.has-row-actions {
+        overflow-x: clip;
+    }
+}
+
 .layout-main .admin-row-menu-panel a,
 .layout-main .admin-row-menu-action {
     align-items: center;

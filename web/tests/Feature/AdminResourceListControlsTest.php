@@ -35,7 +35,26 @@ class AdminResourceListControlsTest extends TestCase
                 return ($this->apiResponder)($request);
             }
 
-            return Http::response(['data' => $users, 'current_page' => 1, 'last_page' => 1]);
+            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+            $filtered = array_values(array_filter($users, function (array $user) use ($query) {
+                $matchesStatus = ! isset($query['account_status'])
+                    || $user['is_active'] === ($query['account_status'] === 'active');
+                $matchesSearch = ! isset($query['q'])
+                    || stripos($user['name'].' '.$user['email'], (string) $query['q']) !== false;
+
+                return $matchesStatus && $matchesSearch;
+            }));
+            if (isset($query['sort']) && ($query['direction'] ?? '') === 'desc') {
+                $filtered = array_reverse($filtered);
+            }
+            $page = max(1, (int) ($query['page'] ?? 1));
+
+            return Http::response([
+                'data' => array_slice($filtered, ($page - 1) * 10, 10),
+                'total' => count($filtered),
+                'current_page' => $page,
+                'last_page' => max(1, (int) ceil(count($filtered) / 10)),
+            ]);
         });
     }
 
@@ -83,17 +102,13 @@ class AdminResourceListControlsTest extends TestCase
             ->assertDontSee('Belum ada data yang dicatat.');
     }
 
-    public function test_global_search_reads_page_fifty_one_and_links_to_local_list_search(): void
+    public function test_global_search_uses_a_single_paginated_api_request(): void
     {
         $this->apiResponder = function (Request $request) {
-            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
-            $page = (int) ($query['page'] ?? 1);
-            $isAnimals = str_contains((string) parse_url($request->url(), PHP_URL_PATH), '/animals');
-
             return Http::response([
-                'data' => $isAnimals && $page === 51 ? [['id' => 33, 'tag_number' => 'GOAT-NEEDLE']] : [],
-                'current_page' => $page,
-                'last_page' => $isAnimals ? 51 : 1,
+                'data' => [['slug' => 'animals', 'item' => ['id' => 33, 'tag_number' => 'GOAT-NEEDLE']]],
+                'total' => 1,
+                'current_page' => 1,
             ]);
         };
 
@@ -103,23 +118,24 @@ class AdminResourceListControlsTest extends TestCase
             ->assertSee('GOAT-NEEDLE')
             ->assertSee(route('admin.animals', ['q' => 'NEEDLE']), false);
         $this->assertSame(1, $response->viewData('results')->total());
-        Http::assertSent(fn (Request $request) => str_contains($request->url(), '/animals')
-            && str_contains($request->url(), 'page=51')
-            && ! str_contains($request->url(), 'search=NEEDLE'));
+        Http::assertSent(fn (Request $request) => str_contains($request->url(), '/admin/search')
+            && str_contains($request->url(), 'q=NEEDLE'));
+        $this->assertSame(1, Http::recorded()->filter(fn ($entry) => str_contains($entry[0]->url(), '/admin/search'))->count());
     }
 
     public function test_global_search_paginates_more_than_thirty_matches(): void
     {
         $this->apiResponder = function (Request $request) {
-            $isAnimals = str_contains((string) parse_url($request->url(), PHP_URL_PATH), '/animals');
+            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+            $page = max(1, (int) ($query['page'] ?? 1));
 
             return Http::response([
-                'data' => $isAnimals ? array_map(fn (int $id) => [
-                    'id' => $id,
-                    'tag_number' => sprintf('GOAT-NEEDLE-%02d', $id),
-                ], range(1, 35)) : [],
-                'current_page' => 1,
-                'last_page' => 1,
+                'data' => array_map(fn (int $id) => [
+                    'slug' => 'animals',
+                    'item' => ['id' => $id, 'tag_number' => sprintf('GOAT-NEEDLE-%02d', $id)],
+                ], range(($page - 1) * 10 + 1, min($page * 10, 35))),
+                'total' => 35,
+                'current_page' => $page,
             ]);
         };
 

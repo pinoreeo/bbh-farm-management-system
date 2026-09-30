@@ -5,7 +5,6 @@ use App\Http\Controllers\Admin\AdminSearchController;
 use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\FarmProfileController;
-use App\Http\Controllers\AdminAccountActivationController;
 use App\Http\Controllers\AdminInvitationController;
 use App\Http\Controllers\AuthSessionController;
 use App\Http\Controllers\PublicVerificationController;
@@ -34,8 +33,6 @@ Route::middleware('public.locale')
 
 Route::get('/login', [AuthSessionController::class, 'create'])->name('login');
 Route::post('/login', [AuthSessionController::class, 'store'])->middleware('throttle:10,1')->name('login.submit');
-Route::get('/aktifkan-akun', [AdminAccountActivationController::class, 'create'])->name('admin-account.activate');
-Route::post('/aktifkan-akun', [AdminAccountActivationController::class, 'store'])->middleware('throttle:5,1')->name('admin-account.activate.submit');
 Route::get('/aktifkan-akun/{token}', [AdminInvitationController::class, 'create'])->name('admin-invitation.accept');
 Route::post('/aktifkan-akun/undangan', [AdminInvitationController::class, 'store'])->middleware('throttle:5,1')->name('admin-invitation.accept.submit');
 Route::get('/lupa-kata-sandi', [AuthSessionController::class, 'forgotPassword'])->name('password.request');

@@ -15,7 +15,11 @@ abstract class Controller extends BaseController
 
     protected function perPage(Request $request, int $default = 15, int $max = 100): int
     {
-        return max(1, min($this->intValue($request->query('per_page', $default)), $max));
+        $request->validate([
+            'per_page' => ['sometimes', 'integer', 'min:1'],
+        ]);
+
+        return min($request->integer('per_page', $default), $max);
     }
 
     /**

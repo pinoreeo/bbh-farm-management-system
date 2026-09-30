@@ -21,48 +21,44 @@ class DashboardViewData
             return $this->fallback($includeActivityLogs);
         }
 
-        $dashboardItems = $this->batchItems([
-            'animals' => 'animals',
-            'birthEvents' => 'birth-events',
-            'breedingFemales' => 'breeding-females',
-            'healthTreatments' => 'health-treatments',
-            ...($includeActivityLogs ? ['activityLogs' => 'admin-activity-logs'] : []),
-        ], $token);
+        try {
+            $response = $this->api->get('admin/dashboard-summary', [
+                'year' => $selectedBirthYear,
+            ], $token);
+        } catch (Throwable) {
+            $this->failureMessage = 'Sebagian data belum dapat ditampilkan. Silakan coba lagi.';
 
-        $animals = $dashboardItems['animals'];
-        $birthEvents = $dashboardItems['birthEvents'];
-        $breedingFemales = $dashboardItems['breedingFemales'];
-        $healthTreatments = $dashboardItems['healthTreatments'];
-        $activityLogs = $dashboardItems['activityLogs'] ?? [];
+            return array_replace($this->fallback($includeActivityLogs), ['apiFailureMessage' => $this->failureMessage]);
+        }
 
-        $aliveAnimals = array_values(array_filter($animals, fn ($animal) => $this->value($animal, 'life_status') !== 'dead'));
-        $kids = array_values(array_filter($aliveAnimals, fn ($animal) => $this->ageInMonths($animal) <= 6));
-        $youngMales = array_values(array_filter($aliveAnimals, fn ($animal) => $this->category($animal) === 'pejantan muda'));
-        $readyFemales = array_values(array_filter($aliveAnimals, fn ($animal) => $this->category($animal) === 'dere'));
-        $adultMales = array_values(array_filter($aliveAnimals, fn ($animal) => $this->category($animal) === 'pejantan dewasa'));
-        $adultFemales = array_values(array_filter($aliveAnimals, fn ($animal) => $this->category($animal) === 'betina dewasa'));
-        $totalAlive = max(1, count($aliveAnimals));
-        $pregnantAnimals = array_values(array_filter($aliveAnimals, fn ($animal) => $this->value($animal, 'reproductive_status') === 'bunting'));
+        if (! $response->successful() || ! is_array($response->json('counts'))) {
+            $this->failureMessage = 'Sebagian data belum dapat ditampilkan. Silakan coba lagi.';
+
+            return array_replace($this->fallback($includeActivityLogs), ['apiFailureMessage' => $this->failureMessage]);
+        }
+
+        $counts = $response->json('counts', []);
+        $trends = $response->json('trends', []);
+        $birthYears = $response->json('birth_years', []);
+        $selectedBirthYear = (int) $response->json('selected_birth_year', now()->year);
+        $birthChart = $response->json('birth_chart', array_fill(0, 12, 0));
+        $offspringChart = $response->json('offspring_chart', array_fill(0, 12, 0));
+        $currentYearBirthChart = $response->json('current_year_birth_chart', array_fill(0, 12, 0));
+        $breedingFemales = $response->json('breeding_females', []);
+        $healthTreatments = $response->json('health_treatments', []);
         $agenda = $this->agenda($breedingFemales, $healthTreatments);
         $priorityTasks = $this->priorityTasks($breedingFemales, $healthTreatments);
-
-        $birthYears = $this->birthYears($birthEvents);
-        $selectedBirthYear = in_array($selectedBirthYear, $birthYears, true)
-            ? $selectedBirthYear
-            : ($birthYears[0] ?? (int) now()->format('Y'));
-        $birthChart = $this->birthChart($birthEvents, $selectedBirthYear);
-        $offspringChart = $this->offspringChart($birthEvents, $selectedBirthYear);
-        $currentYearBirthChart = $this->birthChart($birthEvents, (int) now()->format('Y'));
+        $totalAlive = max(1, (int) ($counts['all'] ?? 0));
 
         return [
             'stats' => [
-                ['label' => 'Total Kambing', 'value' => (string) count($animals), 'note' => count($aliveAnimals).' kambing tercatat hidup.', 'tone' => 'green', 'icon' => 'goat', 'trend' => $this->animalTrend($animals, null, $selectedBirthYear)],
-                ['label' => 'Jantan Dewasa', 'value' => (string) count($adultMales), 'note' => 'Jantan dewasa yang tercatat.', 'tone' => 'blue', 'icon' => 'goat', 'trend' => $this->animalTrend($adultMales, null, $selectedBirthYear)],
-                ['label' => 'Betina Dewasa', 'value' => (string) count($adultFemales), 'note' => 'Betina dewasa yang tercatat.', 'tone' => 'green', 'icon' => 'female', 'trend' => $this->animalTrend($adultFemales, null, $selectedBirthYear)],
-                ['label' => 'Pejantan Muda', 'value' => (string) count($youngMales), 'note' => 'Jantan muda yang tercatat.', 'tone' => 'blue', 'icon' => 'goat', 'trend' => $this->animalTrend($youngMales, null, $selectedBirthYear)],
-                ['label' => 'Dere', 'value' => (string) count($readyFemales), 'note' => 'Betina muda yang tercatat.', 'tone' => 'yellow', 'icon' => 'female', 'trend' => $this->animalTrend($readyFemales, null, $selectedBirthYear)],
-                ['label' => 'Cempe', 'value' => (string) count($kids), 'note' => 'Usia sampai 6 bulan berdasarkan tanggal lahir.', 'tone' => 'orange', 'icon' => 'baby', 'trend' => $this->animalTrend($kids, null, $selectedBirthYear)],
-                ['label' => 'Betina Bunting', 'value' => (string) count($pregnantAnimals), 'note' => $this->percent(count($pregnantAnimals), $totalAlive).' dari kambing yang tercatat hidup.', 'tone' => 'green', 'icon' => 'pregnancy', 'trend' => $this->animalTrend($pregnantAnimals, 'status_date', $selectedBirthYear)],
+                ['label' => 'Total Kambing', 'value' => (string) $response->json('total_animals', 0), 'note' => ($counts['all'] ?? 0).' kambing tercatat hidup.', 'tone' => 'green', 'icon' => 'goat', 'trend' => $trends['all'] ?? []],
+                ['label' => 'Jantan Dewasa', 'value' => (string) ($counts['adultMales'] ?? 0), 'note' => 'Jantan dewasa yang tercatat.', 'tone' => 'blue', 'icon' => 'goat', 'trend' => $trends['adultMales'] ?? []],
+                ['label' => 'Betina Dewasa', 'value' => (string) ($counts['adultFemales'] ?? 0), 'note' => 'Betina dewasa yang tercatat.', 'tone' => 'green', 'icon' => 'female', 'trend' => $trends['adultFemales'] ?? []],
+                ['label' => 'Pejantan Muda', 'value' => (string) ($counts['youngMales'] ?? 0), 'note' => 'Jantan muda yang tercatat.', 'tone' => 'blue', 'icon' => 'goat', 'trend' => $trends['youngMales'] ?? []],
+                ['label' => 'Dere', 'value' => (string) ($counts['readyFemales'] ?? 0), 'note' => 'Betina muda yang tercatat.', 'tone' => 'yellow', 'icon' => 'female', 'trend' => $trends['readyFemales'] ?? []],
+                ['label' => 'Cempe', 'value' => (string) ($counts['kids'] ?? 0), 'note' => 'Usia sampai 6 bulan berdasarkan tanggal lahir.', 'tone' => 'orange', 'icon' => 'baby', 'trend' => $trends['kids'] ?? []],
+                ['label' => 'Betina Bunting', 'value' => (string) ($counts['pregnant'] ?? 0), 'note' => $this->percent((int) ($counts['pregnant'] ?? 0), $totalAlive).' dari kambing yang tercatat hidup.', 'tone' => 'green', 'icon' => 'pregnancy', 'trend' => $trends['pregnant'] ?? []],
                 ['label' => 'Kelahiran Tahun Ini', 'value' => (string) array_sum($currentYearBirthChart), 'note' => 'Jumlah kelahiran yang dicatat tahun ini.', 'tone' => 'orange', 'icon' => 'birth', 'trend' => $currentYearBirthChart],
             ],
             'birthYears' => $birthYears,
@@ -70,94 +66,20 @@ class DashboardViewData
             'birthChart' => $birthChart,
             'offspringChart' => $offspringChart,
             'offspringChartSvg' => $this->chartPaths($offspringChart, 82, 850, 42, 304),
-            'activities' => $this->activities($activityLogs),
+            'activities' => $this->activities($response->json('activities', [])),
             'showActivities' => $includeActivityLogs,
             'agenda' => $agenda,
             'priorityTasks' => $priorityTasks,
             'todayAgenda' => array_values(array_filter($agenda, fn ($item) => $item['date'] === now()->toDateString())),
-            'latestAnimals' => array_slice(array_map(fn ($animal) => [
+            'latestAnimals' => array_map(fn ($animal) => [
                 $this->value($animal, 'tag_number'),
                 $this->value($animal, 'breed.breed_name'),
                 $this->sex($this->value($animal, 'sex')),
                 $this->status($this->value($animal, 'life_status')),
                 substr($this->value($animal, 'updated_at'), 0, 10),
-            ], $animals), 0, 5),
+            ], $response->json('latest_animals', [])),
             'apiFailureMessage' => $this->failureMessage,
         ];
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function items(string $endpoint, string $token): array
-    {
-        try {
-            $result = $this->api->paginatedData($endpoint, [], $token);
-        } catch (Throwable) {
-            $this->failureMessage ??= 'Sebagian data belum dapat ditampilkan. Silakan coba lagi.';
-
-            return [];
-        }
-
-        $response = $result['response'];
-        if (! $result['ok'] && $response !== null) {
-            $this->setFailureMessageFromResponse($response);
-
-            return [];
-        }
-
-        return $result['data'];
-    }
-
-    /**
-     * @param  array<string, string>  $endpoints
-     * @return array<string, array<int, array<string, mixed>>>
-     */
-    private function batchItems(array $endpoints, string $token): array
-    {
-        $items = array_fill_keys(array_keys($endpoints), []);
-        $requests = [];
-
-        foreach ($endpoints as $key => $endpoint) {
-            $requests[$key] = ['path' => $endpoint];
-        }
-
-        try {
-            $results = $this->api->paginatedBatchData($requests, $token, PHP_INT_MAX);
-        } catch (Throwable) {
-            $this->failureMessage ??= 'Sebagian data belum dapat ditampilkan. Silakan coba lagi.';
-
-            return $items;
-        }
-
-        foreach ($results as $key => $result) {
-            $response = $result['response'];
-
-            if (! $result['ok'] && $response !== null) {
-                $this->setFailureMessageFromResponse($response);
-
-                continue;
-            }
-
-            if ($result['truncated']) {
-                $this->failureMessage ??= 'Sebagian data dashboard belum termuat. Silakan coba lagi.';
-            }
-
-            $items[$key] = $result['data'];
-        }
-
-        return $items;
-    }
-
-    private function setFailureMessageFromResponse($response): void
-    {
-        $message = $response->json('message');
-        $this->failureMessage ??= match (true) {
-            $response->status() === 401 => 'Sesi Berakhir: Silakan masuk kembali sebelum melihat dashboard.',
-            $response->status() === 403 => is_string($message) && $message !== '' ? $message : 'Gagal: Akun Anda tidak memiliki izin untuk melihat sebagian data dashboard.',
-            $response->serverError() => 'Sebagian data belum dapat ditampilkan. Silakan coba lagi.',
-            default => is_string($message) && $message !== '' ? $message : 'Sebagian data belum dapat ditampilkan. Silakan coba lagi.',
-        };
     }
 
     /**
@@ -297,94 +219,6 @@ class DashboardViewData
         usort($items, fn ($a, $b) => strcmp($a['date'], $b['date']));
 
         return array_slice($items, 0, 12);
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $birthEvents
-     * @return array<int, int>
-     */
-    private function birthYears(array $birthEvents): array
-    {
-        $years = array_values(array_unique(array_filter(array_map(
-            fn ($event) => (int) substr($this->value($event, 'birth_date'), 0, 4),
-            $birthEvents
-        ))));
-        rsort($years);
-
-        return $years !== [] ? $years : [(int) now()->format('Y')];
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $birthEvents
-     * @return array<int, int>
-     */
-    private function birthChart(array $birthEvents, ?int $year = null): array
-    {
-        $counts = array_fill(1, 12, 0);
-
-        foreach ($birthEvents as $event) {
-            if ($year !== null && (int) substr($this->value($event, 'birth_date'), 0, 4) !== $year) {
-                continue;
-            }
-
-            $month = (int) substr($this->value($event, 'birth_date'), 5, 2);
-            if ($month >= 1 && $month <= 12) {
-                $counts[$month]++;
-            }
-        }
-
-        return array_values($counts);
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $birthEvents
-     * @return array<int, int>
-     */
-    private function offspringChart(array $birthEvents, ?int $year = null): array
-    {
-        $counts = array_fill(1, 12, 0);
-
-        foreach ($birthEvents as $event) {
-            if ($year !== null && (int) substr($this->value($event, 'birth_date'), 0, 4) !== $year) {
-                continue;
-            }
-
-            $month = (int) substr($this->value($event, 'birth_date'), 5, 2);
-            if ($month >= 1 && $month <= 12) {
-                $offspring = (int) $this->value($event, 'offspring_count');
-                $counts[$month] += max(1, $offspring);
-            }
-        }
-
-        return array_values($counts);
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $animals
-     * @return array<int, int>
-     */
-    private function animalTrend(array $animals, ?string $dateKey, int $year): array
-    {
-        $counts = array_fill(1, 12, 0);
-        $dateKey ??= 'birth_date';
-
-        foreach ($animals as $animal) {
-            $date = $this->value($animal, $dateKey);
-            if ($date === '-' || (int) substr($date, 0, 4) !== $year) {
-                continue;
-            }
-
-            $month = (int) substr($date, 5, 2);
-            if ($month >= 1 && $month <= 12) {
-                $counts[$month]++;
-            }
-        }
-
-        if (array_sum($counts) === 0) {
-            return array_fill(0, 12, 0);
-        }
-
-        return array_values($counts);
     }
 
     /**
@@ -635,28 +469,6 @@ class DashboardViewData
     private function percent(int $value, int $total): string
     {
         return round(($value / max(1, $total)) * 100).'%';
-    }
-
-    /**
-     * @param  array<string, mixed>  $item
-     */
-    private function category(array $item): string
-    {
-        return strtolower($this->value($item, 'kategori_umur'));
-    }
-
-    /**
-     * @param  array<string, mixed>  $item
-     */
-    private function ageInMonths(array $item): int
-    {
-        $birthDate = $this->value($item, 'birth_date');
-
-        if ($birthDate === '-') {
-            return PHP_INT_MAX;
-        }
-
-        return (int) Carbon::parse($birthDate)->diffInMonths(now());
     }
 
     /**

@@ -18,6 +18,12 @@ class PublicRouteTest extends TestCase
         $this->get('/')->assertRedirect('/id-id');
     }
 
+    public function test_login_only_offers_email_invitation_activation(): void
+    {
+        $this->get('/login')->assertOk()->assertDontSee('kode SMS')->assertDontSee('/aktifkan-akun"', false);
+        $this->get('/aktifkan-akun')->assertNotFound();
+    }
+
     public function test_public_home_page_renders(): void
     {
         $this->get('/id-id')->assertOk();

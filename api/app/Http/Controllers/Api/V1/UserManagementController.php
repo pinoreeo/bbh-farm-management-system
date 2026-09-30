@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\User\StoreUserRequest;
 use App\Http\Requests\Api\V1\User\UpdateUserRequest;
+use App\Models\AdminInvitation;
 use App\Models\User;
 use App\Services\AdminInvitationService;
 use App\Services\AuthService;
@@ -123,6 +124,7 @@ class UserManagementController extends Controller
                 }
 
                 $user->tokens()->delete();
+                AdminInvitation::query()->where('user_id', $user->id)->delete();
             }
 
             $user->fill($data)->save();

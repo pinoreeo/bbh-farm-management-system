@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Support\DashboardViewData;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class DashboardPresentationTest extends TestCase
@@ -64,6 +66,31 @@ class DashboardPresentationTest extends TestCase
         $this->assertStringContainsString('Aktivitas Terbaru', $html);
         $this->assertStringContainsString('Belum ada aktivitas yang dicatat.', $html);
         $this->assertStringContainsString('Belum ada data kambing yang dicatat.', $html);
+    }
+
+    public function test_dashboard_reads_one_bounded_summary_response(): void
+    {
+        Http::fake(['*' => Http::response([
+            'total_animals' => 2,
+            'counts' => ['all' => 2, 'adultFemales' => 2, 'pregnant' => 1],
+            'trends' => ['all' => array_fill(0, 12, 0)],
+            'birth_years' => [2026],
+            'selected_birth_year' => 2026,
+            'birth_chart' => array_fill(0, 12, 0),
+            'offspring_chart' => array_fill(0, 12, 0),
+            'current_year_birth_chart' => array_fill(0, 12, 0),
+            'breeding_females' => [],
+            'health_treatments' => [],
+            'activities' => [],
+            'latest_animals' => [],
+        ])]);
+
+        $dashboard = app(DashboardViewData::class)->data('token', 2026);
+
+        $this->assertSame('2', $dashboard['stats'][0]['value']);
+        $this->assertSame('1', $dashboard['stats'][6]['value']);
+        Http::assertSentCount(1);
+        Http::assertSent(fn (Request $request) => str_contains($request->url(), '/admin/dashboard-summary'));
     }
 
     private function dashboard(array $overrides = []): array

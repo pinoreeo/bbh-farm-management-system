@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use Illuminate\Http\Client\Response;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Throwable;
@@ -23,6 +24,55 @@ class AdminTableViewData
     public function isTruncated(): bool
     {
         return $this->truncated;
+    }
+
+    /**
+     * @return array{records:LengthAwarePaginator,filterYears:array<int,int>,filterMonths:array<int,int>}
+     */
+    public function browse(string $slug, ?string $token): array
+    {
+        $empty = new LengthAwarePaginator([], 0, 10, max(1, request()->integer('page', 1)), [
+            'path' => request()->url(), 'query' => request()->except('page'),
+        ]);
+
+        if (! is_string($token) || $token === '') {
+            return ['records' => $empty, 'filterYears' => [], 'filterMonths' => []];
+        }
+
+        try {
+            $response = $this->api->get('admin/browse/'.$slug, request()->only([
+                'q', 'sort', 'direction', 'page', 'account_status', 'date_from', 'date_to',
+                'year', 'month', 'sex', 'life_status', 'exit_status', 'colony_phase',
+            ]), $token);
+        } catch (Throwable) {
+            $this->failureMessage = 'Data belum dapat ditampilkan. Silakan coba lagi.';
+
+            return ['records' => $empty, 'filterYears' => [], 'filterMonths' => []];
+        }
+
+        if (! $response->successful() || ! is_array($response->json('data'))) {
+            $this->failureMessage = $this->apiFailureMessage($response);
+
+            return ['records' => $empty, 'filterYears' => [], 'filterMonths' => []];
+        }
+
+        $records = array_map(
+            fn (array $item) => $this->recordFromItem($slug, $item),
+            array_filter($response->json('data'), 'is_array')
+        );
+        $paginator = new LengthAwarePaginator(
+            array_values($records),
+            (int) $response->json('total', count($records)),
+            10,
+            (int) $response->json('current_page', 1),
+            ['path' => request()->url(), 'query' => request()->except('page')]
+        );
+
+        return [
+            'records' => $paginator,
+            'filterYears' => $response->json('filter_years', []),
+            'filterMonths' => $response->json('filter_months', []),
+        ];
     }
 
     /**

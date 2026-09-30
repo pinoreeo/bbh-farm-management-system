@@ -1,8 +1,9 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AdminActivityLogController;
+use App\Http\Controllers\Api\V1\AdminBrowseController;
+use App\Http\Controllers\Api\V1\AdminDashboardSummaryController;
 use App\Http\Controllers\Api\V1\AdminInvitationController;
-use App\Http\Controllers\Api\V1\AdminAccountActivationController;
 use App\Http\Controllers\Api\V1\AnimalController;
 use App\Http\Controllers\Api\V1\AnimalPenMovementController;
 use App\Http\Controllers\Api\V1\AuthController;
@@ -54,8 +55,6 @@ Route::prefix('v1')->group(function () {
     Route::prefix('public')->group(function () {
         Route::post('admin-invitations/accept', [AdminInvitationController::class, 'accept'])
             ->middleware('throttle:5,1');
-        Route::post('admin-account/activate', [AdminAccountActivationController::class, 'activate'])
-            ->middleware('throttle:5,1');
         Route::post('certificates/verify', [CertificateVerificationController::class, 'verify'])
             ->middleware('throttle:30,1');
         Route::post('certificates/verify-pdf', [CertificateVerificationController::class, 'verifyPdf'])
@@ -68,6 +67,10 @@ Route::prefix('v1')->group(function () {
 
     // Admin
     Route::middleware(['auth:sanctum', IsAdmin::class, 'adminActivity'])->group(function () {
+
+        Route::get('admin/browse/{resource}', [AdminBrowseController::class, 'index']);
+        Route::get('admin/search', [AdminBrowseController::class, 'search']);
+        Route::get('admin/dashboard-summary', AdminDashboardSummaryController::class);
 
         Route::get('farm', [FarmProfileController::class, 'show'])->middleware(IsSuperAdmin::class);
         Route::put('farm', [FarmProfileController::class, 'update'])->middleware(IsSuperAdmin::class);

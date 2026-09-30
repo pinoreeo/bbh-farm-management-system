@@ -10,6 +10,33 @@ use Tests\Feature\Support\ApiTestCase;
 
 class AdminAccountActivationTest extends ApiTestCase
 {
+    public function test_disabling_a_pending_admin_revokes_the_invitation(): void
+    {
+        Mail::fake();
+        $this->actingAsAdmin();
+
+        $this->postJson('/api/v1/users', [
+            'name' => 'Admin Lapangan',
+            'email' => 'lapangan@bbhfarm.test',
+        ])->assertCreated();
+
+        $user = User::query()->where('email', 'lapangan@bbhfarm.test')->firstOrFail();
+        $invitation = AdminInvitation::query()->where('user_id', $user->id)->firstOrFail();
+        $invitation->update(['token_hash' => Hash::make('undangan-rahasia')]);
+
+        $this->putJson('/api/v1/users/'.$user->id, ['is_active' => false])->assertOk();
+        $this->assertDatabaseMissing('sys_admin_invitations', ['user_id' => $user->id]);
+
+        $this->postJson('/api/v1/public/admin-invitations/accept', [
+            'email' => $user->email,
+            'token' => 'undangan-rahasia',
+            'password' => 'password-admin',
+            'password_confirmation' => 'password-admin',
+        ])->assertUnprocessable();
+
+        $this->assertFalse($user->fresh()->is_active);
+    }
+
     public function test_super_admin_creates_an_admin_that_activates_after_accepting_email_invitation(): void
     {
         Mail::fake();

@@ -4,123 +4,92 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Support\AdminTableViewData;
+use App\Support\BbhApiClient;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Throwable;
 
 class AdminSearchController extends Controller
 {
-    public function __invoke(Request $request, AdminTableViewData $tableData)
+    public function __invoke(Request $request, AdminTableViewData $tableData, BbhApiClient $api)
     {
         $query = trim((string) $request->query('q', ''));
-        $results = $query === '' ? [] : $this->searchData($query, $tableData);
-        $page = min(max(1, (int) $request->query('page', 1)), max(1, (int) ceil(count($results) / 10)));
-        $results = new LengthAwarePaginator(
-            array_slice($results, ($page - 1) * 10, 10),
-            count($results),
-            10,
-            $page,
-            ['path' => $request->url(), 'query' => $request->query()]
-        );
+        $page = max(1, $request->integer('page', 1));
+        $matches = [];
+        $total = 0;
+        $failureMessage = null;
+
+        if ($query !== '') {
+            try {
+                $response = $api->get('admin/search', ['q' => $query, 'page' => $page], session('bbh_api_token'));
+                if (! $response->successful() || ! is_array($response->json('data'))) {
+                    $failureMessage = 'Pencarian belum dapat dilakukan. Silakan coba lagi.';
+                } else {
+                    $total = (int) $response->json('total', 0);
+                    foreach ($response->json('data') as $entry) {
+                        if (! is_array($entry) || ! is_array($entry['item'] ?? null)) {
+                            continue;
+                        }
+                        $slug = $entry['slug'] ?? null;
+                        $pageConfig = is_string($slug) ? config('admin.pages.'.$slug) : null;
+                        if (! is_array($pageConfig)) {
+                            continue;
+                        }
+                        $matches[] = $this->match($slug, $pageConfig, $entry['item'], $query, $tableData);
+                    }
+                }
+            } catch (Throwable) {
+                $failureMessage = 'Pencarian belum dapat dilakukan. Silakan coba lagi.';
+            }
+        }
+
+        $results = new LengthAwarePaginator($matches, $total, 10, $page, [
+            'path' => $request->url(), 'query' => $request->except('page'),
+        ]);
 
         return view('pages.admin.search', [
             'query' => $query,
             'results' => $results,
-            'failureMessage' => $tableData->failureMessage(),
-            'dataTruncated' => $tableData->isTruncated(),
+            'failureMessage' => $failureMessage,
+            'dataTruncated' => false,
         ]);
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * @param array<int, mixed> $pageConfig
+     * @param array<string, mixed> $item
+     * @return array<string, mixed>
      */
-    private function searchData(string $query, AdminTableViewData $tableData): array
+    private function match(string $slug, array $pageConfig, array $item, string $query, AdminTableViewData $tableData): array
     {
-        $normalizedQuery = mb_strtolower($query);
-        $terms = collect(preg_split('/\s+/', $normalizedQuery) ?: [])
-            ->filter()
-            ->values();
-        $pages = $this->searchableSlugs();
-        $recordsBySlug = $tableData->recordsBatch(
-            collect($pages)->map(fn (array $page) => $page[3] ?? [])->all(),
-            session('bbh_api_token')
-        );
-
-        return collect($pages)
-            ->flatMap(function (array $page, string $slug) use ($query, $terms, $recordsBySlug) {
-                [$title, $description, $columns, $fallbackRows] = array_pad($page, 4, []);
-
-                return collect($recordsBySlug[$slug] ?? [])
-                    ->map(function (array $record) use ($slug, $title, $description, $columns, $query, $terms) {
-                        $cells = $record['cells'] ?? [];
-                        $fields = collect($cells)->map(fn ($value, int $index) => [
-                            'label' => $columns[$index] ?? 'Data',
-                            'value' => (string) $value,
-                        ]);
-                        if ($slug === 'users' && ! empty(data_get($record, 'raw.email'))) {
-                            $fields->push(['label' => 'Email', 'value' => (string) data_get($record, 'raw.email')]);
-                        }
-                        $haystack = mb_strtolower($fields->pluck('value')->implode(' '));
-                        $score = $terms->sum(fn (string $term) => str_contains($haystack, $term) ? 1 : 0);
-
-                        if ($score === 0) {
-                            return null;
-                        }
-
-                        $matchedFields = $fields
-                            ->filter(fn (array $field) => $terms->contains(fn (string $term) => str_contains(mb_strtolower($field['value']), $term)))
-                            ->take(3)
-                            ->values()
-                            ->all();
-
-                        return [
-                            'title' => $title,
-                            'description' => $description,
-                            'slug' => $slug,
-                            'id' => $record['id'] ?? null,
-                            'primary' => $cells[0] ?? $title,
-                            'secondary' => collect($cells)->skip(1)->take(3)->filter()->implode(' | '),
-                            'matchedFields' => $matchedFields,
-                            'score' => $score,
-                            'listRoute' => route('admin.'.$slug, ['q' => $query]),
-                            'detailRoute' => $slug === 'animals' && ! empty(data_get($record, 'raw.tag_number'))
-                                ? route('admin.animals.show', ['tag' => data_get($record, 'raw.tag_number')])
-                                : (! empty($record['id']) ? route('admin.resource.show', ['resource' => $slug, 'id' => $record['id']]) : route('admin.'.$slug, ['q' => $query])),
-                        ];
-                    })
-                    ->filter();
-            })
-            ->sortByDesc('score')
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return array<string, array<int, mixed>>
-     */
-    private function searchableSlugs(): array
-    {
-        $pages = config('admin.pages', []);
-        $slugs = [
-            'animals',
-            'pens',
-            'breeding-periods',
-            'breeding-females',
-            'birth-events',
-            'offspring-births',
-            'weight-records',
-            'health-treatments',
-            'vaccinations',
-            'certificates',
-        ];
-
-        if ((session('bbh_admin_user.role') ?? null) === 'super_admin') {
-            $slugs[] = 'users';
-            $slugs[] = 'rsa-keys';
+        [$title, $description, $columns] = array_pad($pageConfig, 3, []);
+        $record = $tableData->recordFromItem($slug, $item);
+        $cells = $record['cells'];
+        $terms = collect(preg_split('/\s+/', mb_strtolower($query)) ?: [])->filter()->values();
+        $fields = collect($cells)->map(fn ($value, $index) => [
+            'label' => $columns[$index] ?? 'Data', 'value' => (string) $value,
+        ]);
+        if ($slug === 'users' && ! empty($item['email'])) {
+            $fields->push(['label' => 'Email', 'value' => (string) $item['email']]);
         }
+        $haystack = mb_strtolower($fields->pluck('value')->implode(' '));
+        $matchedFields = $fields
+            ->filter(fn (array $field) => $terms->contains(fn (string $term) => str_contains(mb_strtolower($field['value']), $term)))
+            ->take(3)->values()->all();
 
-        return collect($slugs)
-            ->filter(fn (string $slug) => isset($pages[$slug]))
-            ->mapWithKeys(fn (string $slug) => [$slug => $pages[$slug]])
-            ->all();
+        return [
+            'title' => $title,
+            'description' => $description,
+            'slug' => $slug,
+            'id' => $record['id'],
+            'primary' => $cells[0] ?? $title,
+            'secondary' => collect($cells)->skip(1)->take(3)->filter()->implode(' | '),
+            'matchedFields' => $matchedFields,
+            'score' => $terms->sum(fn (string $term) => str_contains($haystack, $term) ? 1 : 0),
+            'listRoute' => route('admin.'.$slug, ['q' => $query]),
+            'detailRoute' => $slug === 'animals' && ! empty($item['tag_number'])
+                ? route('admin.animals.show', ['tag' => $item['tag_number']])
+                : route('admin.resource.show', ['resource' => $slug, 'id' => $record['id']]),
+        ];
     }
 }

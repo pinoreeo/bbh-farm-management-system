@@ -8,27 +8,21 @@ use App\Support\AdminResourceViewData;
 use App\Support\AdminTableViewData;
 use App\Support\BbhApiClient;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
 class AdminResourceController extends Controller
 {
-    public function index(Request $request, string $resource, AdminTableViewData $pageData, AdminResourceViewData $resources)
+    public function index(Request $request, string $resource, AdminTableViewData $pageData)
     {
-        [$title, $subtitle, $columns, $rows] = $this->page($resource);
-        $records = $pageData->records($resource, $rows, session('bbh_api_token'));
-        $filterYears = [];
-        $filterMonths = [];
-
-        if (in_array($resource, ['certificate-logs', 'activity-logs'], true)) {
-            [$records, $filterYears, $filterMonths] = $this->filterLogRecords($records);
-        }
-
-        $records = $this->filterAndSortRecords($records, $request, $resource, $columns);
-        $records = $this->paginateRecords($records, $request);
+        [$title, $subtitle, $columns] = $this->page($resource);
+        $listing = $pageData->browse($resource, session('bbh_api_token'));
+        $records = $listing['records'];
+        $filterYears = $listing['filterYears'];
+        $filterMonths = $listing['filterMonths'];
         $periodFemaleCounts = $resource === 'breeding-periods'
-            ? $resources->breedingFemaleCounts($this->token())
+            ? collect($records->items())->mapWithKeys(fn ($record) => [
+                (string) $record['id'] => (int) data_get($record, 'raw.females_count', 0),
+            ])->all()
             : [];
 
         if ($resource === 'rsa-keys') {
@@ -526,109 +520,4 @@ class AdminResourceController extends Controller
         return is_string($message) ? $message : $fallback;
     }
 
-    private function filterLogRecords(array $records): array
-    {
-        $dates = collect($records)
-            ->map(fn ($record) => $record['raw']['verification_time'] ?? $record['raw']['created_at'] ?? null)
-            ->filter()
-            ->map(fn ($date) => Carbon::parse($date));
-
-        $filterYears = $dates->map(fn (Carbon $date) => $date->year)->unique()->sortDesc()->values()->all();
-        $selectedYear = request('year') ?: ($filterYears[0] ?? null);
-        $filterMonths = $dates
-            ->filter(fn (Carbon $date) => $selectedYear === null || $date->year === (int) $selectedYear)
-            ->map(fn (Carbon $date) => $date->month)
-            ->unique()
-            ->sort()
-            ->values()
-            ->all();
-
-        $selectedMonth = request('month');
-        $records = collect($records)
-            ->filter(function ($record) use ($selectedYear, $selectedMonth) {
-                $dateValue = $record['raw']['verification_time'] ?? $record['raw']['created_at'] ?? null;
-                if (! $dateValue) {
-                    return true;
-                }
-
-                $date = Carbon::parse($dateValue);
-
-                return ($selectedYear === null || $date->year === (int) $selectedYear)
-                    && ($selectedMonth === null || $selectedMonth === '' || $date->month === (int) $selectedMonth);
-            })
-            ->values()
-            ->all();
-
-        return [$records, $filterYears, $filterMonths];
-    }
-
-    /**
-     * @param  array<int, array{id:int, cells:array<int, string>, raw:array<string, mixed>}>  $records
-     * @param  array<int, string>  $columns
-     * @return array<int, array{id:int, cells:array<int, string>, raw:array<string, mixed>}>
-     */
-    private function filterAndSortRecords(array $records, Request $request, string $resource, array $columns): array
-    {
-        $query = $request->query('q', '');
-        $keyword = is_string($query) ? trim($query) : '';
-        $accountStatus = $resource === 'users' ? $request->query('account_status') : null;
-
-        if ($keyword !== '' || in_array($accountStatus, ['active', 'inactive'], true)) {
-            $records = array_values(array_filter($records, function (array $record) use ($keyword, $accountStatus): bool {
-                if (in_array($accountStatus, ['active', 'inactive'], true)
-                    && ((bool) data_get($record, 'raw.is_active', true)) !== ($accountStatus === 'active')) {
-                    return false;
-                }
-
-                $searchable = implode(' ', $record['cells']);
-                $searchable .= ' '.(string) data_get($record, 'raw.email', '');
-
-                return $keyword === '' || mb_stripos($searchable, $keyword) !== false;
-            }));
-        }
-
-        $sort = filter_var($request->query('sort'), FILTER_VALIDATE_INT);
-        $direction = $request->query('direction') === 'desc' ? -1 : 1;
-
-        if ($sort !== false && $sort !== null && $sort >= 0 && $sort < count($columns)) {
-            usort($records, function (array $first, array $second) use ($sort, $direction): int {
-                $left = trim((string) ($first['cells'][$sort] ?? ''));
-                $right = trim((string) ($second['cells'][$sort] ?? ''));
-
-                if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $left) && preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $right)) {
-                    $left = substr($left, 6, 4).substr($left, 3, 2).substr($left, 0, 2);
-                    $right = substr($right, 6, 4).substr($right, 3, 2).substr($right, 0, 2);
-                }
-
-                $comparison = is_numeric($left) && is_numeric($right)
-                    ? (float) $left <=> (float) $right
-                    : strnatcasecmp($left, $right);
-
-                return $direction * $comparison;
-            });
-        }
-
-        return $records;
-    }
-
-    /**
-     * @param  array<int, array{id:int, cells:array<int, string>, raw:array<string, mixed>}>  $records
-     */
-    private function paginateRecords(array $records, Request $request): LengthAwarePaginator
-    {
-        $perPage = 10;
-        $total = count($records);
-        $lastPage = max(1, (int) ceil($total / $perPage));
-        $page = min(max(1, LengthAwarePaginator::resolveCurrentPage('page')), $lastPage);
-        $query = $request->query();
-        unset($query['page']);
-
-        return new LengthAwarePaginator(
-            array_slice($records, ($page - 1) * $perPage, $perPage),
-            $total,
-            $perPage,
-            $page,
-            ['path' => $request->url(), 'query' => $query]
-        );
-    }
 }
